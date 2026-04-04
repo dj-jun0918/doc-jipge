@@ -1,0 +1,59 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - attachments:/app/attachments
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build: ./backend
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - attachments:/app/attachments
+
+  # frontend:
+  #   build: ./frontend
+  #   ports: ["3000:3000"]
+  #   depends_on: [backend]
+  #   restart: unless-stopped
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    volumes: [pgdata:/var/lib/postgresql/data]
+    environment:
+      POSTGRES_DB: docjipge
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["6379:6379"]
+
+volumes:
+  pgdata:
+  attachments:
