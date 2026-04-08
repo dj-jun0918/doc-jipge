@@ -2,9 +2,12 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# LibreOffice + H2Orestart 확장 (HWP/HWPX → PDF 변환)
+# LibreOffice + Java + libreoffice-java-common (LibreOffice↔Java 브릿지)
+# H2Orestart는 Java로 작성된 LibreOffice 확장이라 Java 브릿지가 필수
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
+    libreoffice-java-common \
+    default-jre-headless \
     wget \
     unzip \
     curl \
