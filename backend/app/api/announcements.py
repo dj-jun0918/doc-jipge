@@ -1,27 +1,34 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.announcement import Announcement
 
 router = APIRouter()
 
-
 @router.get("/")
-def list_announcements(source: str | None = None, region: str | None = None, db: Session = Depends(get_db)):
-    """공고 목록 조회 (필터: source, region)"""
-    # TODO: 구현
-    return {"items": [], "total": 0}
+def list_announcements(
+    source: str | None = Query(None, description="bizinfo/kstartup/mss"),
+    region: str | None = Query(None),
+    limit: int = Query(20, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Announcement).where(Announcement.duplicate_of.is_(None))
+    if source:
+        stmt = stmt.where(Announcement.source == source)
+    if region:
+        stmt = stmt.where(Announcement.region == region)
 
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    items = db.scalars(stmt.offset(offset).limit(limit)).all()
+
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 @router.get("/{announcement_id}")
 def get_announcement(announcement_id: str, db: Session = Depends(get_db)):
-    """공고 상세 조회"""
-    # TODO: 구현
-    return {}
-
-
-@router.post("/collect")
-def trigger_collect(db: Session = Depends(get_db)):
-    """3소스 수집 트리거 (Celery 태스크)"""
-    # TODO: Celery 태스크 호출
-    return {"message": "수집 작업이 시작되었습니다."}
+    ann = db.get(Announcement, announcement_id)
+    if not ann:
+        raise HTTPException(status_code=404, detail="공고를 찾을 수 없습니다")
+    return ann
