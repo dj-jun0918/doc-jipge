@@ -2,6 +2,7 @@
 
 import re
 from typing import Any
+from urllib.parse import urlparse, unquote, parse_qs
 
 import httpx
 
@@ -33,26 +34,52 @@ class BizinfoCollector(BaseCollector):
     def normalize(self, raw: dict) -> dict:
         """원본 응답 → 통합 스키마 변환."""
 
-        # 첨부파일 파싱 — flpthNm 필드가 @ 구분자로 URL 여러 개 연결
+        # 첨부파일 파싱 — flpthNm(URL), fileNm(파일명) 모두 @ 구분자로 연결
         attachments = []
         flpth = raw.get("flpthNm", "")
-        if flpth:
-            for url in flpth.split("@"):
-                url = url.strip()
-                if not url:
-                    continue
-                file_name = raw.get("fileNm", url.split("/")[-1])
-                ext = file_name.split(".")[-1].lower() if "." in file_name else "unknown"
-                attachments.append({
-                    "file_name": file_name,
-                    "file_type": ext,
-                    "download_url": url,
-                })
+        file_names_raw = raw.get("fileNm", "")
+        urls = [u.strip() for u in flpth.split("@") if u.strip()] if flpth else []
+        names = [n.strip() for n in file_names_raw.split("@") if n.strip()] if file_names_raw else []
+
+        for idx, url in enumerate(urls):
+            # fileNm에서 같은 인덱스의 이름이 있으면 사용, 없으면 URL 파싱 fallback
+            if idx < len(names) and names[idx]:
+                file_name = names[idx]
+                ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else "unknown"
+            else:
+                parsed = urlparse(url)
+                path_name = unquote(parsed.path.split("/")[-1])
+                if path_name.endswith(".do") or not path_name or "." not in path_name:
+                    qs = parse_qs(parsed.query)
+                    atch_id = qs.get("atchFileId", [""])[0]
+                    file_sn = qs.get("fileSn", [str(idx)])[0]
+                    file_name = f"{atch_id}_{file_sn}" if atch_id else f"attachment_{idx}"
+                    ext = "unknown"
+                else:
+                    file_name = path_name
+                    ext = file_name.rsplit(".", 1)[-1].lower()
+
+            attachments.append({
+                "file_name": file_name,
+                "file_type": ext,
+                "download_url": url,
+            })
 
         # 지역명: API에 별도 필드 없어서 제목의 [지역] 패턴에서 추출
         title = raw.get("pblancNm", "")
         m = re.search(r"\[(.+?)\]", title)
         region = m.group(1) if m else None
+
+        # 접수기간 파싱: "시작~종료" 형식 분리
+        period_start = None
+        period_end = None
+        period_raw = raw.get("reqstBeginEndDe", "")
+        if period_raw and "~" in period_raw:
+            parts = period_raw.split("~", maxsplit=1)
+            period_start = parts[0].strip() or None
+            period_end = parts[1].strip() or None
+        else:
+            period_start = period_raw.strip() or None
 
         return {
             "source": "bizinfo",
@@ -60,8 +87,8 @@ class BizinfoCollector(BaseCollector):
             "title": title,
             "organization": raw.get("jrsdInsttNm"),
             "executor": raw.get("excInsttNm"),
-            "period_start": raw.get("reqstBeginEndDe"),
-            "period_end": None,
+            "period_start": period_start,
+            "period_end": period_end,
             "target_text": raw.get("trgetNm"),
             "exclusion_text": None,
             "category": raw.get("pldirSportRealmLclasCodeNm"),
@@ -78,4 +105,4 @@ if __name__ == "__main__":
     print(f"수집된 공고: {len(items)}건")
     if items:
         import json
-        print(json.dumps(items[0], ensure_ascii=False, indent=2, default=str))
+        print(json.dumps(items[5], ensure_ascii=False, indent=2, default=str))
