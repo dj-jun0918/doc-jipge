@@ -22,7 +22,7 @@ def list_announcements(
         stmt = stmt.where(Announcement.region == region)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
-    items = db.scalars(stmt.offset(offset).limit(limit)).all()
+    items = db.scalars(stmt.order_by(Announcement.created_at.desc()).offset(offset).limit(limit)).all()
 
     return {"items": items, "total": total, "limit": limit, "offset": offset}
 

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,8 +10,15 @@ router = APIRouter()
 
 
 @router.get("/")
-def list_companies(db: Session = Depends(get_db)):
-    return db.scalars(select(Company)).all()
+def list_companies(
+    limit: int = Query(20, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    total = db.scalar(select(func.count()).select_from(select(Company).subquery()))
+    items = db.scalars(select(Company).order_by(Company.created_at.desc()).offset(offset).limit(limit)).all()
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
 
 
 @router.get("/{company_id}")
