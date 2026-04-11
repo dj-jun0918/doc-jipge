@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir playwright \
 # Python 의존성 (의존성 캐시 레이어 분리)
 COPY pyproject.toml .
 RUN mkdir -p app && touch app/__init__.py \
-    && pip install --no-cache-dir -e . \
+    && pip install --no-cache-dir -e ".[dev]" \
     && rm -rf app
 
 # 실제 소스 코드 복사
