@@ -1,0 +1,30 @@
+{
+  "announcement_id": "ann_003",
+  "title": "2026 전북 지역특화콘텐츠개발지원 지원기업 모집공고",
+  "source_url": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000120680",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "1년 이상",
+      "evidence": "공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
+      "evidence_source": "첨부파일 4p 지원자격 및 조건"
+    },
+    {
+      "field_name": "인력",
+      "condition": "3인 이상",
+      "evidence": "사업장 4대보험가입자가 3인 이상인 기업",
+      "evidence_source": "첨부파일 4p 지원자격 및 조건"
+    },
+    {
+      "field_name": "지역",
+      "condition": "전북 소재",
+      "evidence": "본사가 전북특별자치도 내에 소재하는 중소기업",
+      "evidence_source": "첨부파일 5p 사업참여 제한사유 ①"
+    }
+  ],
+  "exclusions": [
+    "국세 또는 지방세 체납사실이 있는 경우 [cite: 403]",
+    "이행보증증권의 발행이 불가능한 경우 [cite: 408]",
+    "비영리기업·기관 [cite: 370]"
+  ]
+}
