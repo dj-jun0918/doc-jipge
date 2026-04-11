@@ -1,0 +1,30 @@
+{
+  "announcement_id": "ann_002",
+  "title": "2026년도 창업성장기술개발사업(디딤돌) 제1차 시행계획 공고",
+  "source_url": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000116971",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "7년 이하 (신산업 분야 10년 이내)",
+      "evidence": "중소기업으로 업력 7년 이하이고... 신산업 창업 분야의 중소기업에 대하여 업력 10년 이내",
+      "evidence_source": "첨부파일 3p (공통자격)"
+    },
+    {
+      "field_name": "매출액",
+      "condition": "20억원 미만",
+      "evidence": "매출액 20억원 미만",
+      "evidence_source": "첨부파일 3p (공통자격)"
+    },
+    {
+      "field_name": "경험",
+      "condition": "처음 수행",
+      "evidence": "중소벤처기업부 R&D를 처음 수행하는 기업",
+      "evidence_source": "첨부파일 3p (공통자격)"
+    }
+  ],
+  "exclusions": [
+    "부채비율 1,000% 이상(예외 제외) [cite: 178]",
+    "3책5공 제도 위반 [cite: 202]",
+    "참여제한, 의무사항 불이행 기업 [cite: 198]"
+  ]
+}

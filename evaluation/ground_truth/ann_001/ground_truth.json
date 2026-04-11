@@ -1,0 +1,30 @@
+{
+  "announcement_id": "ann_001",
+  "title": "2026년 소상공인 개인사업 비즈플러스카드 지원사업 시행 공고",
+  "source_url": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000119801",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "6개월 이상",
+      "evidence": "접수일 기준 업력 6개월 이상인 소상공인",
+      "evidence_source": "첨부파일 3p ②(업력)"
+    },
+    {
+      "field_name": "신용점수",
+      "condition": "NCB 595점 ~ 964점",
+      "evidence": "NCB 595점 ~ 964점인 소상공인",
+      "evidence_source": "첨부파일 3p ①(신용점수)"
+    },
+    {
+      "field_name": "매출액",
+      "condition": "최근 2개월 동안 200만원 이상 또는 당기 부가가치세 신고 매출액이 1,200만원 이상",
+      "evidence": "최근 2개월 동안 200만원 이상 또는 당기 부가가치세 신고 매출액이 1,200만원 이상",
+      "evidence_source": "첨부파일 3p ③(매출액)"
+    }
+  ],
+  "exclusions": [
+    "휴·폐업 중인 소상공인 [cite: 44]",
+    "보증 제한업종에 해당하는 소상공인 [cite: 45]",
+    "국세나 지방세를 체납 중인 소상공인 [cite: 49]"
+  ]
+}

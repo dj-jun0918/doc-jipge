@@ -1,0 +1,30 @@
+{
+  "announcement_id": "ann_004",
+  "title": "2026년 횡성군 청년 창업가 양성 지원사업 참여기업 모집공고",
+  "source_url": "https://www.bizinfo.go.kr/sii/siia/selectSIIA200Detail.do?pblancId=PBLN_000000000120489",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "7년이내",
+      "evidence": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+      "evidence_source": "첨부파일 1p 사업 개요"
+    },
+    {
+      "field_name": "나이",
+      "condition": "만45세 이하",
+      "evidence": "만45세 이하",
+      "evidence_source": "첨부파일 1p 사업 개요"
+    },
+    {
+      "field_name": "업종",
+      "condition": "생산·제조 기업",
+      "evidence": "관내 직접 생산·제조 기업",
+      "evidence_source": "첨부파일 1p 사업 개요"
+    }
+  ],
+  "exclusions": [
+    "국세·지방세 체납 기업 [cite: 599]",
+    "휴·폐업 중인 기업 [cite: 599]",
+    "금융기관으로부터 불량 거래처로 규제 중인 기업 [cite: 599]"
+  ]
+}
