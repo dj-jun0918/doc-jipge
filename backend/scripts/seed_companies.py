@@ -103,6 +103,8 @@ COMPANIES = [
         "certifications": None,
         "is_edge_case": True,
     },
+
+    
 ]
 
 
