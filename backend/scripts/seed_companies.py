@@ -103,9 +103,44 @@ COMPANIES = [
         "certifications": None,
         "is_edge_case": True,
     },
-
-    
 ]
+
+# 일반 케이스 3개 (is_edge_case=False)
+COMPANIES.extend([
+    {
+        "name": "일반IT서비스",
+        "founded_date": date(2021, 4, 1),  # 2026-04-10 기준 정확히 5년 9일 ("업력 5년")
+        "revenue": 1_500_000_000,
+        "region": "서울",
+        "industry": "IT 서비스",
+        "employee_count": 20,
+        "ceo_birth_date": date(1990, 8, 15),
+        "certifications": None,
+        "is_edge_case": False,
+    },
+    {
+        "name": "일반제조업",
+        "founded_date": date(2018, 3, 10),
+        "revenue": 3_000_000_000,
+        "region": "경기",
+        "industry": "제조업",
+        "employee_count": 45,
+        "ceo_birth_date": date(1975, 11, 20),
+        "certifications": {"iso9001": True},
+        "is_edge_case": False,
+    },
+    {
+        "name": "일반스타트업",
+        "founded_date": date(2025, 1, 15),
+        "revenue": 200_000_000,
+        "region": "부산",
+        "industry": "소프트웨어 개발",
+        "employee_count": 6,
+        "ceo_birth_date": date(1996, 4, 10),
+        "certifications": None,
+        "is_edge_case": False,
+    },
+])
 
 
 def main():
