@@ -15,7 +15,7 @@ export default function Home() {
         <p className="mx-auto mb-10 max-w-2xl text-base leading-7 text-gray-600">
           기존 정부지원사업 추천 서비스는 단순히 적합도를 제시하는 경우가 많아
           왜 지원 가능한지, 왜 불가능한지 명확히 알기 어렵습니다. Doc집게는
-          공고문과 첨부파일 속 자격요건을 구조화하고, 조건별 충족 여부와 원문
+          공고문과 첨부파일 속 자격 요건을 구조화하고, 조건별 충족 여부와 원문
           근거를 함께 제시하여 보다 신뢰도 높은 의사결정을 돕습니다.
         </p>
 
@@ -25,7 +25,7 @@ export default function Home() {
               공고문 분석
             </h2>
             <p className="text-sm leading-6 text-gray-600">
-              정부지원사업 공고문과 첨부파일에서 자격요건 정보를 자동으로
+              정부지원사업 공고문과 첨부파일에서 자격 요건 정보를 자동으로
               추출합니다.
             </p>
           </div>
