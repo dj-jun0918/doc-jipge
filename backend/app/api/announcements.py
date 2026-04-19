@@ -11,6 +11,9 @@ router = APIRouter()
 def list_announcements(
     source: str | None = Query(None, description="bizinfo/kstartup/mss"),
     region: str | None = Query(None),
+    q: str | None = Query(None, description="키워드 검색 (제목)"),
+    from_date: str | None = Query(None, description="접수 시작일 이후 (YYYY-MM-DD)"),
+    to_date: str | None = Query(None, description="접수 종료일 이전 (YYYY-MM-DD)"),
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -20,6 +23,12 @@ def list_announcements(
         stmt = stmt.where(Announcement.source == source)
     if region:
         stmt = stmt.where(Announcement.region == region)
+    if q:
+        stmt = stmt.where(Announcement.title.ilike(f"%{q}%"))
+    if from_date:
+        stmt = stmt.where(Announcement.period_start >= from_date)
+    if to_date:
+        stmt = stmt.where(Announcement.period_end <= to_date)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(stmt.order_by(Announcement.created_at.desc()).offset(offset).limit(limit)).all()
