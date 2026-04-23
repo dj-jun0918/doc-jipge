@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface Announcement {
   id: number;
   title?: string;
@@ -45,9 +47,10 @@ export default async function AnnouncementsPage() {
         ) : (
           <div className="grid gap-4">
             {data.items.map((item) => (
-              <div
+              <Link
                 key={item.id}
-                className="rounded-xl border bg-white p-5 shadow-sm"
+                href={`/announcements/${item.id}`}
+                className="block rounded-xl border bg-white p-5 shadow-sm transition hover:shadow-md"
               >
                 <h2 className="mb-2 text-xl font-semibold text-gray-900">
                   {item.title ?? "제목 없음"}
@@ -63,7 +66,7 @@ export default async function AnnouncementsPage() {
                     </p>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
