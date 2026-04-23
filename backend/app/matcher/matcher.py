@@ -75,8 +75,8 @@ def match_numeric(
     Notes:
         - operator가 None이면 → "확인필요"
         - company_value가 None이면 → "확인필요"
-        - operator == "범위"일 때 condition.value는 [min, max] 리스트 기대.
-          형식이 맞지 않으면 → "확인필요"
+        - operator == "범위"일 때 condition.value는 {"min": N, "max": N} dict (rule_parser 반환 형식).
+          list/tuple [min, max]도 호환 처리. 형식이 맞지 않으면 → "확인필요"
     """
     if company_value is None:
         return "확인필요"
@@ -97,9 +97,13 @@ def match_numeric(
         elif op == "초과":
             return "충족" if company_value > val else "미충족"
         elif op == "범위":
-            if not (isinstance(val, (list, tuple)) and len(val) == 2):
+            # rule_parser는 {"min": N, "max": N} dict로 반환
+            if isinstance(val, dict) and "min" in val and "max" in val:
+                lo, hi = val["min"], val["max"]
+            elif isinstance(val, (list, tuple)) and len(val) == 2:
+                lo, hi = val
+            else:
                 return "확인필요"
-            lo, hi = val
             return "충족" if lo <= company_value <= hi else "미충족"
         else:
             # 알 수 없는 operator
