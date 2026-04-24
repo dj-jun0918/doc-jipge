@@ -11,10 +11,9 @@ class Settings(BaseSettings):
     # 기업마당 API
     bizinfo_api_key: str = ""
 
-    # K-Startup API
-    kstartup_api_url: str = (
-        "https://nidapi.k-startup.go.kr/api/kisedKstartupService/v1/getAnnouncementInformation"
-    )
+    # K-Startup API (공공데이터포털)
+    kstartup_api_key: str = ""
+    kstartup_api_url: str = ""
 
     # LLM API
     openai_api_key: str = ""
