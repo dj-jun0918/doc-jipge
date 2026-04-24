@@ -1,0 +1,21 @@
+{
+  "announcement_id": "ann_007",
+  "title": "세종 거브테크(Gov-Tech) 오픈이노베이션 프로그램 참여 스타트업 모집공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/HnD07PXhmL",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "7년 미만",
+      "evidence": "공고일 기준 창업 후 7년 미만 기술창업기업",
+      "evidence_source": "본문 2. 모집개요 모집대상"
+    },
+    {
+      "field_name": "지역",
+      "condition": "전국",
+      "evidence": "공고일 기준 창업 후 7년 미만 기술창업기업 / 전국 소재",
+      "evidence_source": "본문 2. 모집개요 모집대상"
+    }
+  ],
+  "exclusions": [],
+  "notes": "관외 기업은 협약 종료일 이전 세종시 이전 시 지원 가능. 초격차 10대 분야(시스템반도체, 바이오·헬스 등)는 10년까지 가능 — 업력 조건 예외"
+}

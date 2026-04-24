@@ -1,0 +1,29 @@
+{
+  "announcement_id": "ann_009",
+  "title": "제1회 「S.Challenge IR」 핀테크 분야 창업기업 모집 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/SeZgrOXhmL",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "3년 이내",
+      "evidence": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업 (공고일 기준, '23. 4. 15. 이후 창업)",
+      "evidence_source": "본문 2. 제1회 S.challenge IR 신청·접수 지원대상"
+    },
+    {
+      "field_name": "지역",
+      "condition": "서울",
+      "evidence": "서울에 소재(본사 기준)한 창업 3년 이내 기업, 왕중왕전(11월)까지 서울 소재 본사 유지 필수",
+      "evidence_source": "본문 2. 제1회 S.challenge IR 신청·접수 지원대상"
+    },
+    {
+      "field_name": "업종",
+      "condition": "핀테크",
+      "evidence": "핀테크 분야 사업을 영위하고",
+      "evidence_source": "본문 1. 사업개요 모집대상"
+    }
+  ],
+  "exclusions": [
+    "동일한 아이템으로 타 프로그램(공모전, 경진대회, 기타 창업지원)에서 선정(수상) 이력이 있는 경우"
+  ],
+  "notes": "핀테크 세부분야: AI, Big Data, P2P, Block-Chain, NFT, 금융/보안, 플랫폼, 콘텐츠 등. 3년 이내 = 이하가 아닌 이내 표기 — 원문 그대로"
+}
