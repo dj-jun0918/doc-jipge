@@ -41,7 +41,7 @@ export default function AnnouncementsPage() {
       if (source) params.append("source", source);
       if (region) params.append("region", region);
       if (keyword) params.append("keyword", keyword);
-
+      
       const response = await fetch(
         `/api/announcements${params.toString() ? `?${params.toString()}` : ""}`
       );
@@ -169,3 +169,7 @@ export default function AnnouncementsPage() {
     </main>
   );
 }
+
+/* async function getAnnouncements(): Promise<AnnouncementResponse> {
+  // loading.tsx 테스트용 딜레이
+  await new Promise((resolve) => setTimeout(resolve, 3000)); */
