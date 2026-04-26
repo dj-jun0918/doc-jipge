@@ -115,6 +115,7 @@ export default function AnnouncementsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-10">
+    
       <section className="mx-auto max-w-5xl">
         <h1 className="mb-2 text-3xl font-bold text-gray-900">공고 목록</h1>
         <p className="mb-6 text-sm text-gray-600">
@@ -131,6 +132,20 @@ export default function AnnouncementsPage() {
           onSearch={handleSearch}
           onReset={handleReset}
         />
+
+        {/* D-day 배지 테스트용 코드 */}
+        <div className="mb-6 rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          D-day 배지 테스트
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <DdayBadge endDate="2026-05-05" />
+          <DdayBadge endDate="2026-04-30" />
+          <DdayBadge endDate="2026-04-28" />
+          <DdayBadge endDate="2026-04-27" />
+          <DdayBadge endDate="2026-04-25" />
+        </div>
+      </div>
 
         {!data || data.items.length === 0 ? (
           <div className="rounded-xl border bg-white p-6 text-gray-600 shadow-sm">
