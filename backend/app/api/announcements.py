@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -6,6 +8,16 @@ from app.database import get_db
 from app.models.announcement import Announcement
 
 router = APIRouter()
+
+
+def _parse_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"날짜 형식 오류: {value} (YYYY-MM-DD 형식)")
+
 
 @router.get("/")
 def list_announcements(
@@ -25,10 +37,12 @@ def list_announcements(
         stmt = stmt.where(Announcement.region == region)
     if q:
         stmt = stmt.where(Announcement.title.ilike(f"%{q}%"))
-    if from_date:
-        stmt = stmt.where(Announcement.period_start >= from_date)
-    if to_date:
-        stmt = stmt.where(Announcement.period_end <= to_date)
+    from_date_obj = _parse_date(from_date)
+    if from_date_obj:
+        stmt = stmt.where(Announcement.period_start >= from_date_obj)
+    to_date_obj = _parse_date(to_date)
+    if to_date_obj:
+        stmt = stmt.where(Announcement.period_end <= to_date_obj)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(stmt.order_by(Announcement.created_at.desc()).offset(offset).limit(limit)).all()
