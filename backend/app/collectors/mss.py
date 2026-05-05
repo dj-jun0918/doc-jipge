@@ -142,12 +142,25 @@ class MssCollector(BaseCollector):
     def normalize(self, raw: dict) -> dict:
         meta = raw.get("meta_data", {})
         
+        def extract_date(val: str | None) -> str | None:
+            if not val:
+                return None
+            m = re.search(r"(\d{4})[-\./](\d{2})[-\./](\d{2})", val)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            m = re.search(r"(\d{4})(\d{2})(\d{2})", val)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            return None
+
         period_str = meta.get("신청기간", "")
         start, end = None, None
         if "~" in period_str:
             parts = [p.strip() for p in period_str.split("~")]
-            if parts[0]: start = parts[0]
-            if len(parts) > 1 and parts[1]: end = parts[1]
+            if parts[0]: start = extract_date(parts[0])
+            if len(parts) > 1 and parts[1]: end = extract_date(parts[1])
+        else:
+            start = extract_date(period_str.strip())
             
         executor = meta.get("담당부서")
         if executor and not executor.startswith("중소"):

@@ -4,6 +4,7 @@
 """
 
 import asyncio
+import time
 from typing import Any
 
 import httpx
@@ -53,6 +54,8 @@ class KstartupCollector(BaseCollector):
                     normalized["attachments"] = attachments
                 except Exception as e:
                     print(f"[WARN] 첨부파일 추출 실패: {e}")
+                finally:
+                    time.sleep(2)  # 공고별 크롤링 간 2초 대기 (Rate Limiting)
             results.append(normalized)
 
         return results
@@ -79,9 +82,13 @@ class KstartupCollector(BaseCollector):
     def normalize(self, raw: dict) -> dict:
         """원본 응답 → 통합 스키마 변환."""
         def fmt_date(val: str | None) -> str | None:
-            if not val or len(val) != 8:
-                return val
-            return f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+            if not val:
+                return None
+            import re
+            m = re.search(r"(\d{4})[-\./]?(\d{2})[-\./]?(\d{2})", val)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            return None
 
         return {
             "source": "kstartup",

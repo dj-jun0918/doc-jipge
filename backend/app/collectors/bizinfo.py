@@ -70,16 +70,27 @@ class BizinfoCollector(BaseCollector):
         m = re.search(r"\[(.+?)\]", title)
         region = m.group(1) if m else None
 
+        def extract_date(val: str | None) -> str | None:
+            if not val:
+                return None
+            m = re.search(r"(\d{4})[-\./](\d{2})[-\./](\d{2})", val)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            m = re.search(r"(\d{4})(\d{2})(\d{2})", val)
+            if m:
+                return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            return None
+
         # 접수기간 파싱: "시작~종료" 형식 분리
         period_start = None
         period_end = None
         period_raw = raw.get("reqstBeginEndDe", "")
         if period_raw and "~" in period_raw:
             parts = period_raw.split("~", maxsplit=1)
-            period_start = parts[0].strip() or None
-            period_end = parts[1].strip() or None
+            period_start = extract_date(parts[0].strip())
+            period_end = extract_date(parts[1].strip())
         else:
-            period_start = period_raw.strip() or None
+            period_start = extract_date(period_raw.strip())
 
         return {
             "source": "bizinfo",
