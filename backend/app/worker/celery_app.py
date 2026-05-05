@@ -6,6 +6,7 @@ celery_app = Celery(
     "docjipge",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
+    include=["app.worker.tasks"],
 )
 
 celery_app.conf.update(

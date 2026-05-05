@@ -7,6 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# HWP 파일 시그니처 (매직 바이트)
+HWP_BINARY_MAGIC = b"\xd0\xcf\x11\xe0"  # OLE Compound Document (구 바이너리 HWP)
+HWP_ZIP_MAGIC    = b"PK\x03\x04"         # ZIP 기반 HWPX
+
 
 def convert_to_pdf(input_path: str | Path, timeout: int = 60) -> Path:
     """HWP/HWPX 파일을 PDF로 변환.
@@ -30,7 +34,15 @@ def convert_to_pdf(input_path: str | Path, timeout: int = 60) -> Path:
     output_dir = input_path.parent
     ext = input_path.suffix.lower()
 
-    # HWP → infilter 필요, HWPX → 자동 인식
+    # 파일 시그니처 확인 (PK로 시작하면 ZIP 기반의 HWPX)
+    is_zip = False
+    try:
+        with open(input_path, "rb") as f:
+            is_zip = f.read(4) == b"PK\x03\x04"
+    except Exception:
+        pass
+
+    # HWP → infilter 필요, HWPX(ZIP) → 자동 인식
     cmd = [
         "soffice",
         "--headless",
@@ -38,7 +50,7 @@ def convert_to_pdf(input_path: str | Path, timeout: int = 60) -> Path:
         "--outdir", str(output_dir),
         str(input_path),
     ]
-    if ext == ".hwp":
+    if ext == ".hwp" and not is_zip:
         cmd.insert(2, '--infilter=Hwp2002_File')
 
     try:
@@ -68,9 +80,29 @@ def convert_to_pdf(input_path: str | Path, timeout: int = 60) -> Path:
 
 
 def is_hwp_file(file_path: str | Path) -> bool:
-    """HWP 또는 HWPX 파일인지 확인."""
-    ext = Path(file_path).suffix.lower()
-    return ext in (".hwp", ".hwpx")
+    """HWP 또는 HWPX 파일인지 확인.
+
+    1차: 확장자 (.hwp / .hwpx) 로 빠르게 판별.
+    2차: 확장자가 다를 경우 파일 시그니처(매직 바이트)로 판별.
+         - D0 CF 11 E0 → OLE 기반 HWP (바이너리 HWP)
+         - PK 03 04    → ZIP 기반 HWPX
+    """
+    path = Path(file_path)
+    ext = path.suffix.lower()
+
+    # 1차: 확장자로 빠르게 판별
+    if ext in (".hwp", ".hwpx"):
+        return True
+
+    # 2차: 확장자가 다른 파일 → 시그니처(매직 바이트)로 판별
+    if not path.exists():
+        return False
+    try:
+        with open(path, "rb") as f:
+            header = f.read(4)
+        return header in (HWP_BINARY_MAGIC, HWP_ZIP_MAGIC)
+    except OSError:
+        return False
 
 
 # 테스트용 main block

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import DateTime, Integer, String, text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,8 +11,11 @@ class PipelineJob(Base):
     __tablename__ = "pipeline_jobs"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_type: Mapped[str] = mapped_column(String(20))  # "collect" / "convert" / "extract" / "match"
-    status: Mapped[str] = mapped_column(String(20), default="running")  # "running" / "completed" / "failed"
+    job_type: Mapped[str] = mapped_column(String(20))  # "collect" / "download" / "convert" / "extract" / "match"
+    announcement_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("announcements.id"), nullable=True, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # "pending" / "processing" / "done" / "failed"
     total_count: Mapped[int] = mapped_column(Integer, default=0)
     success_count: Mapped[int] = mapped_column(Integer, default=0)
     fail_count: Mapped[int] = mapped_column(Integer, default=0)
