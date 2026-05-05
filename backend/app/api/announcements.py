@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.extractor import text_llm
 from app.models.announcement import Announcement
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -69,7 +72,11 @@ async def summarize(announcement_id: str, db: Session = Depends(get_db)):
         return {"summary": ann.summary, "cached": True}
 
     text = ann.target_text or ann.title
-    summary = await _generate_summary(text)
+    try:
+        summary = await _generate_summary(text)
+    except Exception as e:
+        logger.error(f"공고 요약 생성 실패 (id={announcement_id}): {e}")
+        raise HTTPException(status_code=500, detail="요약 생성에 실패했습니다")
 
     ann.summary = summary
     db.commit()
