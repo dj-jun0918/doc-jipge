@@ -15,7 +15,7 @@ class EligibilityResult(Base):
     announcement_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("announcements.id"), index=True
     )
-    field_name: Mapped[str] = mapped_column(String(50))  # "업력" / "매출" / "지역" / "나이" / "인증"
+    field_name: Mapped[str] = mapped_column(String(50))  # "업력" / "매출" / "지역" / "나이" / "종업원 수" / "업종" / "인증"
     condition_value: Mapped[str] = mapped_column(Text)  # "7년 미만"
     condition_parsed: Mapped[dict | None] = mapped_column(JSONB)  # {"value": 7, "operator": "미만"}
     evidence: Mapped[str | None] = mapped_column(Text)
