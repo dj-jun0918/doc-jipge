@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export interface PipelineJob {
   id: string;
   announcement_id: string | null;
-  job_type: "collect" | "download" | "convert" | "extract";
+  job_type: "collect" | "match" | "convert" | "extract";
   status: "pending" | "processing" | "done" | "failed";
   progress: number;
   error_message: string | null;
@@ -26,7 +26,7 @@ const statusColors = {
 
 const jobTypeLabels = {
   collect: "공고 수집",
-  download: "첨부파일 다운로드",
+  match: "공고 매칭",
   convert: "PDF 변환",
   extract: "요건 추출",
 };
@@ -39,6 +39,12 @@ const statusLabels = {
 };
 
 export default function PipelineStatus({ job }: PipelineStatusProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isFailed = job.status === "failed";
   const isDone = job.status === "done";
 
@@ -84,7 +90,7 @@ export default function PipelineStatus({ job }: PipelineStatusProps) {
       )}
 
       <div className="text-xs text-gray-400 text-right mt-1">
-        업데이트: {new Date(job.updated_at).toLocaleTimeString("ko-KR")}
+        업데이트: {mounted ? new Date(job.updated_at).toLocaleTimeString("ko-KR") : "..."}
       </div>
     </div>
   );

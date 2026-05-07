@@ -15,9 +15,9 @@ const MOCK_INITIAL_JOBS: PipelineJob[] = [
     updated_at: new Date(Date.now() - 2000).toISOString(),
   },
   {
-    id: "job-2-down",
+    id: "job-2-match",
     announcement_id: "ann_011",
-    job_type: "download",
+    job_type: "match",
     status: "pending",
     progress: 0,
     error_message: null,

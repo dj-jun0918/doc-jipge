@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import BookmarkButton from "@/components/BookmarkButton";
 
 interface Attachment {
   name?: string;
@@ -56,9 +57,12 @@ export default async function AnnouncementDetailPage({ params }: PageProps) {
           ← 공고 목록으로
         </Link>
 
-        <h1 className="mb-4 text-3xl font-bold text-gray-900">
-          {data.title ?? "제목 없음"}
-        </h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 pr-4">
+            {data.title ?? "제목 없음"}
+          </h1>
+          <BookmarkButton id={id} size={32} />
+        </div>
 
         <div className="mb-8 space-y-2 text-sm text-gray-600">
           <p>기관: {data.organization ?? "-"}</p>
