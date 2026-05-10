@@ -7,7 +7,6 @@ from datetime import date
 from unittest.mock import MagicMock
 
 import sys
-sys.path.insert(0, "/Users/limtae-kyu/doc-jipge/backend")
 
 from app.matcher.matcher import match_announcement
 from app.schemas.eligibility import EligibilityField, ParsedCondition
@@ -31,7 +30,7 @@ def field(field_name, operator, value, raw_text, evidence="테스트"):
 FIELDS = [
     field("업력",     "미만",  3,           "3년 미만"),
     field("매출",     "이상",  1_000_000_000, "10억 이상"),
-    field("종업원수", "이상",  5,           "5인 이상"),
+    field("종업원 수", "이상",  5,           "5인 이상"),
     field("지역",     "소재",  "서울",      "서울특별시 소재"),
     field("업종",     "포함",  "소프트웨어 개발", "소프트웨어 개발"),
 ]
@@ -51,7 +50,7 @@ PROFILES = [
 ann_id = uuid.uuid4()
 
 print("=" * 70)
-print(f"{'회사':<10} {'업력':<8} {'매출':<8} {'종업원수':<10} {'지역':<8} {'업종':<8}")
+print(f"{'회사':<10} {'업력':<8} {'매출':<8} {'종업원 수':<10} {'지역':<8} {'업종':<8}")
 print("=" * 70)
 
 for name, kwargs in PROFILES:
@@ -62,7 +61,7 @@ for name, kwargs in PROFILES:
         f"{name:<10} "
         f"{status_map.get('업력','?'):<8} "
         f"{status_map.get('매출','?'):<8} "
-        f"{status_map.get('종업원수','?'):<10} "
+        f"{status_map.get('종업원 수','?'):<10} "
         f"{status_map.get('지역','?'):<8} "
         f"{status_map.get('업종','?'):<8}"
     )

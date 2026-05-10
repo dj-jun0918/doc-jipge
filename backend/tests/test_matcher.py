@@ -389,25 +389,25 @@ class TestMatchAnnouncement:
         results = match_announcement(company, [], uuid.uuid4())
         assert results == []
 
-    def test_종업원수_경계_이상_충족(self):
+    def test_종업원_수_경계_이상_충족(self):
         # 컴퍼니H: employee_count=5, 조건 "5명 이상"
         company = make_company(employee_count=5)
-        fields = [field("종업원수", "이상", 5, "5인 이상")]
+        fields = [field("종업원 수", "이상", 5, "5인 이상")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "충족"
 
-    def test_종업원수_경계_미충족(self):
+    def test_종업원_수_경계_미충족(self):
         # 컴퍼니G: employee_count=4, 조건 "5명 이상"
         company = make_company(employee_count=4)
-        fields = [field("종업원수", "이상", 5, "5인 이상")]
+        fields = [field("종업원 수", "이상", 5, "5인 이상")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "미충족"
 
-    def test_대표자나이_만39세_이하_충족(self):
+    def test_나이_만39세_이하_충족(self):
         # 컴퍼니E: ceo_birth_date=1986-04-12 → 2026-05-09 기준 만 40세
         # 만 40세 이하 조건 충족
         company = make_company(ceo_birth_date=date(1986, 4, 12))
-        fields = [field("대표자나이", "이하", 40, "만 40세 이하")]
+        fields = [field("나이", "이하", 40, "만 40세 이하")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "충족"
 

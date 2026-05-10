@@ -10,7 +10,7 @@
       "evidence_source": "본문 2p 신청자격"
     },
     {
-      "field_name": "종업원수",
+      "field_name": "종업원 수",
       "condition": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만",
       "evidence": "소상공인기본법 제2조 및 참고2 소상공인 확인 기준",
       "evidence_source": "참고2 10p 소상공인 확인 기준"

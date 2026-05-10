@@ -276,11 +276,11 @@ def match_announcement(
             company_value_str = str(company.revenue) if company.revenue is not None else None
             status = match_numeric(company.revenue, cond)
 
-        elif fn == "종업원수":
+        elif fn == "종업원 수":
             company_value_str = str(company.employee_count) if company.employee_count is not None else None
             status = match_numeric(company.employee_count, cond)
 
-        elif fn == "대표자나이":
+        elif fn == "나이":
             age = calculate_age(company.ceo_birth_date)
             company_value_str = f"{age}세" if age is not None else None
             status = match_numeric(age, cond)
