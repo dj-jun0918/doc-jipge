@@ -10,7 +10,7 @@
       "evidence_source": "본문 3p 신청자격"
     },
     {
-      "field_name": "기업규모",
+      "field_name": "종업원 수",
       "condition": "중소기업 또는 중견기업",
       "evidence": "중소기업기본법에 따른 중소기업 및 중견기업 성장촉진 및 경쟁력 강화에 관한 특별법에 따른 중견기업",
       "evidence_source": "본문 3p 신청자격"

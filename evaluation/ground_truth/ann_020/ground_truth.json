@@ -10,7 +10,7 @@
       "evidence_source": "본문 4p 지원대상"
     },
     {
-      "field_name": "수출실적",
+      "field_name": "매출",
       "condition": "온라인수출 영위(예정) 중소기업",
       "evidence": "온라인수출 영위(예정) 중소기업이면서 풀필먼트 또는 해외물류센터 서비스를 이용하는 기업",
       "evidence_source": "본문 2~3p 신청요건"

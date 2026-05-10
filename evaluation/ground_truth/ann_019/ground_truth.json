@@ -10,7 +10,7 @@
       "evidence_source": "본문 4p 신청 자격"
     },
     {
-      "field_name": "기술요건",
+      "field_name": "인증",
       "condition": "조달청 혁신제품 등록 기업 또는 최근 4년 이내 중기부 R&D 수행 이력 기업",
       "evidence": "혁신제품 등록 되어있거나 최근 4년 이내 중소기업기술개발(R&D) 사업 수행 이력이 있는 로봇 스타트업",
       "evidence_source": "본문 1p 모집대상"
