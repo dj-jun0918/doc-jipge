@@ -1,0 +1,43 @@
+{
+  "announcement_id": "ann_015",
+  "title": "2026 K-Startup Grand Challenge (KSGC) Call for Applications for (Pre-)Startups",
+  "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1068000&parentSeq=1068000",
+  "fields": [
+    {
+      "field_name": "신청대상",
+      "condition": "한국 시장 진출을 희망하는 해외 예비창업팀 또는 창업 7년 이내 스타트업",
+      "evidence": "해외 (pre-)startup이 한국 시장 진출을 희망해야 하며, 법인 설립일 기준 7년 이내여야 함",
+      "evidence_source": "공고문 2~3쪽"
+    },
+    {
+      "field_name": "대표자 국적",
+      "condition": "대표자(CEO)는 한국 국적이 아니어야 함",
+      "evidence": "대표자는 non-Korean nationality여야 한다고 명시됨",
+      "evidence_source": "공고문 3쪽"
+    },
+    {
+      "field_name": "선정규모",
+      "condition": "약 100팀(메인트랙 80, 국제학생트랙 20)",
+      "evidence": "Selection Scale이 약 100 teams로 명시됨",
+      "evidence_source": "공고문 2쪽"
+    },
+    {
+      "field_name": "지원내용",
+      "condition": "한국 시장 진입·정착·성장 지원, Demo Day, 비자·법인설립·오피스 지원",
+      "evidence": "Program Benefits 및 Market Entry Support 세부지원이 명시됨",
+      "evidence_source": "공고문 1쪽, 5~6쪽"
+    },
+    {
+      "field_name": "제출서류",
+      "condition": "영문 사업계획 웹 입력, 대표자 여권, 사업자등록증 또는 동등 서류",
+      "evidence": "Required Documents에 passport와 business registration certificate가 명시됨",
+      "evidence_source": "공고문 8쪽"
+    }
+  ],
+  "exclusions": [
+    "도덕성·경제질서를 중대하게 해치는 업종(도박시설 등)",
+    "2016~2025 KSGC Top 40 선정 또는 중도탈락·자진철회 팀",
+    "2024~2026 Global Startup Commercialization Support Program 참여 팀",
+    "비자 문제 등으로 한국 입국이 불가능한 신청자"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "announcement_id": "ann_014",
+  "title": "「2026년 민관협력 오픈이노베이션 지원」 상호 자율탐색형 수요기업 및 스타트업 모집공고",
+  "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1067798&parentSeq=1067798",
+  "fields": [
+    {
+      "field_name": "스타트업 업력",
+      "condition": "창업 후 7년 이내(2019-04-29 ~ 2026-04-28 설립)",
+      "evidence": "창업 7년 이내 창업기업만 신청 가능하다고 명시됨",
+      "evidence_source": "공고문 2쪽, 5쪽"
+    },
+    {
+      "field_name": "지원대상",
+      "condition": "수요기업과 협업과제 추진을 희망하는 스타트업",
+      "evidence": "스타트업 대상 사업화 자금 및 후속 연계 지원으로 명시됨",
+      "evidence_source": "공고문 2쪽"
+    },
+    {
+      "field_name": "협업과제 분야",
+      "condition": "6대 전략산업 12대 신산업 분야 해당 과제",
+      "evidence": "AI, Bio, Contents, Defence, Energy, Factory 분야가 제시됨",
+      "evidence_source": "공고문 2쪽"
+    },
+    {
+      "field_name": "지원금",
+      "condition": "과제별 최대 1억원 사업화 자금",
+      "evidence": "수요기업과 협업과제 추진에 필요한 사업화 자금을 최대 1억원까지 지원한다고 명시됨",
+      "evidence_source": "공고문 2쪽, 4쪽"
+    },
+    {
+      "field_name": "접수방식",
+      "condition": "1차 Pooling 신청은 OI 마켓, 협업제안서 제출은 K-Startup",
+      "evidence": "Pooling 신청과 협업제안서 제출 경로가 각각 구분되어 명시됨",
+      "evidence_source": "공고문 7~9쪽"
+    }
+  ],
+  "exclusions": [
+    "금융기관 채무불이행 규제 중인 기업",
+    "국세 또는 지방세 체납 기업",
+    "창업진흥원 환수금 반환 미종결 기업",
+    "창업에서 제외되는 업종 영위 기업",
+    "과거 대-스타 해결사 플랫폼, 민관협력 오픈이노베이션 지원, 딥테크 밸류업 프로그램 선정 이력이 있는 기업",
+    "수요기업과 특수관계가 있는 기업",
+    "중소벤처기업부 창업지원사업 참여제한 중인 기업",
+    "휴·폐업 중인 기업",
+    "사업비 계좌 개설 및 거래 불가 기업",
+    "보조금 관리에 관한 법률상 수행배제 기업"
+  ]
+}
