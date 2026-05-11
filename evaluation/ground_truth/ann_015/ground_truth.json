@@ -1,0 +1,21 @@
+{
+  "announcement_id": "ann_015",
+  "title": "2026 K-Startup Grand Challenge (KSGC) Call for Applications for (Pre-)Startups",
+  "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1068000&parentSeq=1068000",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "창업 후 7년 이내",
+      "operator": "이하",
+      "evidence": "해외 (pre-)startup이 한국 시장 진출을 희망해야 하며, 법인 설립일 기준 7년 이내여야 함",
+      "evidence_source": "공고문 2~3쪽"
+    }
+  ],
+  "exclusions": [
+    "도덕성·경제질서를 중대하게 해치는 업종(도박시설 등)",
+    "2016~2025 KSGC Top 40 선정 또는 중도탈락·자진철회 팀",
+    "2024~2026 Global Startup Commercialization Support Program 참여 팀",
+    "비자 문제 등으로 한국 입국이 불가능한 신청자"
+  ],
+  "notes": "'신청대상(한국 시장 진출 희망 해외 (pre-)startup)'에서 업력(창업 7년 이내) 조건을 추출하여 '업력' 필드로 매핑. '대표자 국적(non-Korean)' 조건은 표준 7종에 해당하지 않으며 국적 자체를 표준 필드로 분류 불가 → fields 제외, 본 notes에 기록. 선정규모, 지원내용, 제출서류는 메타 정보이므로 fields 제외."
+}
