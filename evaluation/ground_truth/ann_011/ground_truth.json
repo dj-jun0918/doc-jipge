@@ -2,39 +2,9 @@
   "announcement_id": "ann_011",
   "title": "2026년도 「상생형 AX 선도모델」 주관기관(대기업 등) 모집",
   "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1067692&parentSeq=1067692",
-  "fields": [
-    {
-      "field_name": "신청대상",
-      "condition": "주관기관은 대기업(계열사 포함), 중견기업 등",
-      "evidence": "주관기관 신청자격이 대기업(계열사 포함), 중견기업 등으로 명시됨",
-      "evidence_source": "공고문 2쪽 신청자격"
-    },
-    {
-      "field_name": "중소기업 참여 방식",
-      "condition": "중소기업은 주관기관 자격을 갖춘 기업과 컨소시엄을 구성하여 참여 가능",
-      "evidence": "중소기업 단독이 아니라 자격을 갖춘 기업과의 컨소시엄 참여 가능이라고 명시됨",
-      "evidence_source": "공고문 2쪽 신청자격 비고"
-    },
-    {
-      "field_name": "사업기간",
-      "condition": "최대 12개월",
-      "evidence": "사업기간이 최대 12개월로 명시됨",
-      "evidence_source": "공고문 2쪽"
-    },
-    {
-      "field_name": "구축목표",
-      "condition": "고도화 수준(중간1) 이상 스마트공장 구축, 2개 이상 공정 스마트화 및 AI 도입 필수",
-      "evidence": "중간1 이상, 2개 이상 공정 적용, 데이터 수집체계·AI 모델 개발 및 적용·시스템 통합 필수라고 명시됨",
-      "evidence_source": "공고문 2쪽 지원내용"
-    },
-    {
-      "field_name": "신청방법",
-      "condition": "스마트공장 사업관리시스템에서 온라인 신청",
-      "evidence": "smart-factory.kr 접속 후 회원가입, 로그인, 과제신청 절차가 명시됨",
-      "evidence_source": "공고문 4쪽 신청기간 및 방법"
-    }
-  ],
+  "fields": [],
   "exclusions": [
     "스마트제조혁신 지원사업에서 참여제한 중인 기업은 참여 불가"
-  ]
+  ],
+  "notes": "신청자격이 '대기업(계열사 포함), 중견기업 등 주관기관'으로 표준 7종(업력/매출/지역/나이/종업원 수/업종/인증) 어디에도 매핑되지 않음. 중소기업은 자격 보유 기업과 컨소시엄으로만 참여 가능. 사업기간(최대 12개월), 구축목표, 신청방법은 자격요건이 아닌 메타 정보이므로 fields 제외."
 }

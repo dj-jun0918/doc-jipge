@@ -4,34 +4,11 @@
   "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1067798&parentSeq=1067798",
   "fields": [
     {
-      "field_name": "스타트업 업력",
-      "condition": "창업 후 7년 이내(2019-04-29 ~ 2026-04-28 설립)",
-      "evidence": "창업 7년 이내 창업기업만 신청 가능하다고 명시됨",
+      "field_name": "업력",
+      "condition": "창업 후 7년 이내",
+      "operator": "이하",
+      "evidence": "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)",
       "evidence_source": "공고문 2쪽, 5쪽"
-    },
-    {
-      "field_name": "지원대상",
-      "condition": "수요기업과 협업과제 추진을 희망하는 스타트업",
-      "evidence": "스타트업 대상 사업화 자금 및 후속 연계 지원으로 명시됨",
-      "evidence_source": "공고문 2쪽"
-    },
-    {
-      "field_name": "협업과제 분야",
-      "condition": "6대 전략산업 12대 신산업 분야 해당 과제",
-      "evidence": "AI, Bio, Contents, Defence, Energy, Factory 분야가 제시됨",
-      "evidence_source": "공고문 2쪽"
-    },
-    {
-      "field_name": "지원금",
-      "condition": "과제별 최대 1억원 사업화 자금",
-      "evidence": "수요기업과 협업과제 추진에 필요한 사업화 자금을 최대 1억원까지 지원한다고 명시됨",
-      "evidence_source": "공고문 2쪽, 4쪽"
-    },
-    {
-      "field_name": "접수방식",
-      "condition": "1차 Pooling 신청은 OI 마켓, 협업제안서 제출은 K-Startup",
-      "evidence": "Pooling 신청과 협업제안서 제출 경로가 각각 구분되어 명시됨",
-      "evidence_source": "공고문 7~9쪽"
     }
   ],
   "exclusions": [
@@ -45,5 +22,6 @@
     "휴·폐업 중인 기업",
     "사업비 계좌 개설 및 거래 불가 기업",
     "보조금 관리에 관한 법률상 수행배제 기업"
-  ]
+  ],
+  "notes": "'스타트업 업력' → '업력'으로 표준 필드명 통일. operator는 '창업 후 7년 이내'를 경계값 포함으로 해석하여 '이하'로 지정. 지원대상(수요기업과 협업 희망 스타트업), 협업과제 분야, 지원금, 접수방식은 메타 정보이므로 fields 제외."
 }
