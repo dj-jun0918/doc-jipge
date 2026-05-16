@@ -1,9 +1,10 @@
 """Celery 태스크 정의.
 
-수집 → 첨부파일 다운로드 → HWP 변환 파이프라인 + 회사·공고 매칭.
+수집 → 첨부파일 다운로드 → HWP 변환 → 자격요건 추출 파이프라인 + 회사·공고 매칭.
 각 단계마다 pipeline_jobs 테이블에 진행 상태를 기록한다.
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -22,7 +23,7 @@ from app.collectors.mss import MssCollector
 from app.converters.hwp_converter import convert_to_pdf, is_hwp_file
 from app.database import SessionLocal
 from app.models.announcement import Announcement, Attachment
-from app.models.eligibility import EligibilityResult
+from app.models.eligibility import EligibilityResult, ExclusionResult
 from app.models.match_result import MatchResult
 from app.models.pipeline_job import PipelineJob
 from app.worker.celery_app import celery_app
@@ -327,7 +328,122 @@ def trigger_full_pipeline(source: str):
 
 
 # ---------------------------------------------------------------------------
-# 태스크 4: 회사 vs 전체 공고 매칭
+# 태스크 4: 자격요건 추출 (개별)
+# ---------------------------------------------------------------------------
+
+def _announcement_to_dict(ann: Announcement) -> dict:
+    """ORM Announcement → hybrid_engine 입력용 dict."""
+    return {
+        "id": str(ann.id),
+        "source_id": ann.source_id,
+        "title": ann.title,
+        "target_text": ann.target_text or "",
+        "exclusion_text": ann.exclusion_text or "",
+        "raw_api_data": ann.raw_api_data or {},
+        "attachments": [
+            {
+                "file_type": att.file_type,
+                "local_path": att.local_path,
+                "converted_pdf_path": att.converted_pdf_path,
+            }
+            for att in (ann.attachments or [])
+        ],
+    }
+
+
+@celery_app.task(bind=True, name="app.worker.tasks.extract_announcement_eligibility")
+def extract_announcement_eligibility(self, announcement_id: str) -> dict:
+    """공고 1건 자격요건 추출. 기존 EligibilityResult/ExclusionResult는 삭제 후 재적재."""
+    from app.extractor.hybrid_engine import extract_eligibility
+
+    db = SessionLocal()
+    job = _create_job(db, "extract", announcement_id)
+    try:
+        ann = db.get(Announcement, announcement_id)
+        if not ann:
+            _finish_job(db, job, status="failed", error=f"공고 없음: {announcement_id}")
+            return {"status": "error", "reason": "announcement_not_found"}
+
+        ann_dict = _announcement_to_dict(ann)
+        result = asyncio.run(extract_eligibility(ann_dict))
+
+        # 기존 결과 제거 (idempotent 재실행)
+        db.execute(delete(EligibilityResult).where(EligibilityResult.announcement_id == ann.id))
+        db.execute(delete(ExclusionResult).where(ExclusionResult.announcement_id == ann.id))
+
+        for f in result.fields:
+            db.add(EligibilityResult(
+                announcement_id=ann.id,
+                field_name=f.field_name,
+                condition_value=f.condition.raw_text,
+                condition_parsed={
+                    "value": f.condition.value,
+                    "operator": f.condition.operator,
+                },
+                evidence=f.evidence,
+                evidence_source=f.evidence_source,
+                processing_path=f.processing_path,
+            ))
+
+        for ex in result.exclusions:
+            db.add(ExclusionResult(
+                announcement_id=ann.id,
+                exclusion_text=ex.text,
+                evidence_source=ex.evidence_source,
+                processing_path=ex.processing_path,
+            ))
+
+        ann.extraction_status = "done"
+        job.total_count = len(result.fields) + len(result.exclusions)
+        job.success_count = job.total_count
+        db.commit()
+        _finish_job(db, job, status="done")
+
+        return {
+            "status": "ok",
+            "announcement_id": str(ann.id),
+            "fields_count": len(result.fields),
+            "exclusions_count": len(result.exclusions),
+        }
+
+    except Exception as e:
+        db.rollback()
+        _finish_job(db, job, status="failed", error=str(e))
+        logger.error(f"자격요건 추출 실패 (ann={announcement_id}): {e}")
+        raise
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# 태스크 5: 자격요건 추출 (전체 미추출 일괄)
+# ---------------------------------------------------------------------------
+
+@celery_app.task(bind=True, name="app.worker.tasks.extract_all_pending_eligibility")
+def extract_all_pending_eligibility(self) -> dict:
+    """extraction_status != 'done' 공고에 대해 개별 추출 태스크 fan-out."""
+    db = SessionLocal()
+    try:
+        pending_ids = [
+            str(a.id) for a in db.scalars(
+                select(Announcement)
+                .where(Announcement.extraction_status != "done")
+                .where(Announcement.duplicate_of.is_(None))
+            )
+        ]
+    finally:
+        db.close()
+
+    if not pending_ids:
+        return {"status": "ok", "scheduled": 0}
+
+    group(extract_announcement_eligibility.s(aid) for aid in pending_ids).apply_async()
+    logger.info(f"자격요건 추출 fan-out: {len(pending_ids)}건")
+    return {"status": "ok", "scheduled": len(pending_ids)}
+
+
+# ---------------------------------------------------------------------------
+# 태스크 6: 회사 vs 전체 공고 매칭
 # ---------------------------------------------------------------------------
 
 @celery_app.task(bind=True, name="app.worker.tasks.match_company_announcements")

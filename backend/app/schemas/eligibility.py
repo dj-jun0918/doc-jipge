@@ -44,3 +44,36 @@ class EligibilityResultResponse(BaseModel):
     processing_path: str
 
     model_config = {"from_attributes": True}
+
+
+class EligibilityFieldResponse(BaseModel):
+    """API 응답용 — id/announcement_id 제외 (URL path에 포함됨)."""
+
+    field_name: str
+    condition_value: str
+    condition_parsed: dict | None = None
+    evidence: str | None = None
+    evidence_source: str | None = None
+    processing_path: str
+
+    model_config = {"from_attributes": True}
+
+
+class ExclusionResponse(BaseModel):
+    text: str
+    evidence_source: str | None = None
+    processing_path: str
+
+
+class AnnouncementEligibilityResponse(BaseModel):
+    """GET /api/eligibility/{announcement_id} 응답."""
+
+    announcement_id: uuid.UUID
+    title: str
+    fields: list[EligibilityFieldResponse]
+    exclusions: list[ExclusionResponse]
+
+
+class TriggerResponse(BaseModel):
+    task_id: str
+    message: str
