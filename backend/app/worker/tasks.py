@@ -1,9 +1,10 @@
 """Celery 태스크 정의.
 
-수집 → 첨부파일 다운로드 → HWP 변환 파이프라인.
+수집 → 첨부파일 다운로드 → HWP 변환 → 자격요건 추출 파이프라인 + 회사·공고 매칭.
 각 단계마다 pipeline_jobs 테이블에 진행 상태를 기록한다.
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import httpx
 from celery import chain, group
+from sqlalchemy import delete, select
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential, before_sleep_log
 import logging
 
@@ -21,6 +23,8 @@ from app.collectors.mss import MssCollector
 from app.converters.hwp_converter import convert_to_pdf, is_hwp_file
 from app.database import SessionLocal
 from app.models.announcement import Announcement, Attachment
+from app.models.eligibility import EligibilityResult, ExclusionResult
+from app.models.match_result import MatchResult
 from app.models.pipeline_job import PipelineJob
 from app.worker.celery_app import celery_app
 
@@ -321,3 +325,202 @@ def trigger_full_pipeline(source: str):
     )
     pipelines.apply_async()
     logger.info(f"[{source}] 파이프라인 시작: {len(ann_ids)}건 공고에 대해 다운로드+변환 체인 실행")
+
+
+# ---------------------------------------------------------------------------
+# 태스크 4: 자격요건 추출 (개별)
+# ---------------------------------------------------------------------------
+
+def _announcement_to_dict(ann: Announcement) -> dict:
+    """ORM Announcement → hybrid_engine 입력용 dict."""
+    return {
+        "id": str(ann.id),
+        "source_id": ann.source_id,
+        "title": ann.title,
+        "target_text": ann.target_text or "",
+        "exclusion_text": ann.exclusion_text or "",
+        "raw_api_data": ann.raw_api_data or {},
+        "attachments": [
+            {
+                "file_type": att.file_type,
+                "local_path": att.local_path,
+                "converted_pdf_path": att.converted_pdf_path,
+            }
+            for att in (ann.attachments or [])
+        ],
+    }
+
+
+@celery_app.task(bind=True, name="app.worker.tasks.extract_announcement_eligibility")
+def extract_announcement_eligibility(self, announcement_id: str) -> dict:
+    """공고 1건 자격요건 추출. 기존 EligibilityResult/ExclusionResult는 삭제 후 재적재."""
+    from app.extractor.hybrid_engine import extract_eligibility
+
+    db = SessionLocal()
+    job = _create_job(db, "extract", announcement_id)
+    try:
+        ann = db.get(Announcement, announcement_id)
+        if not ann:
+            _finish_job(db, job, status="failed", error=f"공고 없음: {announcement_id}")
+            return {"status": "error", "reason": "announcement_not_found"}
+
+        ann_dict = _announcement_to_dict(ann)
+        result = asyncio.run(extract_eligibility(ann_dict))
+
+        # 기존 결과 제거 (idempotent 재실행)
+        db.execute(delete(EligibilityResult).where(EligibilityResult.announcement_id == ann.id))
+        db.execute(delete(ExclusionResult).where(ExclusionResult.announcement_id == ann.id))
+
+        for f in result.fields:
+            db.add(EligibilityResult(
+                announcement_id=ann.id,
+                field_name=f.field_name,
+                condition_value=f.condition.raw_text,
+                condition_parsed={
+                    "value": f.condition.value,
+                    "operator": f.condition.operator,
+                },
+                evidence=f.evidence,
+                evidence_source=f.evidence_source,
+                processing_path=f.processing_path,
+            ))
+
+        for ex in result.exclusions:
+            db.add(ExclusionResult(
+                announcement_id=ann.id,
+                exclusion_text=ex.text,
+                evidence_source=ex.evidence_source,
+                processing_path=ex.processing_path,
+            ))
+
+        ann.extraction_status = "done"
+        job.total_count = len(result.fields) + len(result.exclusions)
+        job.success_count = job.total_count
+        db.commit()
+        _finish_job(db, job, status="done")
+
+        return {
+            "status": "ok",
+            "announcement_id": str(ann.id),
+            "fields_count": len(result.fields),
+            "exclusions_count": len(result.exclusions),
+        }
+
+    except Exception as e:
+        db.rollback()
+        _finish_job(db, job, status="failed", error=str(e))
+        logger.error(f"자격요건 추출 실패 (ann={announcement_id}): {e}")
+        raise
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# 태스크 5: 자격요건 추출 (전체 미추출 일괄)
+# ---------------------------------------------------------------------------
+
+@celery_app.task(bind=True, name="app.worker.tasks.extract_all_pending_eligibility")
+def extract_all_pending_eligibility(self) -> dict:
+    """extraction_status != 'done' 공고에 대해 개별 추출 태스크 fan-out."""
+    db = SessionLocal()
+    try:
+        pending_ids = [
+            str(a.id) for a in db.scalars(
+                select(Announcement)
+                .where(Announcement.extraction_status != "done")
+                .where(Announcement.duplicate_of.is_(None))
+            )
+        ]
+    finally:
+        db.close()
+
+    if not pending_ids:
+        return {"status": "ok", "scheduled": 0}
+
+    group(extract_announcement_eligibility.s(aid) for aid in pending_ids).apply_async()
+    logger.info(f"자격요건 추출 fan-out: {len(pending_ids)}건")
+    return {"status": "ok", "scheduled": len(pending_ids)}
+
+
+# ---------------------------------------------------------------------------
+# 태스크 6: 회사 vs 전체 공고 매칭
+# ---------------------------------------------------------------------------
+
+@celery_app.task(bind=True, name="app.worker.tasks.match_company_announcements")
+def match_company_announcements(self, company_id: str) -> dict:
+    """회사 vs DB 내 자격요건 추출된 공고 전체 매칭. 기존 결과는 삭제 후 재적재."""
+    from app.matcher.matcher import match_announcement
+    from app.models.company import Company
+    from app.schemas.eligibility import EligibilityField, ParsedCondition
+
+    db = SessionLocal()
+    job = _create_job(db, "match")
+    try:
+        company = db.get(Company, company_id)
+        if not company:
+            _finish_job(db, job, status="failed", error=f"회사 없음: {company_id}")
+            return {"status": "error", "reason": "company_not_found"}
+
+        rows = db.scalars(
+            select(EligibilityResult).order_by(EligibilityResult.announcement_id)
+        ).all()
+        by_ann: dict[uuid.UUID, list[EligibilityResult]] = {}
+        for r in rows:
+            by_ann.setdefault(r.announcement_id, []).append(r)
+
+        if not by_ann:
+            _finish_job(db, job, status="done")
+            return {"status": "ok", "matched_announcements": 0}
+
+        # 기존 매칭 결과 제거 (해당 회사 한정, idempotent)
+        db.execute(delete(MatchResult).where(MatchResult.company_id == company.id))
+
+        matched_count = 0
+        for ann_id, eligibility_rows in by_ann.items():
+            fields: list[EligibilityField] = []
+            for er in eligibility_rows:
+                parsed = er.condition_parsed or {}
+                fields.append(EligibilityField(
+                    field_name=er.field_name,
+                    condition=ParsedCondition(
+                        value=parsed.get("value"),
+                        operator=parsed.get("operator"),
+                        raw_text=er.condition_value,
+                    ),
+                    evidence=er.evidence or "",
+                    evidence_source=er.evidence_source or "",
+                    processing_path=er.processing_path,
+                ))
+
+            results = match_announcement(company, fields, ann_id)
+            for r in results:
+                db.add(MatchResult(
+                    announcement_id=r.announcement_id,
+                    company_id=r.company_id,
+                    field_name=r.field_name,
+                    status=r.status,
+                    company_value=r.company_value,
+                    requirement_value=r.requirement_value,
+                    evidence=r.evidence,
+                    processing_path=r.processing_path,
+                ))
+            matched_count += 1
+
+        job.total_count = matched_count
+        job.success_count = matched_count
+        db.commit()
+        _finish_job(db, job, status="done")
+
+        return {
+            "status": "ok",
+            "company_id": str(company.id),
+            "matched_announcements": matched_count,
+        }
+
+    except Exception as e:
+        db.rollback()
+        _finish_job(db, job, status="failed", error=str(e))
+        logger.error(f"매칭 실패 (company={company_id}): {e}")
+        raise
+    finally:
+        db.close()
