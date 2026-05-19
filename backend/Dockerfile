@@ -2,6 +2,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# 기본 언어셋(Locale)을 UTF-8로 설정 (한글 HWPX 파일명 인식 오류 해결)
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 # LibreOffice + Java + libreoffice-java-common (LibreOffice↔Java 브릿지)
 # H2Orestart는 Java로 작성된 LibreOffice 확장이라 Java 브릿지가 필수
 RUN apt-get update && apt-get install -y --no-install-recommends \
