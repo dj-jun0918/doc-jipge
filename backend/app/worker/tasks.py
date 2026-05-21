@@ -265,6 +265,14 @@ def convert_attachments(self, attachment_ids: list[str]) -> list[str]:
                 job.skip_count += 1
                 continue
 
+            # HWP 구버전 변환 캐싱: 이미 변환된 PDF가 디스크에 존재하면 재변환 스킵
+            if att.file_type == "hwp" and att.converted_pdf_path and Path(att.converted_pdf_path).exists():
+                att.conversion_status = "converted"
+                processed_ids.append(str(att.id))
+                job.success_count += 1
+                logger.info(f"  변환 캐시 히트(skip): {att.file_name}")
+                continue
+
             try:
                 result = convert_document(att.local_path, att.file_type)
                 
