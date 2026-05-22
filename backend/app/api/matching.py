@@ -127,6 +127,10 @@ def get_matching_detail(
         MatchResultItem(
             field_name=r.field_name,
             status=r.status,
+            # PR#4 매칭 정교화 1차 (2026-05-20) — backend만 채움, UI 표시는 PR#5
+            score=r.score,
+            distance=r.distance,
+            constraint_type=r.constraint_type,
             company_value=r.company_value,
             requirement_value=r.requirement_value,
             evidence=r.evidence,
