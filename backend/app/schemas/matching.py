@@ -17,6 +17,10 @@ class MatchResultItem(BaseModel):
 
     field_name: str
     status: MatchStatus
+    # PR#4 매칭 정교화 1차 (2026-05-20) — backend만 채움. UI 표시는 PR#5
+    score: float | None = None              # 필드별 score 0~1
+    distance: float | None = None           # 미충족 수치 필드의 정규화 거리
+    constraint_type: Literal["hard", "soft"] | None = None  # 기본 "hard", PR#5 모호 케이스 합의 후 정밀화
     company_value: str | None = None
     requirement_value: str | None = None
     evidence: str | None = None

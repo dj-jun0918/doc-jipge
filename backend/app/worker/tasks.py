@@ -499,6 +499,10 @@ def match_company_announcements(self, company_id: str) -> dict:
                     company_id=r.company_id,
                     field_name=r.field_name,
                     status=r.status,
+                    # PR#4 매칭 정교화 1차 (2026-05-20)
+                    score=r.score,
+                    distance=r.distance,
+                    constraint_type=r.constraint_type,
                     company_value=r.company_value,
                     requirement_value=r.requirement_value,
                     evidence=r.evidence,
