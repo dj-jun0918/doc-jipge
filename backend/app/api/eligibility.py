@@ -65,7 +65,11 @@ def get_eligibility(announcement_id: str, db: Session = Depends(get_db)):
 
 @router.post("/{announcement_id}/extract", response_model=TriggerResponse)
 def trigger_extract(announcement_id: str, db: Session = Depends(get_db)):
-    """개별 공고 자격요건 추출 — Celery 비동기."""
+    """개별 공고 자격요건 추출/재처리 — Celery 비동기.
+
+    LLM 추출 실패 공고 재시도 또는 프롬프트 변경 후 특정 공고 재추출에 활용.
+    기존 EligibilityResult / ExclusionResult는 삭제 후 재적재.
+    """
     from app.worker.tasks import extract_announcement_eligibility
 
     ann_uuid = _parse_uuid(announcement_id, "announcement_id")
