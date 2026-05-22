@@ -1,7 +1,7 @@
 """add performance indexes
 
 Revision ID: e3f9b2c1d8a0
-Revises: adcb7cd716a5
+Revises: aec7f0aa570e
 Create Date: 2026-05-21 20:14:00.000000
 
 """
@@ -9,7 +9,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e3f9b2c1d8a0"
-down_revision = "adcb7cd716a5"
+down_revision = "aec7f0aa570e"
 branch_labels = None
 depends_on = None
 

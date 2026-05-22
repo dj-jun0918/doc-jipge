@@ -203,8 +203,12 @@ def trigger_matching(company_id: str, db: Session = Depends(get_db)):
 
 # ── Export helpers ────────────────────────────────────────────────────────────
 
-_EXPORT_HEADERS = ["공고명", "필드", "조건", "회사 값", "판정", "근거", "처리 경로"]
-_COL_WIDTHS = [50, 20, 30, 30, 10, 50, 15]
+# PR#4 매칭 정교화(score/distance/constraint_type) 로 헤더 업데이트
+_EXPORT_HEADERS = [
+    "공고명", "필드", "조건", "회사 값", "판정",
+    "Score", "Distance", "Constraint", "근거", "처리 경로",
+]
+_COL_WIDTHS = [50, 20, 30, 30, 10, 10, 10, 10, 50, 15]
 
 
 def _row_values(match: MatchResult, ann: Announcement) -> list:
@@ -214,6 +218,9 @@ def _row_values(match: MatchResult, ann: Announcement) -> list:
         match.requirement_value or "",
         match.company_value or "",
         match.status,
+        round(match.score, 3) if match.score is not None else "",
+        round(match.distance, 3) if match.distance is not None else "",
+        match.constraint_type or "",
         match.evidence or "",
         match.processing_path,
     ]
