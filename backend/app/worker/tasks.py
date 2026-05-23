@@ -286,10 +286,8 @@ def convert_attachments(self, attachment_ids: list[str]) -> list[str]:
                     att.converted_pdf_path = result.pdf_path
                     att.conversion_status = "converted"
                     
-                elif result.method == "text-fallback-failed":
-                    att.conversion_status = "text-fallback"
-                    if ann and result.text:
-                        ann.target_text = (ann.target_text or "") + "\n\n" + result.text
+                elif result.method == "failed":
+                    att.conversion_status = "failed"
 
                 elif result.method == "passthrough":
                     att.conversion_status = "skipped"

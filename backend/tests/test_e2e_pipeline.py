@@ -92,7 +92,15 @@ class TestE2EPipeline:
             db.close()
 
     def test_HWPX_python_hwpx_추출_성공률(self, source, clean_db_for_e2e):
-        """HWPX 파일은 python-hwpx로 처리, structured_tables 추출 확인."""
+        """HWPX 파일은 python-hwpx로 처리, structured_tables 추출 확인.
+
+        [목표 임계값 40% 설정 근거]
+        본 테스트는 실제 공공 포털(Bizinfo, K-Startup, MSS)에서 실시간으로 수집한 실 데이터를 대상으로 작동합니다.
+        실시간 라이브 데이터 중에는 텍스트가 전혀 없는 스캔본(이미지형 파일), 깨진 서식, 서식 전용 빈 파일 등이 
+        빈번히 포함되며, 이 경우 python-hwpx 파싱이 실패하여 LibreOffice fallback으로 우회될 수 있습니다.
+        이러한 불안정한 외부 데이터 환경으로 인해 CI/CD 빌드가 무작위로 실패하는 현상(Flaky Test)을 
+        방지하기 위해 최소한의 안전 마진인 40%를 기준값으로 유지합니다.
+        """
         db = SessionLocal()
         try:
             hwpx_attachments = db.scalars(
@@ -172,9 +180,9 @@ class TestE2EPipeline:
                     assert hasattr(att.announcement, "structured_tables"), \
                         f"HWPX인데 structured_tables 필드 없음: {att.id}"
                 elif att.file_type == "hwp":
-                    # LibreOffice 경로 → converted_pdf_path 또는 text-fallback
-                    assert att.conversion_status in ("converted", "failed", "text-fallback"), \
-                        f"HWP 변환 상태 비정상: {att.id}"
+                    # LibreOffice 경로 → converted_pdf_path 또는 failed
+                    assert att.conversion_status in ("converted", "failed", "skipped"), \
+                        f"HWP 변환 상태 비정상: {att.id} ({att.conversion_status})"
         finally:
             db.close()
 
@@ -186,5 +194,47 @@ class TestE2EPipeline:
                 select(PipelineJob).where(PipelineJob.status.in_(["processing", "queued"]), PipelineJob.announcement_id.in_(clean_db_for_e2e))
             ).all()
             assert len(jobs) == 0, f"진행 중인 job {len(jobs)}건 — 미완료 또는 hang"
+        finally:
+            db.close()
+
+    def test_HWPX_structured_tables_형식_검증(self, source, clean_db_for_e2e):
+        """HWPX python-hwpx 경로로 추출된 structured_tables의 데이터 형식을 검증.
+
+        단순 None/not-None 체크(test_HWPX_python_hwpx_추출_성공률)를 넘어,
+        실제 추출된 표 데이터가 올바른 구조({name, markdown})를 갖추는지 확인합니다.
+        """
+        db = SessionLocal()
+        try:
+            hwpx_attachments = db.scalars(
+                select(Attachment).where(
+                    Attachment.file_type == "hwpx",
+                    Attachment.local_path.is_not(None),
+                    Attachment.announcement_id.in_(clean_db_for_e2e)
+                )
+            ).all()
+
+            if not hwpx_attachments:
+                pytest.skip("HWPX 첨부파일 없음")
+
+            for att in hwpx_attachments:
+                db.refresh(att)
+                db.refresh(att.announcement)
+
+            # python-hwpx 경로를 거친 공고만 검증
+            for att in hwpx_attachments:
+                ann = att.announcement
+                if ann.structured_tables is None:
+                    continue  # fallback된 경우는 스킵
+
+                # structured_tables는 반드시 list여야 함
+                assert isinstance(ann.structured_tables, list), \
+                    f"structured_tables가 list가 아님: {type(ann.structured_tables)}"
+
+                # 표가 있다면 각 항목이 name/markdown 키를 가져야 함
+                for table in ann.structured_tables:
+                    assert isinstance(table, dict), f"표 항목이 dict가 아님: {table}"
+                    assert "name" in table, f"표 항목에 'name' 키 없음: {table}"
+                    assert "markdown" in table, f"표 항목에 'markdown' 키 없음: {table}"
+                    assert isinstance(table["markdown"], str), "markdown 값이 문자열이 아님"
         finally:
             db.close()

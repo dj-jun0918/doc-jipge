@@ -165,7 +165,8 @@ def convert_document(file_path: str | Path, file_type: str, timeout: int = 60) -
             pdf_path = convert_to_pdf(path, timeout)
             return ConversionResult(pdf_path=str(pdf_path), method="libreoffice")
         except Exception as e:
-            return ConversionResult(text="", method="text-fallback-failed")
+            # LibreOffice 변환 실패 — 텍스트 추출도 불가하므로 failed 처리
+            return ConversionResult(method="failed")
 
     elif file_type == "pdf":
         return ConversionResult(pdf_path=str(path), method="passthrough")
