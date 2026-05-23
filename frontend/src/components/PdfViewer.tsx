@@ -25,7 +25,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
   // local_path나 외부 경로에 따른 URL Fallback 매핑
   const getResolvedPdfUrl = (url: string): string => {
     if (!url) return "";
-    
+
     // 1. 만약 DB의 물리적 절대 경로(c:\Users\...) 형태로 제공되는 경우
     // 프론트엔드 static 폴더인 /ground_truth/ann_XXX/ 형식으로 Fallback 처리합니다.
     if (url.includes("ground_truth") || url.includes("evaluation")) {
@@ -35,12 +35,12 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
         return `/ground_truth/${annId}/${annId}.pdf`;
       }
     }
-    
+
     // 2. 외부 원격 PDF url의 경우 브라우저 CORS 회피를 위해 PDF Proxy API를 경유시킵니다.
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
     }
-    
+
     return url;
   };
 
