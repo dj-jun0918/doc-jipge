@@ -10,10 +10,13 @@ from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
+from dateutil.relativedelta import relativedelta
 
 from app.matcher.matcher import (
     calculate_age,
     calculate_biz_age,
+    compute_field_score,
+    compute_numeric_distance,
     match_announcement,
     match_certification,
     match_industry,
@@ -77,8 +80,9 @@ class TestCalculateBizAge:
         assert result > 3
 
     def test_업력_소수점_포함(self):
-        result = calculate_biz_age(date(2023, 5, 11))
-        # 2026-05-09 기준 약 2.99년 (3년 미만)
+        # 약 2.92년 전 — 3년 미만 (date.today() 기반으로 시간 변화에 robust)
+        founded = date.today() - relativedelta(years=2, months=11)
+        result = calculate_biz_age(founded)
         assert result < 3
 
     def test_오늘_창업_0(self):
@@ -118,8 +122,9 @@ class TestMatchNumeric:
 
     # 미만
     def test_업력_2년11개월_3년_미만_충족(self):
-        # 컴퍼니A: founded 2023-05-11 → 약 2.99년
-        biz_age = calculate_biz_age(date(2023, 5, 11))
+        # 약 2.92년 전 → 3년 미만 충족 (시간 변화에 robust)
+        founded = date.today() - relativedelta(years=2, months=11)
+        biz_age = calculate_biz_age(founded)
         assert match_numeric(biz_age, cond("미만", 3, "3년 미만")) == "충족"
 
     def test_업력_3년정각_3년_미만_미충족(self):
@@ -323,7 +328,7 @@ class TestMatchAnnouncement:
 
     def test_전체_충족_케이스(self):
         company = make_company(
-            founded_date=date(2023, 5, 11),  # 약 2.99년 — 3년 미만 충족
+            founded_date=date.today() - relativedelta(years=2, months=11),  # 약 2.92년 — 3년 미만 충족
             region="서울",
             industry="소프트웨어 개발",
         )
@@ -416,3 +421,157 @@ class TestMatchAnnouncement:
         fields = [field("인증", "보유", "vc_certified", "벤처인증 보유")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "충족"
+
+
+# ──────────────────────────────────────────────
+# compute_numeric_distance (PR#4 매칭 정교화 1차)
+# ──────────────────────────────────────────────
+
+class TestComputeNumericDistance:
+
+    def test_충족이면_None(self):
+        assert compute_numeric_distance(5, cond("미만", 7), "충족") is None
+
+    def test_확인필요면_None(self):
+        assert compute_numeric_distance(5, cond("미만", 7), "확인필요") is None
+
+    def test_해당없음이면_None(self):
+        assert compute_numeric_distance(5, cond("미만", 7), "해당없음") is None
+
+    def test_company_value_None이면_None(self):
+        assert compute_numeric_distance(None, cond("미만", 7), "미충족") is None
+
+    def test_미만_초과_거리(self):
+        # 매출 12억 vs 10억 이하 조건 → 거리 0.2 (20% 초과)
+        d = compute_numeric_distance(12, cond("이하", 10), "미충족")
+        assert d == pytest.approx(0.2, abs=0.01)
+
+    def test_미만_큰_초과_거리(self):
+        # 매출 50억 vs 10억 이하 → 거리 4.0
+        d = compute_numeric_distance(50, cond("이하", 10), "미충족")
+        assert d == pytest.approx(4.0, abs=0.01)
+
+    def test_이상_미달_거리(self):
+        # 5명 vs 10명 이상 → 거리 0.5 (50% 부족)
+        d = compute_numeric_distance(5, cond("이상", 10), "미충족")
+        assert d == pytest.approx(0.5, abs=0.01)
+
+    def test_범위_하한_미달(self):
+        # 2 vs {min: 3, max: 7} → 하한 3과 거리 0.333...
+        d = compute_numeric_distance(2, cond("범위", {"min": 3, "max": 7}), "미충족")
+        assert d == pytest.approx(1.0 / 3.0, abs=0.01)
+
+    def test_범위_상한_초과(self):
+        # 10 vs {min: 3, max: 7} → 상한 7과 거리 0.428...
+        d = compute_numeric_distance(10, cond("범위", {"min": 3, "max": 7}), "미충족")
+        assert d == pytest.approx(3.0 / 7.0, abs=0.01)
+
+    def test_value_0이면_None(self):
+        # 0으로 나누기 방지
+        assert compute_numeric_distance(5, cond("이하", 0), "미충족") is None
+
+    def test_value_dict_불완전이면_None(self):
+        # min만 있고 max 없으면 None
+        assert compute_numeric_distance(5, cond("범위", {"min": 3}), "미충족") is None
+
+
+# ──────────────────────────────────────────────
+# compute_field_score (PR#4 매칭 정교화 1차)
+# ──────────────────────────────────────────────
+
+class TestComputeFieldScore:
+
+    def test_충족이면_1(self):
+        assert compute_field_score("충족") == 1.0
+
+    def test_확인필요면_0_3(self):
+        assert compute_field_score("확인필요") == 0.3
+
+    def test_해당없음이면_None(self):
+        assert compute_field_score("해당없음") is None
+
+    def test_미충족_distance_None이면_0(self):
+        assert compute_field_score("미충족", None) == 0.0
+
+    def test_미충족_distance_1이상이면_0(self):
+        assert compute_field_score("미충족", 1.0) == 0.0
+        assert compute_field_score("미충족", 2.5) == 0.0
+
+    def test_미충족_거리_작으면_점수_높음(self):
+        # distance 0.2 → score 0.5 * (1 - 0.2) = 0.4
+        assert compute_field_score("미충족", 0.2) == pytest.approx(0.4, abs=0.01)
+
+    def test_미충족_거리_경계_0이면_최대(self):
+        # distance 0 → score 0.5 (충족과 명확히 구분)
+        assert compute_field_score("미충족", 0.0) == 0.5
+
+    def test_미충족_최대_0_5_보장(self):
+        # 어떤 distance여도 미충족은 최대 0.5
+        score = compute_field_score("미충족", 0.0)
+        assert score <= 0.5
+
+
+# ──────────────────────────────────────────────
+# match_announcement 정교화 1차 통합 (PR#4)
+# ──────────────────────────────────────────────
+
+class TestMatchAnnouncementWithScoreDistance:
+
+    def test_충족_필드_score_1(self):
+        company = make_company(founded_date=date.today() - relativedelta(years=2, months=11))  # 약 2.92년
+        fields = [field("업력", "미만", 3, "3년 미만")]
+        results = match_announcement(company, fields, uuid.uuid4())
+        assert results[0].status == "충족"
+        assert results[0].score == 1.0
+        assert results[0].distance is None
+        assert results[0].constraint_type == "hard"
+
+    def test_미충족_수치_필드_distance_채워짐(self):
+        # 종업원 4명 vs 5명 이상 조건 → 미충족, distance = 0.2
+        company = make_company(employee_count=4)
+        fields = [field("종업원 수", "이상", 5, "5인 이상")]
+        results = match_announcement(company, fields, uuid.uuid4())
+        assert results[0].status == "미충족"
+        assert results[0].distance == pytest.approx(0.2, abs=0.01)
+        # score: 0.5 * (1 - 0.2) = 0.4
+        assert results[0].score == pytest.approx(0.4, abs=0.01)
+        assert results[0].constraint_type == "hard"
+
+    def test_미충족_지역_필드_distance_None(self):
+        # 지역은 수치 필드 아님 → distance None
+        company = make_company(region="경기")
+        fields = [field("지역", "소재", "서울", "서울특별시 소재")]
+        results = match_announcement(company, fields, uuid.uuid4())
+        assert results[0].status == "미충족"
+        assert results[0].distance is None
+        assert results[0].score == 0.0
+        assert results[0].constraint_type == "hard"
+
+    def test_확인필요_score_0_3(self):
+        company = make_company(founded_date=None)
+        fields = [field("업력", "미만", 3, "3년 미만")]
+        results = match_announcement(company, fields, uuid.uuid4())
+        assert results[0].status == "확인필요"
+        assert results[0].score == 0.3
+        assert results[0].distance is None
+
+    def test_constraint_type_기본_hard(self):
+        # PR#4 1차에서 모든 필드는 기본 "hard". PR#5 모호 케이스 합의 후 정밀화
+        company = make_company()
+        fields = [
+            field("업력", "미만", 3, "3년 미만"),
+            field("지역", "소재", "서울", "서울"),
+            field("인증", "보유", "vc_certified", "벤처인증 보유"),
+        ]
+        results = match_announcement(company, fields, uuid.uuid4())
+        for r in results:
+            assert r.constraint_type == "hard"
+
+    def test_거리_큰_미충족은_0_점수(self):
+        # 매출 50억 vs 10억 이하 → 거리 4.0 → score 0.0
+        company = make_company(revenue=5_000_000_000)
+        fields = [field("매출", "이하", 1_000_000_000, "10억 이하")]
+        results = match_announcement(company, fields, uuid.uuid4())
+        assert results[0].status == "미충족"
+        assert results[0].distance == pytest.approx(4.0, abs=0.01)
+        assert results[0].score == 0.0

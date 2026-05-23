@@ -240,6 +240,75 @@ def match_certification(
 
 
 # ──────────────────────────────────────────────
+# 매칭 정교화 1차 (PR#4, 2026-05-20)
+# continuous score + distance metric + soft constraint 분리
+# ──────────────────────────────────────────────
+
+def compute_numeric_distance(
+    company_value: int | float | None,
+    condition: ParsedCondition,
+    status: MatchStatus,
+) -> float | None:
+    """
+    미충족 수치 필드에 대해 정규화 거리 계산.
+
+    - 단일 operator (미만/이하/이상/초과): |company_value - threshold| / |threshold|
+    - 범위 (dict {min, max}): 범위 밖이면 가까운 경계와의 정규화 거리
+    - 충족/확인필요/해당없음: None
+
+    Returns:
+        float ≥ 0 (조건에 가까울수록 작음) 또는 None
+    """
+    if status != "미충족" or company_value is None:
+        return None
+
+    val = condition.value
+
+    # 범위 처리
+    if isinstance(val, dict) and "min" in val and "max" in val:
+        lo, hi = val["min"], val["max"]
+        if not isinstance(lo, (int, float)) or not isinstance(hi, (int, float)):
+            return None
+        if company_value < lo:
+            return abs(company_value - lo) / max(abs(lo), 1)
+        elif company_value > hi:
+            return abs(company_value - hi) / max(abs(hi), 1)
+        return None  # 범위 안 = 충족이어야 하는데 미충족이면 condition 모순
+
+    # 단일 수치
+    if not isinstance(val, (int, float)) or val == 0:
+        return None
+    return abs(company_value - val) / abs(val)
+
+
+def compute_field_score(
+    status: MatchStatus,
+    distance: float | None = None,
+) -> float | None:
+    """
+    필드별 score (0~1).
+
+    - 충족: 1.0
+    - 확인필요: 0.3 (보수적, 불확실성 반영)
+    - 미충족: 거리 기반 부분 점수 (0.0 ~ 0.5)
+      - distance가 작을수록 (조건에 가까울수록) 높은 점수
+      - distance >= 1.0이거나 None이면 0.0
+    - 해당없음: None (점수 계산에서 제외)
+    """
+    if status == "충족":
+        return 1.0
+    elif status == "확인필요":
+        return 0.3
+    elif status == "미충족":
+        if distance is None or distance >= 1.0:
+            return 0.0
+        # 거리가 작을수록 점수 ↑ (최대 0.5 — 충족과 명확히 구분)
+        return max(0.0, 1.0 - distance) * 0.5
+    else:  # 해당없음
+        return None
+
+
+# ──────────────────────────────────────────────
 # 오케스트레이터
 # ──────────────────────────────────────────────
 
@@ -257,7 +326,11 @@ def match_announcement(
         announcement_id: 공고 UUID
 
     Returns:
-        list[MatchResultResponse]
+        list[MatchResultResponse] — 각 필드별 status + score + distance + constraint_type 포함
+
+    Notes:
+        - score/distance/constraint_type은 PR#4 매칭 정교화 1차 (2026-05-20)
+        - constraint_type 기본 "hard". PR#5 모호 케이스 합의 후 soft 분리
     """
     results: list[MatchResultResponse] = []
 
@@ -265,23 +338,28 @@ def match_announcement(
         fn = field.field_name
         cond = field.condition
         company_value_str: str | None = None
+        company_numeric: int | float | None = None  # distance 계산용 (수치 필드만)
         status: MatchStatus = "확인필요"
 
         if fn == "업력":
             biz_age = calculate_biz_age(company.founded_date)
+            company_numeric = biz_age
             company_value_str = f"{biz_age:.2f}년" if biz_age is not None else None
             status = match_numeric(biz_age, cond)
 
         elif fn == "매출":
+            company_numeric = company.revenue
             company_value_str = str(company.revenue) if company.revenue is not None else None
             status = match_numeric(company.revenue, cond)
 
         elif fn == "종업원 수":
+            company_numeric = company.employee_count
             company_value_str = str(company.employee_count) if company.employee_count is not None else None
             status = match_numeric(company.employee_count, cond)
 
         elif fn == "나이":
             age = calculate_age(company.ceo_birth_date)
+            company_numeric = age
             company_value_str = f"{age}세" if age is not None else None
             status = match_numeric(age, cond)
 
@@ -301,12 +379,21 @@ def match_announcement(
             # 알 수 없는 필드 → 확인필요
             status = "확인필요"
 
+        # PR#4 매칭 정교화 1차: distance + score 계산
+        distance = compute_numeric_distance(company_numeric, cond, status)
+        score = compute_field_score(status, distance)
+        # constraint_type — 기본 "hard". PR#5 모호 케이스 합의 후 정밀화
+        constraint_type: str = "hard"
+
         results.append(MatchResultResponse(
             id=uuid.uuid4(),
             announcement_id=announcement_id,
             company_id=company.id,
             field_name=fn,
             status=status,
+            score=score,
+            distance=distance,
+            constraint_type=constraint_type,
             company_value=company_value_str,
             requirement_value=cond.raw_text,
             evidence=field.evidence,
