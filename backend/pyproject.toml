@@ -2,7 +2,7 @@
 name = "doc-jipge"
 version = "0.1.0"
 description = "정부지원사업 자격요건 투명 검증 시스템"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     # Web framework
     "fastapi>=0.115.0",

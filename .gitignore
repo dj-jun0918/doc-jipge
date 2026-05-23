@@ -128,3 +128,4 @@ Thumbs.db
 attachments/
 # 실험 결과 (재현 가능하므로 커밋 불필요)
 evaluation/results/
+!evaluation/results/.gitkeep
