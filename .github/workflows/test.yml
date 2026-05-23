@@ -42,4 +42,4 @@ jobs:
         run: |
           cd backend
           alembic upgrade head
-          pytest tests -v --cov=app --cov-report=term
+          pytest tests -v
