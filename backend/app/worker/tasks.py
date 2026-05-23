@@ -20,7 +20,7 @@ from app.collectors.bizinfo import BizinfoCollector
 from app.collectors.deduplicator import find_duplicate
 from app.collectors.kstartup import KstartupCollector
 from app.collectors.mss import MssCollector
-from app.converters.hwp_converter import convert_to_pdf, is_hwp_file
+from app.converters.hwp_converter import convert_document, is_hwp_file
 from app.database import SessionLocal
 from app.models.announcement import Announcement, Attachment
 from app.models.eligibility import EligibilityResult, ExclusionResult
@@ -232,31 +232,32 @@ def download_attachment(self, announcement_id: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 태스크 3: HWP → PDF 변환
+# 태스크 3: 첨부파일 변환 (다층 라우팅)
 # ---------------------------------------------------------------------------
 
-@celery_app.task(bind=True, name="app.worker.tasks.convert_hwp_to_pdf")
-def convert_hwp_to_pdf(self, attachment_ids: list[str]) -> list[str]:
-    """HWP/HWPX → PDF 변환. PDF는 스킵.
+@celery_app.task(bind=True, name="app.worker.tasks.convert_attachments")
+def convert_attachments(self, attachment_ids: list[str]) -> list[str]:
+    """첨부파일 타입에 따라 최적의 추출/변환 경로를 라우팅.
 
     Args:
         attachment_ids: download_attachment가 반환한 ID 리스트
 
     Returns:
-        변환 완료된 PDF 경로 리스트
+        변환 시도 완료된 attachment ID 리스트
     """
     if not attachment_ids:
         return []
 
     db = SessionLocal()
 
-    # announcement_id는 첫 번째 attachment에서 추출
     first_att = db.get(Attachment, attachment_ids[0])
     ann_id = str(first_att.announcement_id) if first_att else None
     job = _create_job(db, "convert", ann_id)
 
+    ann = db.get(Announcement, ann_id) if ann_id else None
+
     try:
-        converted_paths: list[str] = []
+        processed_ids: list[str] = []
 
         for att_id in attachment_ids:
             att = db.get(Attachment, att_id)
@@ -264,19 +265,37 @@ def convert_hwp_to_pdf(self, attachment_ids: list[str]) -> list[str]:
                 job.skip_count += 1
                 continue
 
-            if not is_hwp_file(att.local_path):
-                # PDF 등 변환 불필요 파일은 스킵
-                att.conversion_status = "skipped"
-                job.skip_count += 1
-                continue
-
             try:
-                pdf_path = convert_to_pdf(att.local_path)
-                att.converted_pdf_path = str(pdf_path)
-                att.conversion_status = "converted"
-                converted_paths.append(str(pdf_path))
+                result = convert_document(att.local_path, att.file_type)
+                
+                if result.method == "python-hwpx":
+                    att.conversion_status = "converted"
+                    if ann:
+                        # Append text and tables
+                        if result.text:
+                            ann.target_text = (ann.target_text or "") + "\n\n" + result.text
+                        
+                        # Initialize or append
+                        existing = ann.structured_tables or []
+                        if result.structured_tables:
+                            existing.extend(result.structured_tables)
+                        # To update JSONB, we must assign a new object or mutate
+                        ann.structured_tables = list(existing)
+                
+                elif result.method in ("libreoffice", "libreoffice-fallback"):
+                    att.converted_pdf_path = result.pdf_path
+                    att.conversion_status = "converted"
+                    
+                elif result.method == "failed":
+                    att.conversion_status = "failed"
+
+                elif result.method == "passthrough":
+                    att.conversion_status = "skipped"
+                    att.converted_pdf_path = att.local_path
+                    
+                processed_ids.append(str(att.id))
                 job.success_count += 1
-                logger.info(f"  변환 완료: {att.file_name} → {pdf_path}")
+                logger.info(f"  변환 완료({result.method}): {att.file_name}")
 
             except Exception as e:
                 att.conversion_status = "failed"
@@ -287,7 +306,7 @@ def convert_hwp_to_pdf(self, attachment_ids: list[str]) -> list[str]:
         db.commit()
         _finish_job(db, job, status="done")
 
-        return converted_paths
+        return processed_ids
 
     except Exception as e:
         db.rollback()
@@ -319,7 +338,7 @@ def trigger_full_pipeline(source: str):
     pipelines = group(
         chain(
             download_attachment.s(ann_id),
-            convert_hwp_to_pdf.s(),
+            convert_attachments.s(),
         )
         for ann_id in ann_ids
     )
@@ -340,6 +359,7 @@ def _announcement_to_dict(ann: Announcement) -> dict:
         "target_text": ann.target_text or "",
         "exclusion_text": ann.exclusion_text or "",
         "raw_api_data": ann.raw_api_data or {},
+        "structured_tables": ann.structured_tables or [],
         "attachments": [
             {
                 "file_type": att.file_type,
