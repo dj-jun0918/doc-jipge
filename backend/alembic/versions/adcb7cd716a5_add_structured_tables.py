@@ -1,7 +1,7 @@
 """add structured_tables
 
 Revision ID: adcb7cd716a5
-Revises: aec7f0aa570e
+Revises: c1d2e3f4a5b6
 Create Date: 2026-05-19 13:05:07.973655
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'adcb7cd716a5'
-down_revision: Union[str, None] = 'aec7f0aa570e'
+down_revision: Union[str, None] = 'c1d2e3f4a5b6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
