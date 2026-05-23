@@ -39,7 +39,7 @@ jobs:
       - name: Run migrations and pytest
         env:
           DATABASE_URL: postgresql+psycopg://postgres:password@localhost:5432/docjipge
-          TEST_DATABASE_URL: postgresql+psycopg://postgres:password@localhost:5432/docjipge_test
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:password@localhost:5432/docjipge
         run: |
           cd backend
           alembic upgrade head
