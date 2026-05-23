@@ -14,6 +14,7 @@ class AnnouncementBase(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     target_text: str | None = None
+    structured_tables: list[dict] | None = None
     exclusion_text: str | None = None
     category: str | None = None
     region: str | None = None

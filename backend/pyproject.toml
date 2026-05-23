@@ -19,7 +19,8 @@ dependencies = [
     # FastAPI file upload
     "python-multipart>=0.0.18",
     # Web scraping
-    "playwright>=1.49.0",
+    "playwright>=1.49.1",
+    "python-hwpx>=2.9.1",
     # PDF processing
     "pymupdf>=1.25.0",
     # LLM APIs
@@ -38,6 +39,12 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: 실 API 호출 통합 테스트 (느림, 수동 실행)",
+]
+asyncio_mode = "auto"
 
 [tool.setuptools.packages.find]
 include = ["app*"]

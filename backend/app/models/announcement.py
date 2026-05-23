@@ -27,6 +27,7 @@ class Announcement(Base):
     extraction_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     duplicate_of: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("announcements.id"))
     raw_api_data: Mapped[dict | None] = mapped_column(JSONB)
+    structured_tables: Mapped[list[dict] | None] = mapped_column(JSONB)
     summary: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("now()"))
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, onupdate=datetime.now)
