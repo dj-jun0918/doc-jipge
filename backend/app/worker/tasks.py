@@ -265,6 +265,14 @@ def convert_attachments(self, attachment_ids: list[str]) -> list[str]:
                 job.skip_count += 1
                 continue
 
+            # HWP 구버전 변환 캐싱: 이미 변환된 PDF가 디스크에 존재하면 재변환 스킵
+            if att.file_type == "hwp" and att.converted_pdf_path and Path(att.converted_pdf_path).exists():
+                att.conversion_status = "converted"
+                processed_ids.append(str(att.id))
+                job.success_count += 1
+                logger.info(f"  변환 캐시 히트(skip): {att.file_name}")
+                continue
+
             try:
                 result = convert_document(att.local_path, att.file_type)
                 
@@ -373,7 +381,10 @@ def _announcement_to_dict(ann: Announcement) -> dict:
 
 @celery_app.task(bind=True, name="app.worker.tasks.extract_announcement_eligibility")
 def extract_announcement_eligibility(self, announcement_id: str) -> dict:
-    """공고 1건 자격요건 추출. 기존 EligibilityResult/ExclusionResult는 삭제 후 재적재."""
+    """공고 1건 자격요건 추출/재처리. 기존 EligibilityResult/ExclusionResult는 삭제 후 재적재.
+
+    LLM 추출 실패 공고 재시도 또는 프롬프트 변경 후 특정 공고 재추출에 활용.
+    """
     from app.extractor.hybrid_engine import extract_eligibility
 
     db = SessionLocal()
@@ -383,6 +394,10 @@ def extract_announcement_eligibility(self, announcement_id: str) -> dict:
         if not ann:
             _finish_job(db, job, status="failed", error=f"공고 없음: {announcement_id}")
             return {"status": "error", "reason": "announcement_not_found"}
+
+        # 재처리 진행 중 상태 표시 (프론트 폴링 / 중복 트리거 감지용)
+        ann.extraction_status = "processing"
+        db.commit()
 
         ann_dict = _announcement_to_dict(ann)
         result = asyncio.run(extract_eligibility(ann_dict))

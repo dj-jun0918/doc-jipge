@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm /tmp/H2Orestart.oxt \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Playwright Chromium (K-Startup, 중기부 스크래핑)
-RUN pip install --no-cache-dir playwright \
+# Playwright Chromium (K-Startup, 중기부 스크래핑) 및 python-hwpx 사전 설치
+RUN pip install --no-cache-dir playwright python-hwpx>=2.9.1 \
     && playwright install --with-deps chromium
 
 # Python 의존성 (의존성 캐시 레이어 분리)

@@ -133,6 +133,41 @@ class TestGetMatchingResults:
 
 
 # ---------------------------------------------------------------------------
+# GET /api/matching/{company_id}/export
+# ---------------------------------------------------------------------------
+
+class TestExportMatchingResults:
+
+    def test_404_when_company_not_found(self, client):
+        response = client.get(f"/api/matching/{uuid.uuid4()}/export")
+        assert response.status_code == 404
+
+    def test_export_csv_success(self, client, db_session):
+        company = _make_company(db_session, name="가나다")
+        ann = _make_announcement(db_session)
+        _make_match_result(db_session, ann.id, company.id, status="충족")
+
+        response = client.get(f"/api/matching/{company.id}/export?format=csv")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert "filename*=UTF-8''matching_%EA%B0%80%EB%82%98%EB%8B%A4" in response.headers["content-disposition"]
+        # UTF-8 BOM과 함께 헤더가 포함되는지 확인
+        content = response.content.decode("utf-8")
+        assert content.startswith("\ufeff")
+        assert "점수,거리,제약" in content
+
+    def test_export_xlsx_success(self, client, db_session):
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        _make_match_result(db_session, ann.id, company.id, status="충족")
+
+        response = client.get(f"/api/matching/{company.id}/export?format=xlsx")
+        assert response.status_code == 200
+        assert "spreadsheetml" in response.headers["content-type"]
+        assert response.content.startswith(b"PK")  # Excel 파일 시그니처
+
+
+# ---------------------------------------------------------------------------
 # GET /api/matching/{company_id}/{announcement_id}
 # ---------------------------------------------------------------------------
 
