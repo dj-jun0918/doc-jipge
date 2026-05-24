@@ -12,6 +12,7 @@ from app.schemas.announcement import (
     AnnouncementDetailResponse,
     AnnouncementListResponse,
     AnnouncementResponse,
+    AnnouncementSummaryResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ def get_announcement(announcement_id: str, db: Session = Depends(get_db)):
     return ann
 
 
-@router.get("/{announcement_id}/summary")
+@router.get("/{announcement_id}/summary", response_model=AnnouncementSummaryResponse)
 async def summarize(announcement_id: str, db: Session = Depends(get_db)):
     """공고 본문 한 줄 요약 (LLM 호출 + DB 캐싱)."""
     ann = db.get(Announcement, announcement_id)

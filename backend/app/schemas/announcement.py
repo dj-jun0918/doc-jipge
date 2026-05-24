@@ -14,7 +14,6 @@ class AnnouncementBase(BaseModel):
     period_start: date | None = None
     period_end: date | None = None
     target_text: str | None = None
-    structured_tables: list[dict] | None = None
     exclusion_text: str | None = None
     category: str | None = None
     region: str | None = None
@@ -48,11 +47,17 @@ class AttachmentInfo(BaseModel):
 
 
 class AnnouncementDetailResponse(AnnouncementResponse):
-    """단건용 — attachments 포함 (수십~수백 KB)."""
+    """단건용 — attachments + structured_tables 포함 (수십~수백 KB)."""
     attachments: list[AttachmentInfo] = []
-    # structured_tables는 PR#17 머지 후 추가 (현재 develop에 컬럼 없음)
+    structured_tables: list[dict] | None = None  # PR#17 머지로 활성화 (HWPX 표 markdown 배열)
 
 
 class AnnouncementListResponse(BaseModel):
     items: list[AnnouncementResponse]
     total: int
+
+
+class AnnouncementSummaryResponse(BaseModel):
+    """GET /api/announcements/{id}/summary 응답."""
+    summary: str
+    cached: bool
