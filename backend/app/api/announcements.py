@@ -3,11 +3,17 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.extractor import text_llm
 from app.models.announcement import Announcement
+from app.schemas.announcement import (
+    AnnouncementDetailResponse,
+    AnnouncementListResponse,
+    AnnouncementResponse,
+    AnnouncementSummaryResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ def _parse_date(value: str | None) -> date | None:
         raise HTTPException(status_code=400, detail=f"날짜 형식 오류: {value} (YYYY-MM-DD 형식)")
 
 
-@router.get("/")
+@router.get("/", response_model=AnnouncementListResponse)
 def list_announcements(
     source: str | None = Query(None, description="bizinfo/kstartup/mss"),
     region: str | None = Query(None),
@@ -51,17 +57,25 @@ def list_announcements(
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
     items = db.scalars(stmt.order_by(Announcement.created_at.desc()).offset(offset).limit(limit)).all()
 
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+    return AnnouncementListResponse(
+        items=[AnnouncementResponse.model_validate(a) for a in items],
+        total=total or 0,
+    )
 
-@router.get("/{announcement_id}")
+
+@router.get("/{announcement_id}", response_model=AnnouncementDetailResponse)
 def get_announcement(announcement_id: str, db: Session = Depends(get_db)):
-    ann = db.get(Announcement, announcement_id)
+    ann = db.scalar(
+        select(Announcement)
+        .options(selectinload(Announcement.attachments))  # N+1 방지
+        .where(Announcement.id == announcement_id)
+    )
     if not ann:
         raise HTTPException(status_code=404, detail="공고를 찾을 수 없습니다")
     return ann
 
 
-@router.get("/{announcement_id}/summary")
+@router.get("/{announcement_id}/summary", response_model=AnnouncementSummaryResponse)
 async def summarize(announcement_id: str, db: Session = Depends(get_db)):
     """공고 본문 한 줄 요약 (LLM 호출 + DB 캐싱)."""
     ann = db.get(Announcement, announcement_id)

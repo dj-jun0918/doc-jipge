@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -16,6 +16,10 @@ class MatchResult(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
     field_name: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20))  # "충족" / "미충족" / "확인필요" / "해당없음"
+    # PR#4 매칭 정교화 1차 (2026-05-20)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    distance: Mapped[float | None] = mapped_column(Float, nullable=True)
+    constraint_type: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "hard" / "soft"
     company_value: Mapped[str | None] = mapped_column(Text)
     requirement_value: Mapped[str | None] = mapped_column(Text)
     evidence: Mapped[str | None] = mapped_column(Text)
