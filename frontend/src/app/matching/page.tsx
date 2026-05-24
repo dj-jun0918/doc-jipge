@@ -25,10 +25,10 @@ interface CompanyMatchListResponse {
 }
 
 interface MatchStats {
-  fulfilled: number;
-  unfulfilled: number;
-  confirmRequired: number;
-  total: number;
+  totalMatches: number;
+  averageScore: number;
+  highestScore: number;
+  perfectMatches: number;
 }
 
 export default function MatchingDashboardPage() {
@@ -37,10 +37,10 @@ export default function MatchingDashboardPage() {
   const [matchResults, setMatchResults] = useState<CompanyMatchSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [stats, setStats] = useState<MatchStats>({
-    fulfilled: 0,
-    unfulfilled: 0,
-    confirmRequired: 0,
-    total: 0,
+    totalMatches: 0,
+    averageScore: 0,
+    highestScore: 0,
+    perfectMatches: 0,
   });
 
   // 1. 기업 목록 가져오기
@@ -75,29 +75,29 @@ export default function MatchingDashboardPage() {
           const items = data.items || [];
           setMatchResults(items);
 
-          // 임시 통계 계산 (WOW 효과를 위해 개별 공고의 매칭 디테일 스펙 분석)
-          // match_score가 1.0 (100% 충족)인 것을 '충족', 0.7 이상 '확인필요', 그 미만을 '미충족'으로 매핑하여
-          // 대시보드 상단 통계 수치를 역동적으로 렌더링합니다.
-          let fulfilled = 0;
-          let confirmRequired = 0;
-          let unfulfilled = 0;
+          // 임의 점수 분류 제거 -> 객관적인 종합 지표 집계
+          let totalScore = 0;
+          let highest = 0;
+          let perfect = 0;
 
           items.forEach((item) => {
-            const pct = item.match_score * 100;
-            if (pct === 100) {
-              fulfilled++;
-            } else if (pct >= 70) {
-              confirmRequired++;
-            } else {
-              unfulfilled++;
+            const scorePct = item.match_score * 100;
+            totalScore += scorePct;
+            if (scorePct > highest) {
+              highest = scorePct;
+            }
+            if (scorePct === 100) {
+              perfect++;
             }
           });
 
+          const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
+
           setStats({
-            fulfilled,
-            confirmRequired,
-            unfulfilled,
-            total: items.length,
+            totalMatches: items.length,
+            averageScore: avg,
+            highestScore: Math.round(highest),
+            perfectMatches: perfect,
           });
         }
       } catch (err) {
@@ -161,34 +161,34 @@ export default function MatchingDashboardPage() {
           </div>
         ) : (
           <>
-            {/* 요약 통계 카드 섹션 */}
+            {/* 요약 통계 카드 섹션 (객관적 지표 카드들로 리뉴얼) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="relative overflow-hidden group rounded-2xl border border-green-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-green-700">✅ 충족 공고</p>
-                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.fulfilled}</h3>
-                <p className="text-xs text-gray-500 mt-2">자격요건을 100% 만족하는 사업</p>
-              </div>
-
-              <div className="relative overflow-hidden group rounded-2xl border border-red-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-red-700">❌ 미충족 공고</p>
-                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.unfulfilled}</h3>
-                <p className="text-xs text-gray-500 mt-2">자격요건 중 탈락 요인이 있는 사업</p>
-              </div>
-
-              <div className="relative overflow-hidden group rounded-2xl border border-yellow-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-yellow-700">⚠️ 확인필요</p>
-                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.confirmRequired}</h3>
-                <p className="text-xs text-gray-500 mt-2">수동 검토 또는 프로필 보완 필요</p>
-              </div>
-
               <div className="relative overflow-hidden group rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full pointer-events-none" />
                 <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">📋 전체 매칭 공고</p>
-                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.total}</h3>
+                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.totalMatches}</h3>
                 <p className="text-xs text-gray-500 mt-2">전체 매칭 시도된 총 지원 사업</p>
+              </div>
+
+              <div className="relative overflow-hidden group rounded-2xl border border-indigo-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">📊 평균 매칭률</p>
+                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.averageScore}%</h3>
+                <p className="text-xs text-gray-500 mt-2">비교 분석된 공고들의 평균 충족 비율</p>
+              </div>
+
+              <div className="relative overflow-hidden group rounded-2xl border border-purple-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full pointer-events-none" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-purple-700">✨ 최고 매칭률</p>
+                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.highestScore}%</h3>
+                <p className="text-xs text-gray-500 mt-2">가장 높은 충족 결과를 보인 비율</p>
+              </div>
+
+              <div className="relative overflow-hidden group rounded-2xl border border-green-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-bl-full pointer-events-none" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-green-700">✅ 100% 매칭 공고</p>
+                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.perfectMatches}</h3>
+                <p className="text-xs text-gray-500 mt-2">자격요건을 완벽히 충족하는 사업</p>
               </div>
             </div>
 
@@ -216,7 +216,7 @@ export default function MatchingDashboardPage() {
 
               {matchResults.length === 0 ? (
                 <div className="py-20 text-center">
-                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-4 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                   <p className="text-gray-500 font-medium">현재 이 기업에 대한 매칭 결과가 존재하지 않습니다.</p>
@@ -227,28 +227,11 @@ export default function MatchingDashboardPage() {
                   {matchResults.slice(0, 10).map((item, index) => {
                     const scorePercentage = Math.round(item.match_score * 100);
                     
-                    // 점수에 따른 다이내믹 컬러맵 설정
-                    let borderClass = "border-gray-200";
-                    let bgClass = "bg-white hover:bg-gray-50/50";
-                    let textClass = "text-blue-600";
-                    let fillClass = "bg-blue-600";
-                    
-                    if (scorePercentage === 100) {
-                      borderClass = "border-green-200 hover:border-green-300";
-                      bgClass = "bg-green-50/10 hover:bg-green-50/20";
-                      textClass = "text-green-700";
-                      fillClass = "bg-green-500";
-                    } else if (scorePercentage >= 70) {
-                      borderClass = "border-yellow-200 hover:border-yellow-300";
-                      bgClass = "bg-yellow-50/10 hover:bg-yellow-50/20";
-                      textClass = "text-yellow-700";
-                      fillClass = "bg-amber-500";
-                    } else {
-                      borderClass = "border-red-200 hover:border-red-300";
-                      bgClass = "bg-red-50/10 hover:bg-red-50/20";
-                      textClass = "text-red-700";
-                      fillClass = "bg-red-500";
-                    }
+                    // 💡 임의 점수 분류 제거 및 표준 블루 테마 적용
+                    const borderClass = "border-gray-200 hover:border-blue-200";
+                    const bgClass = "bg-white hover:bg-blue-50/5";
+                    const textClass = "text-blue-600";
+                    const fillClass = "bg-blue-600";
 
                     return (
                       <div
@@ -315,3 +298,4 @@ export default function MatchingDashboardPage() {
     </main>
   );
 }
+

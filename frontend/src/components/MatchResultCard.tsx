@@ -17,10 +17,9 @@ export interface MatchField {
 interface MatchResultCardProps {
   field: MatchField;
   onEvidenceClick: (page: number, text: string) => void;
-  onOverrideStatus?: (fieldName: string, newStatus: "충족" | "미충족") => void;
 }
 
-export default function MatchResultCard({ field, onEvidenceClick, onOverrideStatus }: MatchResultCardProps) {
+export default function MatchResultCard({ field, onEvidenceClick }: MatchResultCardProps) {
   const { field_name, status, criterion, current_value, reason, evidence_source } = field;
 
   // 상태별 다이내믹 컬러/뱃지 스타일 맵
@@ -106,25 +105,6 @@ export default function MatchResultCard({ field, onEvidenceClick, onOverrideStat
           </button>
         ) : (
           <span className="text-[11px] text-gray-400">원문 근거 정보가 존재하지 않습니다.</span>
-        )}
-
-        {/* 수동 상태 오버라이드 제어 */}
-        {status === "확인필요" && onOverrideStatus && (
-          <div className="flex items-center gap-1.5 ml-auto">
-            <span className="text-[11px] text-gray-400 font-semibold mr-1">직접 확인:</span>
-            <button
-              onClick={() => onOverrideStatus(field_name, "충족")}
-              className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-semibold shadow-sm hover:shadow active:scale-95 transition cursor-pointer"
-            >
-              충족함
-            </button>
-            <button
-              onClick={() => onOverrideStatus(field_name, "미충족")}
-              className="px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold shadow-sm hover:shadow active:scale-95 transition cursor-pointer"
-            >
-              미충족
-            </button>
-          </div>
         )}
       </div>
     </div>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
-// unpkg CDN을 통해 안전하게 pdf.worker를 로드합니다.
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// CDN 대신 로컬 정적 워커를 사용합니다 (오프라인/로컬 환경 대응).
+// 워커 파일은 frontend/public/pdf.worker.min.mjs 경로에 위치해야 합니다.
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 // CSS Styles (react-pdf 기본 텍스트 레이어 및 어노테이션 레이어 깨짐 방지)
 import "react-pdf/dist/Page/TextLayer.css";
@@ -21,30 +22,29 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // 반응형 너비 추적을 위한 ResizeObserver 연동
+  const [containerWidth, setContainerWidth] = useState<number>(650);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // local_path나 외부 경로에 따른 URL Fallback 매핑
-  const getResolvedPdfUrl = (url: string): string => {
-    if (!url) return "";
-
-    // 1. 만약 DB의 물리적 절대 경로(c:\Users\...) 형태로 제공되는 경우
-    // 프론트엔드 static 폴더인 /ground_truth/ann_XXX/ 형식으로 Fallback 처리합니다.
-    if (url.includes("ground_truth") || url.includes("evaluation")) {
-      const match = url.match(/ann_\d+/);
-      if (match) {
-        const annId = match[0]; // e.g. ann_021
-        return `/ground_truth/${annId}/${annId}.pdf`;
+  // ResizeObserver로 컨테이너 너비 동적 감지 (반응형 PDF 렌더링)
+  const observeResize = useCallback(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        // 좌우 패딩(32px) 및 최소/최대 너비 제한 적용
+        const usableWidth = Math.min(Math.max(width - 32, 300), 900);
+        setContainerWidth(usableWidth);
       }
-    }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-    // 2. 외부 원격 PDF url의 경우 브라우저 CORS 회피를 위해 PDF Proxy API를 경유시킵니다.
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return `/api/pdf-proxy?url=${encodeURIComponent(url)}`;
-    }
-
-    return url;
-  };
-
-  const resolvedUrl = getResolvedPdfUrl(pdfUrl);
+  useEffect(() => {
+    const cleanup = observeResize();
+    return cleanup;
+  }, [observeResize]);
 
   // highlightPage가 변할 때 해당 페이지로 자동 점프
   useEffect(() => {
@@ -52,6 +52,13 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
       setPageNumber(highlightPage);
     }
   }, [highlightPage]);
+
+  // pdfUrl이 바뀌면 페이지 및 상태 초기화
+  useEffect(() => {
+    setPageNumber(1);
+    setLoading(true);
+    setError(null);
+  }, [pdfUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -101,13 +108,16 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
 
         {evidenceText && (
           <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium animate-pulse">
-            🔍 근거: "{evidenceText}"
+            🔍 근거: &quot;{evidenceText}&quot;
           </div>
         )}
       </div>
 
-      {/* PDF 본문 영역 */}
-      <div className="flex-1 overflow-auto p-6 flex justify-center items-start min-h-[450px]">
+      {/* PDF 본문 영역 (반응형 너비 추적) */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto p-4 flex justify-center items-start min-h-[450px]"
+      >
         {loading && (
           <div className="my-auto flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
@@ -122,22 +132,22 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
             </svg>
             <p className="text-gray-900 font-semibold mb-2">{error}</p>
             <p className="text-gray-500 text-xs leading-relaxed">
-              만약 로컬 PDF 파일 분석 환경이라면, <code className="bg-gray-100 px-1.5 py-0.5 rounded text-red-600">evaluation/ground_truth</code> 폴더의 PDF 파일들이 프론트엔드의 <code className="bg-gray-100 px-1.5 py-0.5 rounded">public/ground_truth/</code> 폴더 하위로 복사되었는지 확인해 주세요.
+              백엔드 서버가 실행 중인지, 첨부파일 ID가 올바른지 확인해 주세요.
             </p>
           </div>
         )}
 
-        {!error && resolvedUrl && (
+        {!error && pdfUrl && (
           <div className="bg-white p-4 rounded-xl border shadow-sm max-w-full overflow-hidden">
             <Document
-              file={resolvedUrl}
+              file={pdfUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading=""
             >
               <Page
                 pageNumber={pageNumber}
-                width={650}
+                width={containerWidth}
                 loading=""
                 renderAnnotationLayer={false}
                 renderTextLayer={true}
@@ -146,7 +156,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
           </div>
         )}
 
-        {!resolvedUrl && !loading && (
+        {!pdfUrl && !loading && (
           <div className="my-auto text-gray-400 text-sm">
             조회할 공고 PDF 경로 정보가 존재하지 않습니다.
           </div>

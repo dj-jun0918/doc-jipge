@@ -5,10 +5,9 @@ import MatchResultCard, { MatchField } from "./MatchResultCard";
 interface ConfirmRequiredTabProps {
   fields: MatchField[];
   onEvidenceClick: (page: number, text: string) => void;
-  onOverrideStatus: (fieldName: string, newStatus: "충족" | "미충족") => void;
 }
 
-export default function ConfirmRequiredTab({ fields, onEvidenceClick, onOverrideStatus }: ConfirmRequiredTabProps) {
+export default function ConfirmRequiredTab({ fields, onEvidenceClick }: ConfirmRequiredTabProps) {
   // 확인필요 상태인 항목만 필터링
   const confirmRequiredFields = fields.filter((f) => f.status === "확인필요");
 
@@ -53,7 +52,6 @@ export default function ConfirmRequiredTab({ fields, onEvidenceClick, onOverride
               key={field.field_name}
               field={field}
               onEvidenceClick={onEvidenceClick}
-              onOverrideStatus={onOverrideStatus}
             />
           ))}
         </div>
