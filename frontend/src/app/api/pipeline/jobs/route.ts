@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const searchParams = url.searchParams;
 
-    const backendUrl = new URL("http://localhost:8000/api/pipeline/jobs");
+    const backendUrl = new URL(`${BACKEND_URL}/api/pipeline/jobs`);
 
     searchParams.forEach((value, key) => {
       backendUrl.searchParams.append(key, value);

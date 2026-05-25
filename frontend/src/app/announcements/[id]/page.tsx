@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import BookmarkButton from "@/components/BookmarkButton";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 interface Attachment {
   name?: string;
   url?: string;
@@ -28,7 +30,7 @@ interface PageProps {
 }
 
 async function getAnnouncementDetail(id: string): Promise<AnnouncementDetail> {
-  const response = await fetch(`http://localhost:8000/api/announcements/${id}`, {
+  const response = await fetch(`${BACKEND_URL}/api/announcements/${id}`, {
     cache: "no-store",
   });
 
