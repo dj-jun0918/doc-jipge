@@ -5,6 +5,7 @@ IMPLEMENTATION.md §5-3 A-1 참조.
 """
 
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -36,6 +37,9 @@ def serve_attachment(attachment_id: str, db: Session = Depends(get_db)):
     pdf_path = att.converted_pdf_path or (att.local_path if att.file_type == "pdf" else None)
     if not pdf_path:
         raise HTTPException(status_code=404, detail="PDF 표시 불가 (HWPX는 EvidencePlaceholder)")
+
+    if not Path(pdf_path).exists():
+        raise HTTPException(status_code=404, detail=f"PDF 파일이 디스크에 존재하지 않습니다: {pdf_path}")
 
     return FileResponse(
         pdf_path,

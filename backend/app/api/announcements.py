@@ -109,5 +109,6 @@ async def _generate_summary(text: str, model: str = "gpt-4o-mini") -> str:
         ],
         temperature=0.0,
         max_tokens=100,
+        timeout=30,
     )
     return (response.choices[0].message.content or "").strip()

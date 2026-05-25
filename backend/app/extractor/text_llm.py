@@ -90,6 +90,7 @@ async def _call_llm(user_input: str, model: str) -> str:
         ],
         temperature=0.0,
         response_format={"type": "json_object"},
+        timeout=60,
     )
     usage = response.usage
     if usage:

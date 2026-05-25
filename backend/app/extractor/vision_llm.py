@@ -136,6 +136,7 @@ async def _call_vision(images_b64: list[str], model: str) -> str:
         messages=[{"role": "user", "content": content_blocks}],
         temperature=0.0,
         response_format={"type": "json_object"},
+        timeout=120,
     )
 
     usage = response.usage
