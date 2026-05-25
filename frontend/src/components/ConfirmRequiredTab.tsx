@@ -19,7 +19,7 @@ export default function ConfirmRequiredTab({ fields, onEvidenceClick }: ConfirmR
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             ⚠️ 수동 검토 필요 항목
             {confirmRequiredFields.length > 0 && (
-              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold animate-bounce">
+              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
                 {confirmRequiredFields.length}
               </span>
             )}
@@ -34,7 +34,7 @@ export default function ConfirmRequiredTab({ fields, onEvidenceClick }: ConfirmR
         /* 검토 완료 상태 축하 UI */
         <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center max-w-xl mx-auto shadow-sm my-6">
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-300">
-            <svg className="h-8 w-8 text-green-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>

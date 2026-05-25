@@ -39,15 +39,17 @@ interface CompanyMatchSummary {
   total_fields: number;
 }
 
+type MatchValue = string | number | boolean | null;
+
 interface MatchResultDetailItem {
   field_name: string;
   status: "충족" | "미충족" | "확인필요" | "해당없음";
   score?: number | null;
   distance?: number | null;
   constraint_type?: "hard" | "soft" | null;
-  company_value: any;
-  requirement_value: any;
-  evidence: any;
+  company_value: MatchValue;
+  requirement_value: MatchValue;
+  evidence: string | null;
   processing_path: string;
 }
 
@@ -89,7 +91,7 @@ function pickMainAttachment(attachments: AttachmentInfo[]): AttachmentInfo | nul
 function EvidencePlaceholder({ text }: { text: string }) {
   return (
     <div className="py-20 border border-dashed border-amber-300 rounded-xl flex flex-col items-center justify-center gap-3 bg-amber-50/20 text-amber-700">
-      <svg className="h-10 w-10 text-amber-500 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="h-10 w-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <p className="text-sm font-semibold">{text}</p>
@@ -97,17 +99,21 @@ function EvidencePlaceholder({ text }: { text: string }) {
   );
 }
 
+function isPromise<T>(value: unknown): value is Promise<T> {
+  return !!value && typeof (value as { then?: unknown }).then === "function";
+}
+
 export default function CompanyMatchingDetailPage(props: PageProps) {
   // Next.js 15+ Client Component에서는 로컬 dev 런타임에 params가 일반 동기 객체일 때가 있습니다.
   // 이 경우 use() 훅을 직접 호출하면 런타임 크래시가 나므로 thenable(Promise) 여부를 안전하게 확인하고 분기합니다.
-  const params = (props.params && typeof (props.params as any).then === "function")
-    ? use(props.params as any)
-    : (props.params as any);
+  const params = isPromise<{ id: string }>(props.params)
+    ? use(props.params)
+    : props.params;
 
-  const searchParams = (props.searchParams && typeof (props.searchParams as any).then === "function")
-    ? use(props.searchParams as any)
-    : (props.searchParams as any);
-  
+  const searchParams = isPromise<{ announcement_id?: string }>(props.searchParams)
+    ? use(props.searchParams)
+    : props.searchParams;
+
   const companyId = params?.id || "";
   const initialAnnId = searchParams?.announcement_id || "";
 
@@ -124,6 +130,13 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [loadingCompany, setLoadingCompany] = useState<boolean>(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(true);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
+
+  // Error States
+  const [companyError, setCompanyError] = useState<string | null>(null);
+  const [companyNotFound, setCompanyNotFound] = useState<boolean>(false);
+  const [annError, setAnnError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailRetryNonce, setDetailRetryNonce] = useState<number>(0);
   
   // PDF Viewer States
   const [highlightPage, setHighlightPage] = useState<number | null>(null);
@@ -134,13 +147,21 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     async function fetchCompany() {
       try {
         const res = await fetch(`/api/companies`);
-        if (res.ok) {
-          const data = await res.json();
-          const found = (data.items || []).find((c: Company) => c.id === companyId);
-          if (found) setCompany(found);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
+        const data = await res.json();
+        const found = (data.items || []).find((c: Company) => c.id === companyId);
+        if (found) {
+          setCompany(found);
+          setCompanyNotFound(false);
+        } else {
+          setCompanyNotFound(true);
+        }
+        setCompanyError(null);
       } catch (err) {
         console.error("기업 정보 로드 실패:", err);
+        setCompanyError("기업 정보를 불러오지 못했습니다. 백엔드 서버 상태를 확인해 주세요.");
       } finally {
         setLoadingCompany(false);
       }
@@ -153,18 +174,21 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     async function fetchAnnouncements() {
       try {
         const res = await fetch(`/api/matching/${companyId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const items = data.items || [];
-          setAnnouncements(items);
-          
-          // 쿼리 스트링에 없거나 매칭 목록에 없으면 첫 번째 공고 자동 선택
-          if (!selectedAnnId && items.length > 0) {
-            setSelectedAnnId(items[0].announcement_id);
-          }
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
+        const data = await res.json();
+        const items = data.items || [];
+        setAnnouncements(items);
+
+        // 쿼리 스트링에 없거나 매칭 목록에 없으면 첫 번째 공고 자동 선택
+        if (!selectedAnnId && items.length > 0) {
+          setSelectedAnnId(items[0].announcement_id);
+        }
+        setAnnError(null);
       } catch (err) {
         console.error("매칭 공고 목록 로드 실패:", err);
+        setAnnError("매칭 공고 목록을 불러오지 못했습니다.");
       } finally {
         setLoadingAnnouncements(false);
       }
@@ -180,59 +204,65 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       setLoadingDetails(true);
       setHighlightPage(null);
       setEvidenceText(null);
+      setDetailError(null);
 
       try {
         // A. 매칭 결과 세부 정보
         const matchRes = await fetch(`/api/matching/${companyId}?announcement_id=${selectedAnnId}`);
-        let detailsList: MatchField[] = [];
-        if (matchRes.ok) {
-          const matchData: MatchResultDetailResponse = await matchRes.json();
-          setStats(matchData.stats);
-          
-          detailsList = (matchData.items || [])
-            .filter((item) => item.status !== "해당없음")
-            .map((item) => {
-              // evidence 파싱
-              let page: number | undefined;
-              let text: string | undefined;
-              if (item.evidence) {
-                // 백엔드 evidence가 문자열이므로 JSON 형태일 수도 있고 일반 문자열일 수도 있어서 예외 처리
-                try {
-                  const parsed = JSON.parse(item.evidence);
-                  page = parsed.page || parsed.page_num;
-                  text = parsed.text || parsed.context;
-                } catch {
-                  // JSON이 아닐 경우 파싱 스킵
-                }
-              }
-
-              return {
-                field_name: item.field_name,
-                status: item.status as "충족" | "미충족" | "확인필요",
-                criterion: String(item.requirement_value || ""),
-                current_value: String(item.company_value || ""),
-                reason: item.processing_path || "조건 평가 완료",
-                evidence_source: page ? { page, text } : null,
-              };
-            });
-          setMatchDetails(detailsList);
+        if (!matchRes.ok) {
+          throw new Error(`매칭 결과 HTTP ${matchRes.status}`);
         }
+        const matchData: MatchResultDetailResponse = await matchRes.json();
+        setStats(matchData.stats);
+
+        const detailsList: MatchField[] = (matchData.items || [])
+          .filter((item) => item.status !== "해당없음")
+          .map((item) => {
+            // evidence 파싱
+            let page: number | undefined;
+            let text: string | undefined;
+            if (item.evidence) {
+              // 백엔드 evidence가 문자열이므로 JSON 형태일 수도 있고 일반 문자열일 수도 있어서 예외 처리
+              try {
+                const parsed = JSON.parse(item.evidence);
+                page = parsed.page || parsed.page_num;
+                text = parsed.text || parsed.context;
+              } catch {
+                // JSON이 아닐 경우 파싱 스킵
+              }
+            }
+
+            return {
+              field_name: item.field_name,
+              status: item.status as "충족" | "미충족" | "확인필요",
+              criterion: String(item.requirement_value || ""),
+              current_value: String(item.company_value || ""),
+              reason: item.processing_path || "조건 평가 완료",
+              evidence_source: page ? { page, text } : null,
+            };
+          });
+        setMatchDetails(detailsList);
 
         // B. 공고 원본 메타데이터 (첨부파일 구조 포함)
         const annRes = await fetch(`/api/announcements?id=${selectedAnnId}`);
-        if (annRes.ok) {
-          const annData: AnnouncementDetail = await annRes.json();
-          setSelectedAnnDetail(annData);
+        if (!annRes.ok) {
+          throw new Error(`공고 메타데이터 HTTP ${annRes.status}`);
         }
+        const annData: AnnouncementDetail = await annRes.json();
+        setSelectedAnnDetail(annData);
       } catch (err) {
         console.error("상세 매칭 결과 로드 실패:", err);
+        setDetailError("매칭 상세 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        setMatchDetails([]);
+        setStats(null);
+        setSelectedAnnDetail(null);
       } finally {
         setLoadingDetails(false);
       }
     }
 
     fetchDetailsAndMetadata();
-  }, [companyId, selectedAnnId]);
+  }, [companyId, selectedAnnId, detailRetryNonce]);
 
   // 원문 근거 클릭 시 PDF 뷰어 연동 점프
   const handleEvidenceClick = (page: number, text: string) => {
@@ -252,6 +282,30 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   // 메인 첨부파일 선정 분기 규칙 적용
   const mainAttachment = selectedAnnDetail ? pickMainAttachment(selectedAnnDetail.attachments) : null;
 
+  // 404 - 잘못된 company_id 직접 접근 처리
+  if (!loadingCompany && companyNotFound) {
+    return (
+      <main className="min-h-screen bg-gray-50 text-gray-900 px-6 py-10 flex items-center justify-center">
+        <div className="max-w-md text-center bg-white border rounded-2xl shadow-sm p-10">
+          <svg className="mx-auto h-14 w-14 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">기업을 찾을 수 없습니다</h1>
+          <p className="text-sm text-gray-500 leading-relaxed mb-6">
+            ID <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{companyId}</code> 에 해당하는 기업이 존재하지 않습니다.<br />
+            URL을 다시 확인하거나 대시보드에서 기업을 선택해 주세요.
+          </p>
+          <Link
+            href="/matching"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
+          >
+            ← 대시보드로 돌아가기
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 px-6 py-10">
       <section className="mx-auto max-w-7xl">
@@ -269,6 +323,16 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
             </span>
           )}
         </div>
+
+        {/* 기업 정보 로드 실패 알림 */}
+        {companyError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 flex items-start gap-3">
+            <svg className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-sm font-semibold text-red-800">{companyError}</p>
+          </div>
+        )}
 
         {/* 상단 기업 분석 요약 헤더 */}
         <div className="rounded-2xl border bg-white p-6 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -347,6 +411,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                   <div className="w-8 h-8 border-[3px] border-gray-200 border-t-blue-600 rounded-full animate-spin" />
                   <p className="text-xs text-gray-400">공고 목록 불러오는 중...</p>
                 </div>
+              ) : annError ? (
+                <div className="py-8 px-3 text-center bg-red-50/40 border border-red-100 rounded-lg">
+                  <p className="text-xs text-red-700 font-semibold">{annError}</p>
+                </div>
               ) : announcements.length === 0 ? (
                 <p className="text-gray-400 text-xs py-8 text-center">매칭 공고가 존재하지 않습니다.</p>
               ) : (
@@ -415,7 +483,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     ⚠️ 수동 확인 필요
                     {matchDetails.filter((f) => f.status === "확인필요").length > 0 && (
                       <span className={`text-[10px] font-black rounded-full px-1.5 py-0.5 ${
-                        activeTab === "confirm" ? "bg-white text-amber-700 animate-bounce" : "bg-amber-100 text-amber-800"
+                        activeTab === "confirm" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"
                       }`}>
                         {matchDetails.filter((f) => f.status === "확인필요").length}
                       </span>
@@ -432,7 +500,20 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               {loadingDetails ? (
                 <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
                   <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-                  <p className="text-gray-400 text-sm animate-pulse">자격요건 평가 상세 데이터를 집계하는 중...</p>
+                  <p className="text-gray-400 text-sm">자격요건 평가 상세 데이터를 집계하는 중...</p>
+                </div>
+              ) : detailError ? (
+                <div className="py-16 text-center flex flex-col items-center justify-center gap-3 bg-red-50/40 border border-red-200 rounded-xl px-6">
+                  <svg className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-sm font-semibold text-gray-900">{detailError}</p>
+                  <button
+                    onClick={() => setDetailRetryNonce((n) => n + 1)}
+                    className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition cursor-pointer"
+                  >
+                    다시 시도
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -484,7 +565,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     />
                   </div>
                 ) : mainAttachment.file_type === "hwpx" ? (
-                  <EvidencePlaceholder text="HWPX 표 시각화는 PR#5 예정" />
+                  <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />
                 ) : (
                   <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
                     <p className="text-sm font-semibold">원문 표시 불가 (지원하지 않는 파일 형식)</p>
@@ -492,7 +573,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 )
               ) : (
                 <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
-                  <svg className="h-10 w-10 text-gray-300 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p className="text-sm font-semibold">원문 표시 불가 (조회할 공고 PDF 경로 정보가 존재하지 않습니다.)</p>

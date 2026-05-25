@@ -36,6 +36,9 @@ export default function MatchingDashboardPage() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [matchResults, setMatchResults] = useState<CompanyMatchSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [companiesError, setCompaniesError] = useState<string | null>(null);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState<number>(0);
   const [stats, setStats] = useState<MatchStats>({
     totalMatches: 0,
     averageScore: 0,
@@ -48,15 +51,18 @@ export default function MatchingDashboardPage() {
     async function fetchCompanies() {
       try {
         const res = await fetch("/api/companies");
-        if (res.ok) {
-          const data = await res.json();
-          setCompanies(data.items || []);
-          if (data.items && data.items.length > 0) {
-            setSelectedCompanyId(data.items[0].id);
-          }
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
+        const data = await res.json();
+        setCompanies(data.items || []);
+        if (data.items && data.items.length > 0) {
+          setSelectedCompanyId(data.items[0].id);
+        }
+        setCompaniesError(null);
       } catch (err) {
         console.error("기업 목록 로드 실패:", err);
+        setCompaniesError("기업 목록을 불러오지 못했습니다. 백엔드 서버 상태를 확인해 주세요.");
       }
     }
     fetchCompanies();
@@ -68,47 +74,52 @@ export default function MatchingDashboardPage() {
 
     async function fetchMatchingResults() {
       setLoading(true);
+      setMatchError(null);
       try {
         const res = await fetch(`/api/matching/${selectedCompanyId}?limit=50`);
-        if (res.ok) {
-          const data: CompanyMatchListResponse = await res.json();
-          const items = data.items || [];
-          setMatchResults(items);
-
-          // 임의 점수 분류 제거 -> 객관적인 종합 지표 집계
-          let totalScore = 0;
-          let highest = 0;
-          let perfect = 0;
-
-          items.forEach((item) => {
-            const scorePct = item.match_score * 100;
-            totalScore += scorePct;
-            if (scorePct > highest) {
-              highest = scorePct;
-            }
-            if (scorePct === 100) {
-              perfect++;
-            }
-          });
-
-          const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
-
-          setStats({
-            totalMatches: items.length,
-            averageScore: avg,
-            highestScore: Math.round(highest),
-            perfectMatches: perfect,
-          });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
+        const data: CompanyMatchListResponse = await res.json();
+        const items = data.items || [];
+        setMatchResults(items);
+
+        // 임의 점수 분류 제거 -> 객관적인 종합 지표 집계
+        let totalScore = 0;
+        let highest = 0;
+        let perfect = 0;
+
+        items.forEach((item) => {
+          const scorePct = item.match_score * 100;
+          totalScore += scorePct;
+          if (scorePct > highest) {
+            highest = scorePct;
+          }
+          if (scorePct === 100) {
+            perfect++;
+          }
+        });
+
+        const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
+
+        setStats({
+          totalMatches: items.length,
+          averageScore: avg,
+          highestScore: Math.round(highest),
+          perfectMatches: perfect,
+        });
       } catch (err) {
         console.error("매칭 결과 로드 실패:", err);
+        setMatchError("매칭 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        setMatchResults([]);
+        setStats({ totalMatches: 0, averageScore: 0, highestScore: 0, perfectMatches: 0 });
       } finally {
         setLoading(false);
       }
     }
 
     fetchMatchingResults();
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, retryNonce]);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId);
 
@@ -118,9 +129,6 @@ export default function MatchingDashboardPage() {
         {/* 헤더 세션 */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 inline-block mb-3">
-              Matching Engine v1.2
-            </span>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
               매칭 결과 대시보드
             </h1>
@@ -153,11 +161,37 @@ export default function MatchingDashboardPage() {
           </div>
         </div>
 
+        {/* 기업 목록 로드 실패 알림 */}
+        {companiesError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 flex items-start gap-3">
+            <svg className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p className="text-sm font-semibold text-red-800">{companiesError}</p>
+              <p className="text-xs text-red-600 mt-1">새로고침으로 재시도하거나 백엔드 로그를 확인하세요.</p>
+            </div>
+          </div>
+        )}
+
         {/* 로딩 인디케이터 */}
         {loading ? (
           <div className="min-h-[400px] flex flex-col items-center justify-center gap-4 bg-white rounded-2xl border shadow-sm">
             <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-blue-600 animate-spin" />
-            <p className="text-gray-500 text-sm animate-pulse">매칭 결과 데이터를 집계하는 중...</p>
+            <p className="text-gray-500 text-sm">매칭 결과 데이터를 집계하는 중...</p>
+          </div>
+        ) : matchError ? (
+          <div className="min-h-[400px] flex flex-col items-center justify-center gap-3 bg-white rounded-2xl border border-red-200 shadow-sm px-6 text-center">
+            <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-base font-semibold text-gray-900">{matchError}</p>
+            <button
+              onClick={() => setRetryNonce((n) => n + 1)}
+              className="mt-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition cursor-pointer"
+            >
+              다시 시도
+            </button>
           </div>
         ) : (
           <>
@@ -263,8 +297,8 @@ export default function MatchingDashboardPage() {
                             <span className={`text-lg font-black tracking-tight ${textClass}`}>
                               {scorePercentage}%
                             </span>
-                            <span className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">
-                              MATCH SCORE
+                            <span className="text-[10px] text-gray-400 font-semibold">
+                              매칭 점수
                             </span>
                           </div>
 

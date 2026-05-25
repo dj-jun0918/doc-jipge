@@ -107,7 +107,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
         </div>
 
         {evidenceText && (
-          <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium animate-pulse">
+          <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium">
             🔍 근거: &quot;{evidenceText}&quot;
           </div>
         )}
