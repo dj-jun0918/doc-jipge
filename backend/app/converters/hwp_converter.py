@@ -5,11 +5,41 @@ LibreOffice + H2Orestart 확장 사용 (Dockerfile에 이미 설치됨).
 
 import subprocess
 import sys
+import re
 from pathlib import Path
+from dataclasses import dataclass, field
 
 # HWP 파일 시그니처 (매직 바이트)
 HWP_BINARY_MAGIC = b"\xd0\xcf\x11\xe0"  # OLE Compound Document (구 바이너리 HWP)
 HWP_ZIP_MAGIC    = b"PK\x03\x04"         # ZIP 기반 HWPX
+
+
+@dataclass
+class ConversionResult:
+    method: str
+    text: str | None = None
+    pdf_path: str | None = None
+    structured_tables: list[dict] = field(default_factory=list)
+
+
+def python_hwpx_extract(file_path: str | Path) -> dict:
+    """HWPX 파일에서 본문 텍스트 + markdown 표 추출."""
+    from hwpx import HwpxDocument
+    
+    doc = HwpxDocument.open(str(file_path))
+    text = doc.export_text()
+    markdown = doc.export_markdown()
+    
+    # Markdown 텍스트에서 표(|로 시작하는 연속된 라인) 추출
+    table_pattern = re.compile(r'(?:^\|.*\|[\r\n]+)+', re.MULTILINE)
+    tables = []
+    for idx, match in enumerate(table_pattern.finditer(markdown)):
+        tables.append({
+            "name": f"표_{idx+1}",
+            "markdown": match.group(0).strip(),
+        })
+        
+    return {"text": text, "markdown_tables": tables}
 
 
 def convert_to_pdf(input_path: str | Path, timeout: int = 60) -> Path:
@@ -103,6 +133,46 @@ def is_hwp_file(file_path: str | Path) -> bool:
         return header in (HWP_BINARY_MAGIC, HWP_ZIP_MAGIC)
     except OSError:
         return False
+
+
+def convert_document(file_path: str | Path, file_type: str, timeout: int = 60) -> ConversionResult:
+    """파일 타입에 따라 최적의 추출/변환 경로를 라우팅합니다."""
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"파일 없음: {path}")
+
+    if file_type == "hwpx":
+        try:
+            result = python_hwpx_extract(path)
+            return ConversionResult(
+                text=result["text"],
+                structured_tables=result["markdown_tables"],
+                method="python-hwpx"
+            )
+        except Exception as e:
+            # hwpx 추출 실패 시 LibreOffice fallback 시도
+            import traceback
+            print(f"[ERROR python-hwpx] Failed to extract {path}: {e}")
+            traceback.print_exc()
+            try:
+                pdf_path = convert_to_pdf(path, timeout)
+                return ConversionResult(pdf_path=str(pdf_path), method="libreoffice-fallback")
+            except Exception as fallback_e:
+                raise RuntimeError(f"HWPX 변환 실패: {e}, fallback 실패: {fallback_e}")
+
+    elif file_type == "hwp":
+        try:
+            pdf_path = convert_to_pdf(path, timeout)
+            return ConversionResult(pdf_path=str(pdf_path), method="libreoffice")
+        except Exception as e:
+            # LibreOffice 변환 실패 — 텍스트 추출도 불가하므로 failed 처리
+            return ConversionResult(method="failed")
+
+    elif file_type == "pdf":
+        return ConversionResult(pdf_path=str(path), method="passthrough")
+        
+    else:
+        raise ValueError(f"지원하지 않는 파일 타입: {file_type}")
 
 
 # 테스트용 main block
