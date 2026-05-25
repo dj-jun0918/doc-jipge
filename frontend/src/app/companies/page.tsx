@@ -77,7 +77,7 @@ export default function CompaniesPage() {
           : null,
       };
 
-      const response = await fetch("api/companies", {
+      const response = await fetch("/api/companies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
