@@ -5,7 +5,6 @@ Ground Truth (ann_001~025)와 hybrid_engine.extract_eligibility 결과를 비교
 """
 
 import asyncio
-import glob
 import json
 import logging
 import os
@@ -20,6 +19,7 @@ project_root = str(Path(__file__).resolve().parents[1])
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+from sqlalchemy import select
 from app.database import SessionLocal
 from app.models.announcement import Announcement
 from app.extractor import hybrid_engine
@@ -130,7 +130,7 @@ async def run_predictions(gt_list: List[Dict[str, Any]]) -> Dict[str, Announceme
     try:
         db = SessionLocal()
         # 연결 테스트용 쿼리
-        db.execute(glob.select(Announcement).limit(1))
+        db.execute(select(Announcement).limit(1))
         logger.info("데이터베이스 연결 성공. DB 기반 예측 실행을 수행합니다.")
     except Exception as e:
         logger.warning(f"데이터베이스 연결 실패. 로컬 PDF Fallback 모드로 실행합니다: {e}")
@@ -148,7 +148,7 @@ async def run_predictions(gt_list: List[Dict[str, Any]]) -> Dict[str, Announceme
             try:
                 # title 매칭 혹은 source_id 매칭 시도
                 # ground_truth.json의 announcement_id가 'ann_001'과 같은 형식인 점 감안
-                stmt = glob.select(Announcement).where(
+                stmt = select(Announcement).where(
                     (Announcement.source_id == ann_id) | 
                     (Announcement.title.ilike(f"%{title}%"))
                 )
