@@ -4,6 +4,37 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+LocationType = Literal["pdf_page", "hwpx_table", "hwpx_paragraph", "raw_text"]
+
+
+class EvidenceLocation(BaseModel):
+    """Evidence의 원문 위치 정보.
+
+    location_type 별로 채워지는 필드가 다름:
+    - pdf_page: page (+ optional bbox)
+    - hwpx_table: table_index (+ optional row)
+    - hwpx_paragraph: paragraph_index
+    - raw_text: 위치 정보 없음
+    """
+
+    location_type: LocationType
+    page: int | None = None
+    bbox: list[float] | None = None
+    table_index: int | None = None
+    row: int | None = None
+    paragraph_index: int | None = None
+
+
+class Evidence(BaseModel):
+    """text + 위치 정보. EligibilityResult.evidence 컬럼에 JSONB로 저장.
+
+    location=None 이면 위치 정보 없음 (raw_text fallback).
+    """
+
+    text: str
+    location: EvidenceLocation | None = None
+
+
 class ParsedCondition(BaseModel):
     value: float | str | dict | None = None
     operator: str | None = None
