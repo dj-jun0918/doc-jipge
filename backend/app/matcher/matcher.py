@@ -396,7 +396,8 @@ def match_announcement(
             constraint_type=constraint_type,
             company_value=company_value_str,
             requirement_value=cond.raw_text,
-            evidence=field.evidence,
+            # EligibilityField.evidence (Evidence 객체)의 text만 추출
+            evidence=field.evidence.text if field.evidence else None,
             processing_path=field.processing_path,
         ))
 

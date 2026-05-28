@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.schemas.eligibility import EligibilityField, ParsedCondition
+from app.schemas.eligibility import EligibilityField, Evidence, ParsedCondition
 
 
 class ExtractionResult(BaseModel):
@@ -47,7 +47,7 @@ def build_extraction_result(
             fields.append(EligibilityField(
                 field_name=field_name,
                 condition=condition,
-                evidence=f.get("evidence") or "",
+                evidence=Evidence(text=f.get("evidence") or "", location=None),
                 evidence_source="LLM 추출",
                 processing_path=processing_path,
             ))
