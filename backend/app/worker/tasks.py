@@ -399,8 +399,19 @@ def extract_announcement_eligibility(self, announcement_id: str) -> dict:
         ann.extraction_status = "processing"
         db.commit()
 
+        # 1. ORM 기반 routing 결정
+        from app.extractor import cost_router
+        from app.config import settings
+
+        routing_meta = None
+        if settings.cost_routing_enabled:
+            routing_meta = cost_router.route(ann)
+
+        # 2. ORM → dict 변환
         ann_dict = _announcement_to_dict(ann)
-        result = asyncio.run(extract_eligibility(ann_dict))
+
+        # 3. hybrid_engine 호출
+        result = asyncio.run(extract_eligibility(ann_dict, routing_meta=routing_meta))
 
         # 기존 결과 제거 (idempotent 재실행)
         db.execute(delete(EligibilityResult).where(EligibilityResult.announcement_id == ann.id))
@@ -427,6 +438,10 @@ def extract_announcement_eligibility(self, announcement_id: str) -> dict:
                 evidence_source=ex.evidence_source,
                 processing_path=ex.processing_path,
             ))
+
+        # 4. routing_metadata 저장
+        if routing_meta and hasattr(ann, "routing_metadata"):
+            ann.routing_metadata = routing_meta
 
         ann.extraction_status = "done"
         job.total_count = len(result.fields) + len(result.exclusions)
