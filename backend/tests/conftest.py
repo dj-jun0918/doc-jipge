@@ -1,8 +1,5 @@
 """pytest 공통 설정.
 
-PR#1: 기본 smoke test용 세팅만.
-PR#4: DB 세션 + FastAPI TestClient fixture 추가.
-
 - `db_engine`: session-scoped, `docjipge_test` DB에 모든 테이블 생성/해제
 - `db_session`: function-scoped, SAVEPOINT 패턴으로 테스트마다 롤백
 - `client`: function-scoped, FastAPI TestClient + `get_db` override

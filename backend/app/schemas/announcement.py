@@ -49,7 +49,7 @@ class AttachmentInfo(BaseModel):
 class AnnouncementDetailResponse(AnnouncementResponse):
     """단건용 — attachments + structured_tables 포함 (수십~수백 KB)."""
     attachments: list[AttachmentInfo] = []
-    structured_tables: list[dict] | None = None  # PR#17 머지로 활성화 (HWPX 표 markdown 배열)
+    structured_tables: list[dict] | None = None  # HWPX 표 markdown 배열
 
 
 class AnnouncementListResponse(BaseModel):

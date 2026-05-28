@@ -1,6 +1,6 @@
 """
 backend/tests/test_verifier.py
-함준규 verifier 단위 테스트 (PR#3)
+함준규 verifier 단위 테스트
 """
 
 import pytest

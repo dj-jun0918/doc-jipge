@@ -1,4 +1,4 @@
-"""announcement detail API 통합 테스트 — IMPLEMENTATION.md §5-3 A-2."""
+"""announcement detail API 통합 테스트."""
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ def test_detail_response_flattens_attachments_and_structured_tables(
     - attachments[]에 평탄화: id/file_name/file_type/has_pdf 포함
     - converted_pdf_path는 응답에서 exclude (내부 경로 노출 방지)
     - has_pdf 계산: pdf→True, hwp+converted_pdf_path→True, hwpx→False
-    - structured_tables (PR#17) 응답 포함
+    - structured_tables 응답 포함
     """
     ann = Announcement(
         source="kstartup",
@@ -65,7 +65,7 @@ def test_detail_response_flattens_attachments_and_structured_tables(
         assert "converted_pdf_path" not in att
         assert "local_path" not in att
 
-    # structured_tables 응답 포함 (PR#17)
+    # structured_tables 응답 포함
     assert body["structured_tables"] == [{"name": "표_1", "markdown": "| a | b |"}]
 
 

@@ -18,7 +18,7 @@ class EligibilityResult(Base):
     field_name: Mapped[str] = mapped_column(String(50))  # "업력" / "매출" / "지역" / "나이" / "종업원 수" / "업종" / "인증"
     condition_value: Mapped[str] = mapped_column(Text)  # "7년 미만"
     condition_parsed: Mapped[dict | None] = mapped_column(JSONB)  # {"value": 7, "operator": "미만"}
-    evidence: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[dict | None] = mapped_column(JSONB)  # {"text": "...", "location": {...}} - Evidence 객체
     evidence_source: Mapped[str | None] = mapped_column(Text)  # "aply_trgt_ctnt" / "첨부파일 2p 표 1행"
     processing_path: Mapped[str] = mapped_column(String(20))  # "rule_based" / "text_llm" / "vision_llm"
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("now()"))

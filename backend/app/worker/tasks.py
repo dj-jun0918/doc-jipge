@@ -415,7 +415,7 @@ def extract_announcement_eligibility(self, announcement_id: str) -> dict:
                     "value": f.condition.value,
                     "operator": f.condition.operator,
                 },
-                evidence=f.evidence,
+                evidence=f.evidence.model_dump() if f.evidence else None,  # Evidence 객체 → JSONB dict
                 evidence_source=f.evidence_source,
                 processing_path=f.processing_path,
             ))
@@ -515,6 +515,7 @@ def match_company_announcements(self, company_id: str) -> dict:
             fields: list[EligibilityField] = []
             for er in eligibility_rows:
                 parsed = er.condition_parsed or {}
+                # er.evidence는 JSONB (dict) 또는 None. Evidence 객체로 변환.
                 fields.append(EligibilityField(
                     field_name=er.field_name,
                     condition=ParsedCondition(
@@ -522,7 +523,7 @@ def match_company_announcements(self, company_id: str) -> dict:
                         operator=parsed.get("operator"),
                         raw_text=er.condition_value,
                     ),
-                    evidence=er.evidence or "",
+                    evidence=er.evidence or "",  # model_validator가 dict / "" 모두 Evidence로 변환
                     evidence_source=er.evidence_source or "",
                     processing_path=er.processing_path,
                 ))
@@ -534,7 +535,6 @@ def match_company_announcements(self, company_id: str) -> dict:
                     company_id=r.company_id,
                     field_name=r.field_name,
                     status=r.status,
-                    # PR#4 매칭 정교화 1차 (2026-05-20)
                     score=r.score,
                     distance=r.distance,
                     constraint_type=r.constraint_type,
