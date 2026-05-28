@@ -1,6 +1,6 @@
 """
 backend/tests/test_llm_response_parser.py
-함준규 llm_response_parser 단위 테스트 (PR#3)
+함준규 llm_response_parser 단위 테스트
 """
 
 import pytest

@@ -1,6 +1,6 @@
 """
 backend/app/matcher/matcher.py
-매칭 엔진 — 필드별 비교 함수 (PR#2 착수, PR#3 완성)
+매칭 엔진 — 필드별 비교 함수.
 """
 
 from __future__ import annotations
@@ -240,8 +240,7 @@ def match_certification(
 
 
 # ──────────────────────────────────────────────
-# 매칭 정교화 1차 (PR#4, 2026-05-20)
-# continuous score + distance metric + soft constraint 분리
+# 매칭 정교화 — continuous score + distance metric + soft constraint 분리
 # ──────────────────────────────────────────────
 
 def compute_numeric_distance(
@@ -327,10 +326,6 @@ def match_announcement(
 
     Returns:
         list[MatchResultResponse] — 각 필드별 status + score + distance + constraint_type 포함
-
-    Notes:
-        - score/distance/constraint_type은 PR#4 매칭 정교화 1차 (2026-05-20)
-        - constraint_type 기본 "hard". PR#5 모호 케이스 합의 후 soft 분리
     """
     results: list[MatchResultResponse] = []
 
@@ -379,10 +374,8 @@ def match_announcement(
             # 알 수 없는 필드 → 확인필요
             status = "확인필요"
 
-        # PR#4 매칭 정교화 1차: distance + score 계산
         distance = compute_numeric_distance(company_numeric, cond, status)
         score = compute_field_score(status, distance)
-        # constraint_type — 기본 "hard". PR#5 모호 케이스 합의 후 정밀화
         constraint_type: str = "hard"
 
         results.append(MatchResultResponse(

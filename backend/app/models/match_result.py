@@ -16,7 +16,6 @@ class MatchResult(Base):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
     field_name: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20))  # "충족" / "미충족" / "확인필요" / "해당없음"
-    # PR#4 매칭 정교화 1차 (2026-05-20)
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     distance: Mapped[float | None] = mapped_column(Float, nullable=True)
     constraint_type: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "hard" / "soft"
