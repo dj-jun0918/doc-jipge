@@ -14,18 +14,113 @@ from app.schemas.eligibility import (
 logger = logging.getLogger(__name__)
 
 
-async def extract_eligibility(announcement: dict[str, Any]) -> AnnouncementEligibility:
-    """공고 자격요건 추출 (3계층 분기).
+async def extract_eligibility(
+    announcement: dict[str, Any],
+    routing_meta: dict | None = None
+) -> AnnouncementEligibility:
+    """공고 자격요건 추출 (3계층 분기 및 비용 인지형 라우팅 통합).
 
     Args:
-        announcement: 14개 키 통합 스키마 dict (Announcement ORM도 dict 변환해서 입력)
+        announcement: 14개 키 통합 스키마 dict
+        routing_meta: tasks.py에서 ORM 기반으로 결정해서 전달하는 라우팅 메타데이터
 
     Returns:
         AnnouncementEligibility — fields + exclusions
     """
+    if routing_meta and routing_meta.get("chosen_path"):
+        chosen = routing_meta["chosen_path"]
+        logger.info(f"[hybrid] 비용 인지형 라우팅 적용: chosen_path={chosen}")
+        
+        result = None
+        if chosen == "rule_based":
+            result = await _try_rule_based(announcement)
+        elif chosen == "text_llm":
+            result = await _try_text_llm(announcement)
+        elif chosen == "vision_llm":
+            result = await _try_vision_llm(announcement)
+            
+        if result is not None:
+            return result
+        logger.warning(f"[hybrid] 결정된 경로 {chosen} 실패 또는 결과 부족 → 기존 휴리스틱 분기로 Fallback")
+
+    return await _heuristic_routing(announcement)
+
+
+async def _try_rule_based(announcement: dict[str, Any]) -> AnnouncementEligibility:
+    """1단계: 규칙 기반 파싱 단독 수행."""
     ann_id = str(announcement.get("source_id") or announcement.get("id") or "")
     title = announcement.get("title", "")
-    logger.info(f"[hybrid] 시작: ann_id={ann_id}")
+    rule_fields = rule_parser.parse_structured_fields(announcement)
+    logger.info(f"[hybrid] 규칙 기반 단독 실행 완료: {len(rule_fields)}개 필드")
+    return AnnouncementEligibility(
+        announcement_id=ann_id,
+        title=title,
+        fields=rule_fields,
+        exclusions=[],
+    )
+
+
+async def _try_text_llm(announcement: dict[str, Any]) -> AnnouncementEligibility | None:
+    """2단계: 텍스트 LLM 단독 수행."""
+    ann_id = str(announcement.get("source_id") or announcement.get("id") or "")
+    title = announcement.get("title", "")
+    target_text = announcement.get("target_text") or ""
+    exclusion_text = announcement.get("exclusion_text") or ""
+
+    if not target_text:
+        return None
+
+    try:
+        raw_text = await text_llm.extract(target_text, exclusion_text)
+        text_result = verifier.verify(raw_text)
+        logger.info(f"[hybrid] 텍스트 LLM 단독 실행 성공: {len(text_result.fields)}개 필드")
+        return _build_announcement_eligibility(ann_id, title, text_result)
+    except Exception as e:
+        logger.warning(f"[hybrid] 텍스트 LLM 단독 실행 실패: {e}")
+        return None
+
+
+async def _try_vision_llm(announcement: dict[str, Any]) -> AnnouncementEligibility | None:
+    """3단계: Vision LLM 단독 수행 (텍스트 LLM 병합 포함)."""
+    ann_id = str(announcement.get("source_id") or announcement.get("id") or "")
+    title = announcement.get("title", "")
+    
+    # 텍스트 LLM 결과 선행 시도
+    target_text = announcement.get("target_text") or ""
+    exclusion_text = announcement.get("exclusion_text") or ""
+    text_result: ExtractionResult | None = None
+    if target_text:
+        try:
+            raw_text = await text_llm.extract(target_text, exclusion_text)
+            text_result = verifier.verify(raw_text)
+        except Exception:
+            pass
+
+    pdf_path = _get_attachment_pdf_path(announcement)
+    if not pdf_path:
+        # PDF 파일이 없다면 텍스트 LLM 결과만이라도 반환
+        if text_result:
+            return _build_announcement_eligibility(ann_id, title, text_result)
+        return None
+
+    try:
+        raw_vision = await vision_llm.extract_from_pdf(pdf_path)
+        vision_result = verifier.verify(raw_vision)
+        logger.info(f"[hybrid] Vision LLM 단독 실행 성공: {len(vision_result.fields)}개 필드")
+        merged = _merge_results(text_result, vision_result)
+        return _build_announcement_eligibility(ann_id, title, merged)
+    except Exception as e:
+        logger.warning(f"[hybrid] Vision LLM 단독 실행 실패: {e}")
+        if text_result:
+            return _build_announcement_eligibility(ann_id, title, text_result)
+        return None
+
+
+async def _heuristic_routing(announcement: dict[str, Any]) -> AnnouncementEligibility:
+    """기존의 휴리스틱 3계층 분기 라우팅 로직."""
+    ann_id = str(announcement.get("source_id") or announcement.get("id") or "")
+    title = announcement.get("title", "")
+    logger.info(f"[hybrid] 휴리스틱 분기 시작: ann_id={ann_id}")
 
     # 1단계: 규칙 기반
     rule_fields = rule_parser.parse_structured_fields(announcement)
