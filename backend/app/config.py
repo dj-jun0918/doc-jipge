@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     celery_broker_url: str = "redis://redis:6379/0"
     celery_result_backend: str = "redis://redis:6379/1"
 
+    # Cost-aware Routing
+    cost_routing_enabled: bool = False
+
     model_config = {"env_file": ".env"}
 
 
