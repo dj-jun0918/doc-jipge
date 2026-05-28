@@ -4,12 +4,10 @@ Revision ID: c1d2e3f4a5b6
 Revises: aec7f0aa570e
 Create Date: 2026-05-20 12:00:00.000000
 
-PR#4 매칭 알고리즘 정교화 1차 (2026-05-20)
+매칭 알고리즘 정교화 — 컬럼 추가
 - score: float | None — 필드별 score (0~1)
 - distance: float | None — 미충족 수치 필드의 정규화 거리
-- constraint_type: str | None — "hard" / "soft" (기본 "hard", PR#5 모호 케이스 합의 후 정밀화)
-
-자세한 설계: DIRECTION.md §2.1 진행 단계
+- constraint_type: str | None — "hard" / "soft"
 """
 from typing import Sequence, Union
 

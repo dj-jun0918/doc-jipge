@@ -1,6 +1,6 @@
 """
 backend/tests/test_deduplicator.py
-김동준 deduplicator 단위 테스트 (PR#2)
+김동준 deduplicator 단위 테스트
 """
 
 from unittest.mock import MagicMock

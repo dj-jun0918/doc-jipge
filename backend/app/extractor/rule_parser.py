@@ -2,7 +2,7 @@
 
 import re
 
-from app.schemas.eligibility import EligibilityField, ParsedCondition
+from app.schemas.eligibility import EligibilityField, Evidence, ParsedCondition
 
 # 지역명 정규화 매핑
 _REGION_MAP: dict[str, str] = {
@@ -137,7 +137,7 @@ def parse_structured_fields(announcement: dict) -> list[EligibilityField]:
         results.append(EligibilityField(
             field_name="업력",
             condition=biz_enyy,
-            evidence=biz_enyy.raw_text,
+            evidence=Evidence(text=biz_enyy.raw_text, location=None),
             evidence_source="API target_text",
             processing_path="rule_based",
         ))
@@ -147,7 +147,7 @@ def parse_structured_fields(announcement: dict) -> list[EligibilityField]:
         results.append(EligibilityField(
             field_name="지역",
             condition=regin,
-            evidence=regin.raw_text,
+            evidence=Evidence(text=regin.raw_text, location=None),
             evidence_source="API target_text",
             processing_path="rule_based",
         ))
@@ -157,7 +157,7 @@ def parse_structured_fields(announcement: dict) -> list[EligibilityField]:
         results.append(EligibilityField(
             field_name="나이",
             condition=age,
-            evidence=age.raw_text,
+            evidence=Evidence(text=age.raw_text, location=None),
             evidence_source="API target_text",
             processing_path="rule_based",
         ))

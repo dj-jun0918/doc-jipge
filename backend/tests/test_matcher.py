@@ -1,8 +1,8 @@
 """
 backend/tests/test_matcher.py
-매칭 엔진 단위 테스트 (PR#3)
+매칭 엔진 단위 테스트
 seed_companies.py의 엣지 프로필 8개 기준.
-기준일: 2026-05-09 (오늘)
+기준일: 2026-05-09
 """
 
 import uuid
@@ -424,7 +424,7 @@ class TestMatchAnnouncement:
 
 
 # ──────────────────────────────────────────────
-# compute_numeric_distance (PR#4 매칭 정교화 1차)
+# compute_numeric_distance
 # ──────────────────────────────────────────────
 
 class TestComputeNumericDistance:
@@ -476,7 +476,7 @@ class TestComputeNumericDistance:
 
 
 # ──────────────────────────────────────────────
-# compute_field_score (PR#4 매칭 정교화 1차)
+# compute_field_score
 # ──────────────────────────────────────────────
 
 class TestComputeFieldScore:
@@ -512,7 +512,7 @@ class TestComputeFieldScore:
 
 
 # ──────────────────────────────────────────────
-# match_announcement 정교화 1차 통합 (PR#4)
+# match_announcement 정교화 통합
 # ──────────────────────────────────────────────
 
 class TestMatchAnnouncementWithScoreDistance:
@@ -556,7 +556,7 @@ class TestMatchAnnouncementWithScoreDistance:
         assert results[0].distance is None
 
     def test_constraint_type_기본_hard(self):
-        # PR#4 1차에서 모든 필드는 기본 "hard". PR#5 모호 케이스 합의 후 정밀화
+        # 모든 필드 constraint_type 기본 "hard"
         company = make_company()
         fields = [
             field("업력", "미만", 3, "3년 미만"),

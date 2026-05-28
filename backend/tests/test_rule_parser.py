@@ -1,6 +1,6 @@
 """
 backend/tests/test_rule_parser.py
-함준규 rule_parser 단위 테스트 (PR#2)
+함준규 rule_parser 단위 테스트
 """
 
 import pytest

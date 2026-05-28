@@ -159,7 +159,6 @@ def get_matching_detail(
         MatchResultItem(
             field_name=r.field_name,
             status=r.status,
-            # PR#4 매칭 정교화 1차 (2026-05-20) — backend만 채움, UI 표시는 PR#5
             score=r.score,
             distance=r.distance,
             constraint_type=r.constraint_type,
@@ -203,7 +202,6 @@ def trigger_matching(company_id: str, db: Session = Depends(get_db)):
 
 # ── Export helpers ────────────────────────────────────────────────────────────
 
-# PR#4 매칭 정교화(score/distance/constraint_type) 로 헤더 업데이트
 _EXPORT_HEADERS = [
     "공고명", "필드", "조건", "회사 값", "판정",
     "점수", "거리", "제약", "근거", "처리 경로",
