@@ -3,12 +3,15 @@
 LLM이 반환한 JSON을 내부 Pydantic 모델로 변환 + 조건 문자열 폴백 파싱.
 """
 
+import logging
 import re
 from typing import Literal
 
 from pydantic import BaseModel
 
 from app.schemas.eligibility import EligibilityField, Evidence, ParsedCondition
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionResult(BaseModel):
@@ -23,11 +26,32 @@ class ExtractionResult(BaseModel):
 VALID_FIELD_NAMES = {"업력", "매출", "지역", "나이", "종업원 수", "업종", "인증"}
 
 
+def _normalize_for_match(s: str) -> str:
+    """모든 공백(스페이스/탭/줄바꿈) 제거. 표 셀 파이프 주변 공백 차이까지 흡수."""
+    return re.sub(r"\s+", "", s)
+
+
+def is_evidence_verbatim(evidence: str, source_text: str) -> bool:
+    """evidence가 source_text에 (공백 정규화 후) 그대로 존재하는지 검사.
+
+    표 markdown 라인은 셀 간 공백이 LLM 응답에서 달라질 수 있어 정규화 후 비교.
+    빈 evidence는 검증 대상 아님 (True 반환).
+    """
+    if not evidence:
+        return True
+    return _normalize_for_match(evidence) in _normalize_for_match(source_text)
+
+
 def build_extraction_result(
     llm_json: dict,
     processing_path: Literal["text_llm", "vision_llm"] = "text_llm",
+    source_text: str | None = None,
 ) -> ExtractionResult:
-    """LLM JSON 응답을 ExtractionResult로 변환."""
+    """LLM JSON 응답을 ExtractionResult로 변환.
+
+    source_text가 주어지면 각 evidence가 원문에 그대로 있는지 검증 (text_llm 경로).
+    환각 evidence는 필드를 유지하되 경고 로그만 남김 (condition/value가 매칭의 핵심).
+    """
     fields: list[EligibilityField] = []
 
     for f in llm_json.get("fields", []):
@@ -44,10 +68,15 @@ def build_extraction_result(
                 operator=f.get("operator"),
                 raw_text=f.get("condition") or "",
             )
+            evidence_text = f.get("evidence") or ""
+            if source_text is not None and not is_evidence_verbatim(evidence_text, source_text):
+                logger.warning(
+                    f"evidence가 원문에 없음 (환각 가능): field={field_name}, evidence={evidence_text[:80]!r}"
+                )
             fields.append(EligibilityField(
                 field_name=field_name,
                 condition=condition,
-                evidence=Evidence(text=f.get("evidence") or "", location=None),
+                evidence=Evidence(text=evidence_text, location=None),
                 evidence_source="LLM 추출",
                 processing_path=processing_path,
             ))

@@ -7,6 +7,7 @@ import pytest
 
 from app.extractor.llm_response_parser import (
     build_extraction_result,
+    is_evidence_verbatim,
     parse_condition_string,
     VALID_FIELD_NAMES,
 )
@@ -94,6 +95,86 @@ class TestBuildExtractionResult:
         }
         result = build_extraction_result(llm_json)
         assert result.fields[0].condition.raw_text == "3년 미만"
+
+    def test_source_text_검증_환각_evidence도_필드_유지(self):
+        """evidence가 원문에 없어도 필드는 유지 (condition/value가 매칭의 핵심)."""
+        llm_json = {
+            "fields": [
+                {"field_name": "업력", "condition": "3년 미만", "operator": "미만", "value": 3,
+                 "evidence": "원문에 없는 가짜 근거"},
+            ],
+            "exclusions": [],
+        }
+        result = build_extraction_result(llm_json, source_text="창업 후 3년 미만 중소기업")
+        assert len(result.fields) == 1
+        assert result.fields[0].condition.value == 3
+
+    def test_source_text_없으면_검증_스킵(self):
+        """source_text=None이면 evidence 검증 안 함 (기존 동작)."""
+        llm_json = {
+            "fields": [
+                {"field_name": "업력", "condition": "3년 미만", "operator": "미만", "value": 3,
+                 "evidence": "아무 evidence"},
+            ],
+            "exclusions": [],
+        }
+        result = build_extraction_result(llm_json)  # source_text 미전달
+        assert len(result.fields) == 1
+
+    def test_환각_evidence_경고_로그_발생(self, caplog):
+        """evidence가 원문에 없으면 warning 로그 발생."""
+        import logging
+        llm_json = {
+            "fields": [
+                {"field_name": "업력", "condition": "3년 미만", "operator": "미만", "value": 3,
+                 "evidence": "원문에 없는 가짜 근거"},
+            ],
+            "exclusions": [],
+        }
+        with caplog.at_level(logging.WARNING):
+            build_extraction_result(llm_json, source_text="창업 후 3년 미만 중소기업")
+        assert any("환각 가능" in r.message for r in caplog.records)
+
+    def test_정상_evidence_경고_로그_없음(self, caplog):
+        """evidence가 원문에 있으면 warning 로그 없음."""
+        import logging
+        llm_json = {
+            "fields": [
+                {"field_name": "업력", "condition": "3년 미만", "operator": "미만", "value": 3,
+                 "evidence": "3년 미만"},
+            ],
+            "exclusions": [],
+        }
+        with caplog.at_level(logging.WARNING):
+            build_extraction_result(llm_json, source_text="창업 후 3년 미만 중소기업")
+        assert not any("환각 가능" in r.message for r in caplog.records)
+
+
+# ──────────────────────────────────────────────
+# is_evidence_verbatim
+# ──────────────────────────────────────────────
+
+class TestIsEvidenceVerbatim:
+
+    def test_원문에_그대로_있으면_True(self):
+        assert is_evidence_verbatim("3년 미만", "창업 후 3년 미만 중소기업")
+
+    def test_원문에_없으면_False(self):
+        assert not is_evidence_verbatim("5년 이상", "창업 후 3년 미만 중소기업")
+
+    def test_빈_evidence는_True(self):
+        assert is_evidence_verbatim("", "아무 원문")
+
+    def test_표_라인_공백_차이_정규화_매칭(self):
+        """LLM이 표 셀 공백을 다르게 반환해도 정규화 후 매칭."""
+        evidence = "| 업력 | 창업 7년 이하 |"
+        source = "# 첨부 표\n## 표_1\n|업력|  창업 7년 이하|\n| 매출 | 50억 |"
+        assert is_evidence_verbatim(evidence, source)
+
+    def test_줄바꿈_탭_정규화(self):
+        evidence = "창업 후 3년 미만"
+        source = "창업 후\t3년\n미만 중소기업"
+        assert is_evidence_verbatim(evidence, source)
 
 
 # ──────────────────────────────────────────────
