@@ -265,6 +265,27 @@ class TestEdgeCases:
 
         assert captured["text_len"] > 20000
 
+    async def test_structured_tables_passed_to_text_llm(
+        self, patch_rule_parser, monkeypatch,
+    ):
+        """structured_tables가 hybrid_engine을 거쳐 text_llm에 combined_text로 전달."""
+        captured = {}
+
+        async def fake_extract(text, *a, **k):
+            captured["text"] = text
+            return _result([])
+
+        monkeypatch.setattr(hybrid_engine.text_llm, "extract", fake_extract)
+        patch_rule_parser(api_sufficient=False)
+
+        ann = _ann(target_text="본문")
+        ann["structured_tables"] = [{"name": "표_1", "markdown": "| a |"}]
+        await hybrid_engine.extract_eligibility(ann)
+
+        assert "본문" in captured["text"]
+        assert "# 첨부 표" in captured["text"]
+        assert "## 표_1" in captured["text"]
+
 
 class TestPdfPathResolution:
     """`_get_attachment_pdf_path` 헬퍼 단위 테스트 (sync)."""
@@ -293,6 +314,63 @@ class TestPdfPathResolution:
     def test_no_attachments_returns_none_pdf(self):
         assert hybrid_engine._get_attachment_pdf_path({"attachments": []}) is None
         assert hybrid_engine._get_attachment_pdf_path({}) is None
+
+
+class TestBuildCombinedText:
+    """`_build_combined_text` 헬퍼 단위 테스트 — structured_tables LLM prompt 통합."""
+
+    def test_no_structured_tables_returns_target_text(self):
+        ann = {"target_text": "자격요건 본문"}
+        assert hybrid_engine._build_combined_text(ann) == "자격요건 본문"
+
+    def test_structured_tables_appended_after_target_text(self):
+        ann = {
+            "target_text": "본문",
+            "structured_tables": [
+                {"name": "표_1", "markdown": "| a | b |\n|---|---|\n| 1 | 2 |"},
+            ],
+        }
+        result = hybrid_engine._build_combined_text(ann)
+        assert result.startswith("본문")
+        assert "# 첨부 표" in result
+        assert "## 표_1" in result
+        assert "| a | b |" in result
+
+    def test_no_target_text_with_tables(self):
+        ann = {
+            "structured_tables": [{"name": "표_1", "markdown": "| a |"}],
+        }
+        result = hybrid_engine._build_combined_text(ann)
+        assert result.startswith("# 첨부 표")
+        assert "## 표_1" in result
+
+    def test_empty_announcement_returns_empty(self):
+        assert hybrid_engine._build_combined_text({}) == ""
+
+    def test_table_without_name_uses_default_index(self):
+        ann = {
+            "target_text": "본문",
+            "structured_tables": [{"markdown": "| x |"}],  # name 누락
+        }
+        result = hybrid_engine._build_combined_text(ann)
+        assert "## 표_0" in result
+
+    def test_multiple_tables_joined(self):
+        ann = {
+            "target_text": "본문",
+            "structured_tables": [
+                {"name": "표_1", "markdown": "| a |"},
+                {"name": "표_2", "markdown": "| b |"},
+            ],
+        }
+        result = hybrid_engine._build_combined_text(ann)
+        assert "## 표_1" in result
+        assert "## 표_2" in result
+
+    def test_none_structured_tables_treated_as_empty(self):
+        """structured_tables가 None이면 빈 배열처럼 처리."""
+        ann = {"target_text": "본문", "structured_tables": None}
+        assert hybrid_engine._build_combined_text(ann) == "본문"
 
 
 # ---------------------------------------------------------------------------
