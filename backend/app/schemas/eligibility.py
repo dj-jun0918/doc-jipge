@@ -40,6 +40,9 @@ class Evidence(BaseModel):
     def coerce_from_string(cls, v):
         if isinstance(v, str):
             return {"text": v, "location": None}
+        # JSONB null 백필 데이터 ({"text": null}) 방어 — text는 빈 문자열로
+        if isinstance(v, dict) and v.get("text") is None:
+            return {**v, "text": ""}
         return v
 
 

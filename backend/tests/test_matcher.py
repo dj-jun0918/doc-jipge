@@ -231,6 +231,16 @@ class TestMatchRegion:
         c = ParsedCondition.model_construct(operator="소재", value=["서울", "부산", "대구"], raw_text="서울/부산/대구")
         assert match_region("제주", c) == "미충족"
 
+    def test_시군구_포함_주소_충족(self):
+        # "서울특별시 강남구" 처럼 시군구까지 포함된 주소도 광역시/도 접두사로 매칭
+        assert match_region("서울특별시 강남구", cond("소재", "서울", "서울 소재")) == "충족"
+
+    def test_시군구_포함_주소_도_단위(self):
+        assert match_region("경기도 성남시 분당구", cond("소재", "경기", "경기 소재")) == "충족"
+
+    def test_시군구_포함_주소_미충족(self):
+        assert match_region("부산광역시 해운대구", cond("소재", "서울", "서울 소재")) == "미충족"
+
 # ──────────────────────────────────────────────
 # match_industry
 # ──────────────────────────────────────────────
