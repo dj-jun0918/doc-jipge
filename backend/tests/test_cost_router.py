@@ -115,3 +115,4 @@ def test_cost_router_route_with_model():
         assert routing_meta["cost_estimate_usd"] == 0.001
         assert routing_meta["fallback_paths"] == ["vision_llm"]
         assert "decided_at" in routing_meta
+        assert routing_meta["fallback"] is None

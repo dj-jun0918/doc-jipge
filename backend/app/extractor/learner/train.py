@@ -33,9 +33,9 @@ def label_announcement(ann: Announcement, eligibility_results: list[EligibilityR
 def build_dataset(db: Session) -> tuple[list[list[float]], list[str]]:
     """DB 내 완료된 공고들을 기반으로 학습 데이터셋 구성."""
     X, y = [], []
-    # extraction_status가 "done" 또는 "completed"인 공고 대상
+    # extraction_status가 "done"인 공고 대상
     anns = db.query(Announcement).filter(
-        Announcement.extraction_status.in_(["done", "completed"])
+        Announcement.extraction_status == "done"
     ).all()
     
     for ann in anns:
