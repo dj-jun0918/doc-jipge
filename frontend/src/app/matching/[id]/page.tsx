@@ -5,6 +5,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import MatchResultCard, { MatchField } from "@/components/MatchResultCard";
 import ConfirmRequiredTab from "@/components/ConfirmRequiredTab";
+import HwpxTableViewer from "@/components/HwpxTableViewer";
+import RawTextDisplay from "@/components/RawTextDisplay";
 
 // SSR 렌더링 시 브라우저 전용 객체(window, canvas 등) 사용으로 인한 ReferenceError를 원천 차단합니다.
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -138,9 +140,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailRetryNonce, setDetailRetryNonce] = useState<number>(0);
   
-  // PDF Viewer States
+  // PDF Viewer & Evidence Location States
   const [highlightPage, setHighlightPage] = useState<number | null>(null);
   const [evidenceText, setEvidenceText] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
 
   // 1. 기업 정보 조회
   useEffect(() => {
@@ -152,6 +155,19 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         }
         const data = await res.json();
         const found = (data.items || []).find((c: Company) => c.id === companyId);
+        
+        /* 🧪 테스트용 Mock Company Fallback (필요시 주석 제거하여 활성화)
+        if (!found) {
+          found = {
+            id: companyId,
+            name: "테스트컴퍼니A (테스트용)",
+            industry: "소프트웨어 개발업",
+            region: "대구광역시 수성구",
+            revenue: 350000000,
+            employee_count: 8
+          };
+        } */
+
         if (found) {
           setCompany(found);
           setCompanyNotFound(false);
@@ -178,7 +194,28 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
-        const items = data.items || [];
+        let items = data.items || [];
+
+        /* 🧪 테스트용 Mock Announcements 주입 (필요시 주석 제거하여 활성화)
+        if (items.length === 0) {
+          items = [
+            {
+              announcement_id: "b8b63599-1f5b-4b74-9bcc-48b352ffcae6",
+              title: "2026 강원 청년창업 지원사업 (테스트용)",
+              match_score: 0.85,
+              fulfilled_count: 3,
+              total_fields: 4
+            },
+            {
+              announcement_id: "22222222-2222-2222-2222-222222222222",
+              title: "서울청년AI 창업도약 패키지 (테스트용)",
+              match_score: 0.60,
+              fulfilled_count: 2,
+              total_fields: 4
+            }
+          ];
+        } */
+
         setAnnouncements(items);
 
         // 쿼리 스트링에 없거나 매칭 목록에 없으면 첫 번째 공고 자동 선택
@@ -204,6 +241,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       setLoadingDetails(true);
       setHighlightPage(null);
       setEvidenceText(null);
+      setSelectedLocation(null);
       setDetailError(null);
 
       try {
@@ -221,16 +259,62 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
             // evidence 파싱
             let page: number | undefined;
             let text: string | undefined;
+            let location: any = null;
+
             if (item.evidence) {
-              // 백엔드 evidence가 문자열이므로 JSON 형태일 수도 있고 일반 문자열일 수도 있어서 예외 처리
               try {
                 const parsed = JSON.parse(item.evidence);
-                page = parsed.page || parsed.page_num;
+                page = parsed.page || parsed.page_num || parsed.location?.page;
                 text = parsed.text || parsed.context;
+                location = parsed.location || null;
+
+                // 하위 호환성: 기존 파싱 구조에 page가 존재하면 pdf_page location으로 매핑
+                if (!location && page) {
+                  location = {
+                    location_type: "pdf_page",
+                    page: page,
+                  };
+                }
               } catch {
-                // JSON이 아닐 경우 파싱 스킵
+                // JSON이 아닌 일반 문자열인 경우 raw_text로 처리
+                text = item.evidence;
+                location = {
+                  location_type: "raw_text",
+                };
               }
             }
+
+            /* 🧪 B-1 시각화 검증을 위한 Mock 데이터 주입 (필요시 주석 제거하여 활성화)
+            if (item.field_name === "업력") {
+              text = "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)";
+              page = 2;
+              location = {
+                location_type: "pdf_page",
+                page: 2,
+                bbox: [100, 150, 480, 210],
+              };
+            } else if (item.field_name === "매출") {
+              text = "직전 사업연도(2025년) 매출액이 2억원 이상인 기업";
+              page = 3;
+              location = {
+                location_type: "pdf_page",
+                page: 3,
+                bbox: [120, 240, 500, 290],
+              };
+            } else if (item.field_name === "지역") {
+              text = "공고일 현재 대구광역시 내에 본사 또는 공장을 등록한 기업";
+              location = {
+                location_type: "hwpx_table",
+                table_index: 0,
+                row: 3,
+              };
+            } else if (item.field_name === "나이") {
+              text = "대표자가 만 39세 이하의 청년 창업자여야 함 (1986년 5월 31일 이후 출생자)";
+              location = {
+                location_type: "raw_text",
+              };
+            }
+            */
 
             return {
               field_name: item.field_name,
@@ -238,9 +322,79 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               criterion: String(item.requirement_value || ""),
               current_value: String(item.company_value || ""),
               reason: item.processing_path || "조건 평가 완료",
-              evidence_source: page ? { page, text } : null,
+              evidence_source: text ? { page, text, location } : null,
             };
           });
+
+        /* 🧪 뷰어 검증용 목업 카드 무조건 상단 주입 (필요시 주석 제거하여 활성화)
+        const mockFields: MatchField[] = [
+          {
+            field_name: "업력",
+            status: "확인필요",
+            criterion: "창업 후 7년 이내",
+            current_value: "창업 3년차 (2023년 설립)",
+            reason: "창업 7년 이내 요건을 충족하나, 제출 서류 대조 필요",
+            evidence_source: {
+              page: 2,
+              text: "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)",
+              location: {
+                location_type: "pdf_page",
+                page: 2,
+                bbox: [100, 150, 480, 210],
+              }
+            }
+          },
+          {
+            field_name: "매출",
+            status: "충족",
+            criterion: "직전년도(2025) 매출 2억원 이상",
+            current_value: "직전년도 매출 3.5억원",
+            reason: "2025년도 매출액이 기준치인 2억원을 초과하여 충족함",
+            evidence_source: {
+              page: 3,
+              text: "직전 사업연도(2025년) 매출액이 2억원 이상인 기업",
+              location: {
+                location_type: "pdf_page",
+                page: 3,
+                bbox: [120, 240, 500, 290],
+              }
+            }
+          },
+          {
+            field_name: "지역",
+            status: "충족",
+            criterion: "대구광역시 내 본사 또는 공장 소재",
+            current_value: "본사: 대구광역시 수성구",
+            reason: "기업 본사 등록 소재지가 대구광역시로 확인됨",
+            evidence_source: {
+              page: 1,
+              text: "공고일 현재 대구광역시 내에 본사 또는 공장을 등록한 기업",
+              location: {
+                location_type: "hwpx_table",
+                table_index: 0,
+                row: 3,
+              }
+            }
+          },
+          {
+            field_name: "나이",
+            status: "확인필요",
+            criterion: "대표자 만 39세 이하",
+            current_value: "대표자 나이: 만 34세 (1992년생)",
+            reason: "대표자가 만 39세 이하의 청년 요건에 부합하는지 텍스트 대조 완료",
+            evidence_source: {
+              page: 1,
+              text: "대표자가 만 39세 이하의 청년 창업자여야 함 (1986년 5월 31일 이후 출생자)",
+              location: {
+                location_type: "raw_text",
+              }
+            }
+          }
+        ];
+
+        detailsList = [...mockFields, ...detailsList];
+        */
+
         setMatchDetails(detailsList);
 
         // B. 공고 원본 메타데이터 (첨부파일 구조 포함)
@@ -249,6 +403,23 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`공고 메타데이터 HTTP ${annRes.status}`);
         }
         const annData: AnnouncementDetail = await annRes.json();
+
+        /* 🧪 HWPX 테이블 테스트용 Mock 데이터 주입 (필요시 주석 제거하여 활성화)
+        if (!annData.structured_tables || annData.structured_tables.length === 0) {
+          annData.structured_tables = [
+            {
+              name: "신청자격 요약 및 제외대상 목록",
+              markdown: `| 구분 | 조건 | 대상자 |
+|---|---|---|
+| 업력 | 창업 7년 이내 | 창업기업 대표자 |
+| 매출 | 직전년도 2억원 이상 | 일반 법인 및 개인사업자 |
+| 지역 | 대구광역시 소재 | 본사 또는 공장 등록 기업 |
+| 연령 | 만 39세 이하 | 청년 창업자 (1986년 이후 출생) |`,
+            }
+          ];
+        }
+        */
+
         setSelectedAnnDetail(annData);
       } catch (err) {
         console.error("상세 매칭 결과 로드 실패:", err);
@@ -265,9 +436,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   }, [companyId, selectedAnnId, detailRetryNonce]);
 
   // 원문 근거 클릭 시 PDF 뷰어 연동 점프
-  const handleEvidenceClick = (page: number, text: string) => {
+  const handleEvidenceClick = (page: number, text: string, location?: any) => {
     setHighlightPage(page);
     setEvidenceText(text);
+    setSelectedLocation(location || null);
   };
 
   // 백엔드 제공 stats 정보 직접 매핑
@@ -541,44 +713,71 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               )}
             </div>
 
-            {/* 하단 PDF 뷰어 연동 섹션 */}
+            {/* 하단 PDF / HWPX / 텍스트 원문 연동 뷰어 섹션 */}
             <div className="rounded-2xl border bg-white p-6 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 pb-3 border-b">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    📄 공고 원문 PDF 뷰어
+                    📄 공고 원문 매칭 통합 뷰어
                   </h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    자격요건 판정 카드의 'PDF 원문 근거 보기' 단추를 누르면 근거 텍스트가 명시된 원본 위치로 즉각 점프합니다.
+                    자격요건 판정 카드의 근거 버튼을 누르면 해당 증거 유형(PDF 영역, HWPX 테이블, 텍스트)에 맞는 전용 뷰어에 원문이 정밀 하이라이트됩니다.
                   </p>
                 </div>
               </div>
 
-              {/* 첨부파일 분기 처리 구조 적용 */}
-              {mainAttachment ? (
-                mainAttachment.has_pdf ? (
-                  <div className="h-[600px]">
-                    <PdfViewer
-                      pdfUrl={`/api/attachments/${mainAttachment.id}/file`}
-                      highlightPage={highlightPage}
-                      evidenceText={evidenceText}
-                    />
-                  </div>
-                ) : mainAttachment.file_type === "hwpx" ? (
-                  <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />
-                ) : (
+              {/* 🌟 B-1 Evidence 분기 렌더링 적용 */}
+              {(() => {
+                if (selectedLocation?.location_type === "hwpx_table") {
+                  return (
+                    <div className="h-[500px]">
+                      <HwpxTableViewer
+                        tables={selectedAnnDetail?.structured_tables}
+                        location={selectedLocation}
+                      />
+                    </div>
+                  );
+                }
+
+                if (selectedLocation?.location_type === "raw_text") {
+                  return (
+                    <RawTextDisplay text={evidenceText || ""} />
+                  );
+                }
+
+                // 기본 fallback은 기존의 첨부파일 기반 PDF Viewer 또는 플레이스홀더
+                if (mainAttachment) {
+                  if (mainAttachment.has_pdf) {
+                  return (
+                    <div className="h-[600px]">
+                      <PdfViewer
+                        pdfUrl={/* mainAttachment.id === "test-attachment-id" ? "/sample.pdf" : */ `/api/attachments/${mainAttachment.id}/file`}
+                        highlightPage={highlightPage}
+                        evidenceText={evidenceText}
+                        location={selectedLocation}
+                      />
+                    </div>
+                  );
+                }
+                  if (mainAttachment.file_type === "hwpx") {
+                    return <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />;
+                  }
+                  return (
+                    <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
+                      <p className="text-sm font-semibold">원문 표시 불가 (지원하지 않는 파일 형식)</p>
+                    </div>
+                  );
+                }
+
+                return (
                   <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
-                    <p className="text-sm font-semibold">원문 표시 불가 (지원하지 않는 파일 형식)</p>
+                    <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-sm font-semibold">원문 표시 불가 (조회할 공고 PDF 경로 정보가 존재하지 않습니다.)</p>
                   </div>
-                )
-              ) : (
-                <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
-                  <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <p className="text-sm font-semibold">원문 표시 불가 (조회할 공고 PDF 경로 정보가 존재하지 않습니다.)</p>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>

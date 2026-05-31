@@ -11,13 +11,22 @@ pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
+interface EvidenceLocation {
+  location_type: "pdf_page" | "hwpx_table" | "hwpx_paragraph" | "raw_text";
+  page?: number;
+  bbox?: [number, number, number, number];  // x0, y0, x1, y1 (PDF 좌표)
+  table_index?: number;
+  row?: number;
+}
+
 interface PdfViewerProps {
   pdfUrl: string;
   highlightPage?: number | null;
   evidenceText?: string | null;
+  location?: EvidenceLocation | null;
 }
 
-export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfViewerProps) {
+export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, location }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
@@ -25,6 +34,15 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
   // 반응형 너비 추적을 위한 ResizeObserver 연동
   const [containerWidth, setContainerWidth] = useState<number>(650);
   const containerRef = useRef<HTMLDivElement>(null);
+  // 로드된 PDF Page 정보를 보관하여 bbox 스케일 계산에 사용
+  const [pdfPage, setPdfPage] = useState<any>(null);
+
+  // 자가 치유(Self-healing) Fallback 상태
+  const [currentPdfUrl, setCurrentPdfUrl] = useState<string>(pdfUrl);
+
+  useEffect(() => {
+    setCurrentPdfUrl(pdfUrl);
+  }, [pdfUrl]);
 
   // ResizeObserver로 컨테이너 너비 동적 감지 (반응형 PDF 렌더링)
   const observeResize = useCallback(() => {
@@ -50,14 +68,17 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
   useEffect(() => {
     if (highlightPage && highlightPage > 0) {
       setPageNumber(highlightPage);
+    } else if (location?.page && location.page > 0) {
+      setPageNumber(location.page);
     }
-  }, [highlightPage]);
+  }, [highlightPage, location]);
 
   // pdfUrl이 바뀌면 페이지 및 상태 초기화
   useEffect(() => {
     setPageNumber(1);
     setLoading(true);
     setError(null);
+    setPdfPage(null);
   }, [pdfUrl]);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
@@ -68,6 +89,17 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
 
   function onDocumentLoadError(err: Error) {
     console.error("PDF load error:", err);
+
+    /* 🧪 자가 치유(Self-healing) Fallback (필요시 주석 제거하여 활성화)
+    if (currentPdfUrl !== "/sample.pdf") {
+      console.warn("원본 PDF 로드 실패. 테스트용 sample.pdf로 대체 표시합니다.");
+      setCurrentPdfUrl("/sample.pdf");
+      setError(null);
+      setLoading(true);
+      return;
+    }
+    */
+
     setError("PDF 문서를 불러올 수 없습니다. 경로가 올바르지 않거나 손상된 파일일 수 있습니다.");
     setLoading(false);
   }
@@ -137,21 +169,49 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText }: PdfVi
           </div>
         )}
 
-        {!error && pdfUrl && (
+        {!error && currentPdfUrl && (
           <div className="bg-white p-4 rounded-xl border shadow-sm max-w-full overflow-hidden">
             <Document
-              file={pdfUrl}
+              file={currentPdfUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading=""
             >
-              <Page
-                pageNumber={pageNumber}
-                width={containerWidth}
-                loading=""
-                renderAnnotationLayer={false}
-                renderTextLayer={true}
-              />
+              <div className="relative" style={{ width: containerWidth }}>
+                <Page
+                  pageNumber={pageNumber}
+                  width={containerWidth}
+                  loading=""
+                  renderAnnotationLayer={false}
+                  renderTextLayer={true}
+                  onLoadSuccess={(page) => setPdfPage(page)}
+                />
+
+                {/* 🎯 BBox 정밀 하이라이트 오버레이 */}
+                {pdfPage && location?.bbox && (
+                  (() => {
+                    const bbox = location.bbox;
+                    const scale = containerWidth / pdfPage.width;
+                    const left = bbox[0] * scale;
+                    const top = bbox[1] * scale;
+                    const width = (bbox[2] - bbox[0]) * scale;
+                    const height = (bbox[3] - bbox[1]) * scale;
+
+                    return (
+                      <div
+                        className="absolute bg-yellow-400/35 border-2 border-yellow-500 rounded-sm pointer-events-none animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.5)]"
+                        style={{
+                          left: `${left}px`,
+                          top: `${top}px`,
+                          width: `${width}px`,
+                          height: `${height}px`,
+                          zIndex: 10,
+                        }}
+                      />
+                    );
+                  })()
+                )}
+              </div>
             </Document>
           </div>
         )}
