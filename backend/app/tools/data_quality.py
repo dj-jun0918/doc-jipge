@@ -1,13 +1,14 @@
 """수집 데이터 품질 검사 도구 모듈."""
 
 from datetime import datetime, timedelta, timezone
-from difflib import SequenceMatcher
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.collectors.deduplicator import title_similarity
+
 from app.models.announcement import Announcement, Attachment
 
-MIN_TARGET_TEXT = 50  # 자 자격요건 텍스트 최소 길이 임계치
+MIN_TARGET_TEXT = 50  # 자격요건 텍스트 최소 길이 임계치
 DUP_SIMILARITY = 0.9  # 유사 중복 임계치
 DUP_WINDOW_DAYS = 7   # 게시일 범위 윈도우
 
@@ -68,7 +69,8 @@ def _extraction_failed(db: Session) -> list[str]:
 
 def _duplicate_suspected(db: Session) -> list[dict]:
     """제목 유사도 >= 0.9 및 게시일 7일 이내인 의심스러운 중복 공고 검출."""
-    cutoff = datetime.now() - timedelta(days=180)  # 성능 병목을 예방하기 위해 최근 6개월 한정
+    cutoff = datetime.now(timezone.utc) - timedelta(days=180)  # 성능 병목을 예방하기 위해 최근 6개월 한정
+    cutoff = cutoff.replace(tzinfo=None)  # naive datetime 비교 충돌 방지
     anns = db.scalars(
         select(Announcement)
         .where(Announcement.created_at >= cutoff)
@@ -77,15 +79,23 @@ def _duplicate_suspected(db: Session) -> list[dict]:
     
     suspects = []
     for i, a in enumerate(anns):
+        if not a.created_at:
+            continue
+        a_dt = a.created_at.replace(tzinfo=None) if a.created_at.tzinfo else a.created_at
         for b in anns[i + 1:]:
-            if not a.created_at or not b.created_at:
+            if not b.created_at:
                 continue
-            if abs((a.created_at - b.created_at).days) > DUP_WINDOW_DAYS:
-                continue
+            b_dt = b.created_at.replace(tzinfo=None) if b.created_at.tzinfo else b.created_at
+            
+            # anns가 created_at 오름차순으로 정렬되어 있어 b는 항상 a보다 늦은 일시임.
+            # 격차가 DUP_WINDOW_DAYS를 초과하면 그 이후의 b는 검사할 필요 없이 break
+            if (b_dt - a_dt).days > DUP_WINDOW_DAYS:
+                break
+                
             if not a.title or not b.title:
                 continue
-            # difflib SequenceMatcher 활용 문자열 레벨 비교
-            ratio = SequenceMatcher(None, a.title, b.title).ratio()
+            # 공통 모듈의 title_similarity 사용
+            ratio = title_similarity(a.title, b.title)
             if ratio >= DUP_SIMILARITY:
                 suspects.append({
                     "ann_a": str(a.id),

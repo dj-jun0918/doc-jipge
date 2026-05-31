@@ -45,4 +45,5 @@ def route(ann: Any) -> dict[str, Any]:
         "cost_estimate_usd": PATH_COST.get(path, 0.0),
         "features_used": features,
         "decided_at": datetime.now(timezone.utc).isoformat(),
+        "fallback": None,
     }
