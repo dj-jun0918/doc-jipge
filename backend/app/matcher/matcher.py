@@ -52,6 +52,11 @@ def _normalize_region(region: str) -> str:
     for key, aliases in REGION_GROUPS.items():
         if region in aliases or region == key:
             return key
+    # 시군구까지 포함된 주소 ("서울특별시 강남구") → 광역시/도 접두사로 매칭
+    for key, aliases in REGION_GROUPS.items():
+        for alias in (key, *aliases):
+            if region.startswith(alias):
+                return key
     return region
 
 

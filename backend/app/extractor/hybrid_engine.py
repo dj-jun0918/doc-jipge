@@ -93,8 +93,8 @@ async def _try_vision_llm(announcement: dict[str, Any]) -> AnnouncementEligibili
         try:
             raw_text = await text_llm.extract(combined_text, exclusion_text)
             text_result = verifier.verify(raw_text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[hybrid] vision 경로 text LLM 선행 시도 실패: {e}")
 
     pdf_path = _get_attachment_pdf_path(announcement)
     if not pdf_path:

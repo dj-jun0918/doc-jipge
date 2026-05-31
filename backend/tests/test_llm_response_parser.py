@@ -246,3 +246,28 @@ class TestParseConditionString:
         r = parse_condition_string("창업 후  3 년  미만 기업")
         assert r.value == 3
         assert r.operator == "미만"
+
+
+# ──────────────────────────────────────────────
+# Evidence 스키마 coercion (JSONB null 백필 방어)
+# ──────────────────────────────────────────────
+
+class TestEvidenceCoerce:
+
+    def test_문자열_입력_자동변환(self):
+        from app.schemas.eligibility import Evidence
+        ev = Evidence.model_validate("창업 후 3년 미만")
+        assert ev.text == "창업 후 3년 미만"
+        assert ev.location is None
+
+    def test_dict_정상_변환(self):
+        from app.schemas.eligibility import Evidence
+        ev = Evidence.model_validate({"text": "근거", "location": None})
+        assert ev.text == "근거"
+
+    def test_text_null_dict_빈문자열_방어(self):
+        # 마이그레이션 백필된 {"text": null} 이 ValidationError 없이 빈 문자열로
+        from app.schemas.eligibility import Evidence
+        ev = Evidence.model_validate({"text": None, "location": None})
+        assert ev.text == ""
+        assert ev.location is None
