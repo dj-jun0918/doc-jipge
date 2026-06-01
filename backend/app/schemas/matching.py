@@ -4,7 +4,7 @@
 API 응답에서는 URL path에 ID가 들어가므로 필드 레벨 정보만 노출한다.
 """
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -68,3 +68,30 @@ class TriggerResponse(BaseModel):
 
     task_id: str
     message: str
+
+
+class SimulateOverrides(BaseModel):
+    """What-if 시뮬레이션 — 회사 프로필 임시 변경값. 허용 필드만, unknown 차단."""
+
+    model_config = {"extra": "forbid"}
+
+    revenue: int | None = None
+    employee_count: int | None = None
+    founded_date: date | None = None
+    region: str | None = None
+    industry: str | None = None
+    ceo_birth_date: date | None = None
+    certifications: dict[str, bool] | None = None
+
+
+class SimulateRequest(BaseModel):
+    """POST /api/matching/{company_id}/simulate 입력."""
+
+    announcement_id: uuid.UUID
+    overrides: SimulateOverrides
+
+
+class SimulateResponse(MatchResultDetailResponse):
+    """시뮬레이션 응답 — 매칭 상세와 동일 형식 + simulated 플래그."""
+
+    simulated: bool = True

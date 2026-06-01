@@ -14,16 +14,21 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.matcher.matcher import compute_aggregate_score
+from app.matcher.matcher import compute_aggregate_score, match_announcement
 from app.models.announcement import Announcement
 from app.models.company import Company
+from app.models.eligibility import EligibilityResult
 from app.models.match_result import MatchResult
+from app.schemas.eligibility import EligibilityField, ParsedCondition
 from app.schemas.matching import (
     CompanyMatchListResponse,
     CompanyMatchSummary,
     MatchResultDetailResponse,
     MatchResultItem,
     MatchResultStats,
+    SimulateOverrides,
+    SimulateRequest,
+    SimulateResponse,
     TriggerResponse,
 )
 
@@ -183,6 +188,105 @@ def get_matching_detail(
         items=items,
         stats=stats,
         matched_at=rows[-1].created_at,
+    )
+
+
+def _apply_overrides(company: Company, overrides: SimulateOverrides) -> Company:
+    """Company의 detached copy 생성 후 overrides 적용 (None 아닌 필드만). session add X."""
+    return Company(
+        id=company.id,
+        name=company.name,
+        founded_date=overrides.founded_date or company.founded_date,
+        revenue=overrides.revenue if overrides.revenue is not None else company.revenue,
+        region=overrides.region or company.region,
+        industry=overrides.industry or company.industry,
+        employee_count=(
+            overrides.employee_count
+            if overrides.employee_count is not None
+            else company.employee_count
+        ),
+        ceo_birth_date=overrides.ceo_birth_date or company.ceo_birth_date,
+        certifications=(
+            overrides.certifications
+            if overrides.certifications is not None
+            else company.certifications
+        ),
+    )
+
+
+@router.post("/{company_id}/simulate", response_model=SimulateResponse)
+def simulate_matching(
+    company_id: str,
+    req: SimulateRequest,
+    db: Session = Depends(get_db),
+):
+    """What-if 시뮬레이션 — 회사 프로필 임시 변경값으로 매칭 재계산 (DB 저장 X)."""
+    company_uuid = _parse_uuid(company_id, "company_id")
+    company = db.get(Company, company_uuid)
+    if not company:
+        raise HTTPException(status_code=404, detail="회사를 찾을 수 없습니다")
+
+    elig_rows = db.scalars(
+        select(EligibilityResult).where(
+            EligibilityResult.announcement_id == req.announcement_id
+        )
+    ).all()
+
+    if not elig_rows:
+        return SimulateResponse(
+            company_id=company_uuid,
+            announcement_id=req.announcement_id,
+            items=[],
+            stats=MatchResultStats(),
+            matched_at=None,
+        )
+
+    fields = [
+        EligibilityField(
+            field_name=er.field_name,
+            condition=ParsedCondition(
+                value=(er.condition_parsed or {}).get("value"),
+                operator=(er.condition_parsed or {}).get("operator"),
+                raw_text=er.condition_value,
+            ),
+            evidence=er.evidence or "",
+            evidence_source=er.evidence_source or "",
+            processing_path=er.processing_path,
+        )
+        for er in elig_rows
+    ]
+
+    sim_company = _apply_overrides(company, req.overrides)
+    results = match_announcement(sim_company, fields, req.announcement_id)
+
+    items = [
+        MatchResultItem(
+            field_name=r.field_name,
+            status=r.status,
+            score=r.score,
+            distance=r.distance,
+            constraint_type=r.constraint_type,
+            company_value=r.company_value,
+            requirement_value=r.requirement_value,
+            evidence=r.evidence,
+            processing_path=r.processing_path,
+        )
+        for r in results
+    ]
+    counter = Counter(r.status for r in results)
+    stats = MatchResultStats(
+        충족=counter.get("충족", 0),
+        미충족=counter.get("미충족", 0),
+        확인필요=counter.get("확인필요", 0),
+        해당없음=counter.get("해당없음", 0),
+    )
+
+    return SimulateResponse(
+        company_id=company_uuid,
+        announcement_id=req.announcement_id,
+        items=items,
+        stats=stats,
+        matched_at=None,  # 시뮬레이션은 저장 X
     )
 
 

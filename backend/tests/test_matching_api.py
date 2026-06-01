@@ -11,6 +11,7 @@ import pytest
 
 from app.models.announcement import Announcement
 from app.models.company import Company
+from app.models.eligibility import EligibilityResult
 from app.models.match_result import MatchResult
 
 
@@ -68,6 +69,25 @@ def _make_match_result(
     db.add(mr)
     db.commit()
     return mr
+
+
+def _make_eligibility(
+    db, announcement_id,
+    field_name="매출", condition_value="1억 이하",
+    value=100_000_000, operator="이하", processing_path="text_llm",
+):
+    er = EligibilityResult(
+        announcement_id=announcement_id,
+        field_name=field_name,
+        condition_value=condition_value,
+        condition_parsed={"value": value, "operator": operator},
+        evidence={"text": condition_value, "location": None},
+        evidence_source="API target_text",
+        processing_path=processing_path,
+    )
+    db.add(er)
+    db.commit()
+    return er
 
 
 # ---------------------------------------------------------------------------
@@ -249,3 +269,71 @@ class TestTriggerMatching:
         body = response.json()
         assert body["task_id"] == "fake-celery-task-id"
         assert "매칭 작업" in body["message"]
+
+
+# ---------------------------------------------------------------------------
+# POST /api/matching/{company_id}/simulate  (What-if 시뮬레이션)
+# ---------------------------------------------------------------------------
+
+class TestSimulateMatching:
+
+    def test_company_not_found_404(self, client, db_session):
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{uuid.uuid4()}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {}},
+        )
+        assert res.status_code == 404
+
+    def test_no_eligibility_returns_empty_simulated(self, client, db_session):
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{company.id}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {}},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["items"] == []
+        assert data["simulated"] is True
+
+    def test_override_changes_status(self, client, db_session):
+        # 회사 매출 5억, 조건 "1억 이하" → 미충족. override 5천만 → 충족
+        company = _make_company(db_session, revenue=500_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이하", value=100_000_000, operator="이하")
+
+        base = client.post(
+            f"/api/matching/{company.id}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {}},
+        ).json()
+        assert base["items"][0]["status"] == "미충족"
+
+        sim = client.post(
+            f"/api/matching/{company.id}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {"revenue": 50_000_000}},
+        ).json()
+        assert sim["items"][0]["status"] == "충족"
+        assert sim["simulated"] is True
+
+    def test_simulate_does_not_persist(self, client, db_session):
+        company = _make_company(db_session, revenue=500_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, value=100_000_000, operator="이하")
+
+        client.post(
+            f"/api/matching/{company.id}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {"revenue": 50_000_000}},
+        )
+        count = db_session.query(MatchResult).filter_by(company_id=company.id).count()
+        assert count == 0  # 시뮬레이션은 저장 X
+
+    def test_unknown_override_field_rejected(self, client, db_session):
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{company.id}/simulate",
+            json={"announcement_id": str(ann.id), "overrides": {"unknown": 1}},
+        )
+        assert res.status_code == 422  # SimulateOverrides extra="forbid"
