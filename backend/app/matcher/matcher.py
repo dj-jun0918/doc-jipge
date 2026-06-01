@@ -313,6 +313,66 @@ def compute_field_score(
 
 
 # ──────────────────────────────────────────────
+# 총점 가중 합산 (공고 단위 aggregate score)
+# ──────────────────────────────────────────────
+
+# 표준 7종 필드별 가중치. 1차는 균등(1.0) — 가중치 학습(GT 기반) 후 교체 예정.
+FIELD_WEIGHTS: dict[str, float] = {
+    "업력": 1.0,
+    "매출": 1.0,
+    "지역": 1.0,
+    "나이": 1.0,
+    "종업원 수": 1.0,
+    "업종": 1.0,
+    "인증": 1.0,
+}
+
+
+def _effective_field_score(status: MatchStatus, score: float | None) -> float | None:
+    """집계용 필드 점수. 저장된 score 우선, 없으면 status에서 유도.
+
+    해당없음(또는 유도 불가)은 None → 집계에서 제외.
+    """
+    if score is not None:
+        return score
+    if status == "충족":
+        return 1.0
+    if status == "확인필요":
+        return 0.3
+    if status == "미충족":
+        return 0.0
+    return None  # 해당없음
+
+
+def compute_aggregate_score(
+    fields: list[tuple[str, MatchStatus, float | None]],
+) -> float:
+    """공고 단위 총점 (0~1) — 필드별 score의 가중 평균.
+
+    Args:
+        fields: (field_name, status, score) 튜플 리스트. score는 None 가능
+                (그 경우 status에서 유도).
+
+    Returns:
+        가중 평균 (0~1). 집계 대상 필드(해당없음 제외)가 없으면 0.0.
+
+    Notes:
+        - 단순 충족/전체 비율이 아닌 연속 점수 (미충족 거리 부분점수, 확인필요 0.3 반영)
+        - 가중치는 FIELD_WEIGHTS (1차 균등). 가중치 학습 후 이 dict만 교체하면 됨.
+    """
+    num = 0.0
+    denom = 0.0
+    for field_name, status, score in fields:
+        eff = _effective_field_score(status, score)
+        if eff is None:
+            continue
+        weight = FIELD_WEIGHTS.get(field_name, 1.0)
+        num += weight * eff
+        denom += weight
+    return num / denom if denom > 0 else 0.0
+
+
+# ──────────────────────────────────────────────
 # 오케스트레이터
 # ──────────────────────────────────────────────
 

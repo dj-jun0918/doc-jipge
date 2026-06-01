@@ -1,7 +1,6 @@
 """첨부파일 API — PDF 스트리밍.
 
 frontend PdfViewer가 `/api/attachments/{id}/file` 호출 시 PDF 인라인 응답.
-IMPLEMENTATION.md §5-3 A-1 참조.
 """
 
 import uuid
