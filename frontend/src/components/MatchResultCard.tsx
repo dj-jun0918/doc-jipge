@@ -21,6 +21,9 @@ export interface MatchField {
   current_value: string;
   reason: string;
   evidence_source?: EvidenceSource | null;
+  score?: number | null;
+  distance?: number | null;
+  constraint_type?: "hard" | "soft" | null;
 }
 
 interface MatchResultCardProps {
@@ -29,7 +32,7 @@ interface MatchResultCardProps {
 }
 
 export default function MatchResultCard({ field, onEvidenceClick }: MatchResultCardProps) {
-  const { field_name, status, criterion, current_value, reason, evidence_source } = field;
+  const { field_name, status, criterion, current_value, reason, evidence_source, score, distance, constraint_type } = field;
 
   // 상태별 다이내믹 컬러/뱃지 스타일 맵
   const statusStyles = {
@@ -79,10 +82,23 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
           <p className="text-xs text-gray-400 mt-0.5">자격 평가 기준 항목</p>
         </div>
 
-        {/* 상태 뱃지 */}
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${currentStyle.badge}`}>
-          {status}
-        </span>
+        {/* 상태 뱃지 및 점수/우대조건 */}
+        <div className="flex items-center flex-wrap gap-2 flex-shrink-0">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${currentStyle.badge}`}>
+            {status}
+          </span>
+          {score !== undefined && score !== null && (
+            <span className="text-xs text-gray-500 ml-2">
+              score: {score.toFixed(2)}
+              {distance !== undefined && distance !== null && ` (-${distance.toFixed(2)})`}
+            </span>
+          )}
+          {constraint_type === "soft" && (
+            <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+              soft
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 요건 정보 스펙 */}

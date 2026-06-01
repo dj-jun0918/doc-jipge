@@ -154,7 +154,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
-        const found = (data.items || []).find((c: Company) => c.id === companyId);
+        let found = (data.items || []).find((c: Company) => c.id === companyId);
         
         /* 🧪 테스트용 Mock Company Fallback (필요시 주석 제거하여 활성화)
         if (!found) {
@@ -253,7 +253,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         const matchData: MatchResultDetailResponse = await matchRes.json();
         setStats(matchData.stats);
 
-        const detailsList: MatchField[] = (matchData.items || [])
+        let detailsList: MatchField[] = (matchData.items || [])
           .filter((item) => item.status !== "해당없음")
           .map((item) => {
             // evidence 파싱
@@ -323,6 +323,9 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               current_value: String(item.company_value || ""),
               reason: item.processing_path || "조건 평가 완료",
               evidence_source: text ? { page, text, location } : null,
+              score: item.score !== undefined ? item.score : null,
+              distance: item.distance !== undefined ? item.distance : null,
+              constraint_type: item.constraint_type || null,
             };
           });
 
@@ -342,7 +345,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 page: 2,
                 bbox: [100, 150, 480, 210],
               }
-            }
+            },
+            score: 0.85,
+            distance: 0.15,
+            constraint_type: "soft"
           },
           {
             field_name: "매출",
@@ -358,7 +364,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 page: 3,
                 bbox: [120, 240, 500, 290],
               }
-            }
+            },
+            score: 1.00,
+            distance: 0.00,
+            constraint_type: "hard"
           },
           {
             field_name: "지역",
@@ -374,7 +383,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 table_index: 0,
                 row: 3,
               }
-            }
+            },
+            score: 0.95,
+            distance: 0.05,
+            constraint_type: "soft"
           },
           {
             field_name: "나이",
@@ -388,7 +400,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               location: {
                 location_type: "raw_text",
               }
-            }
+            },
+            score: 0.50,
+            distance: 0.50,
+            constraint_type: "soft"
           }
         ];
 
