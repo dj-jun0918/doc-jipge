@@ -10,10 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.matcher.matcher import compute_aggregate_score
 from app.models.announcement import Announcement
 from app.models.company import Company
 from app.models.match_result import MatchResult
@@ -44,7 +45,7 @@ def get_matching_results(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    """회사 전체 매칭 결과 — 충족 비율 기준 정렬 (TOP N)."""
+    """회사 전체 매칭 결과 — 가중 합산 총점(연속 score) 기준 정렬 (TOP N)."""
     company_uuid = _parse_uuid(company_id, "company_id")
 
     if not db.get(Company, company_uuid):
@@ -53,24 +54,23 @@ def get_matching_results(
     rows = db.execute(
         select(
             MatchResult.announcement_id,
+            MatchResult.field_name,
             MatchResult.status,
-            func.count().label("cnt"),
+            MatchResult.score,
         )
         .where(MatchResult.company_id == company_uuid)
-        .group_by(MatchResult.announcement_id, MatchResult.status)
     ).all()
 
-    agg: dict[uuid.UUID, Counter] = {}
-    for ann_id, status, cnt in rows:
-        agg.setdefault(ann_id, Counter())[status] = cnt
+    by_ann: dict[uuid.UUID, list[tuple[str, str, float | None]]] = {}
+    for ann_id, field_name, status, score in rows:
+        by_ann.setdefault(ann_id, []).append((field_name, status, score))
 
     summaries: list[tuple[uuid.UUID, float, int, int]] = []
-    for ann_id, counter in agg.items():
-        fulfilled = counter.get("충족", 0)
-        denom = fulfilled + counter.get("미충족", 0) + counter.get("확인필요", 0)
-        score = fulfilled / denom if denom > 0 else 0.0
-        total = sum(counter.values())
-        summaries.append((ann_id, score, fulfilled, total))
+    for ann_id, fields in by_ann.items():
+        agg_score = compute_aggregate_score(fields)
+        fulfilled = sum(1 for _, status, _ in fields if status == "충족")
+        total = len(fields)
+        summaries.append((ann_id, agg_score, fulfilled, total))
 
     summaries.sort(key=lambda x: (-x[1], -x[3]))
     top = summaries[:limit]

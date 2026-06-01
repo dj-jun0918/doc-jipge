@@ -15,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 from app.matcher.matcher import (
     calculate_age,
     calculate_biz_age,
+    compute_aggregate_score,
     compute_field_score,
     compute_numeric_distance,
     match_announcement,
@@ -240,6 +241,50 @@ class TestMatchRegion:
 
     def test_시군구_포함_주소_미충족(self):
         assert match_region("부산광역시 해운대구", cond("소재", "서울", "서울 소재")) == "미충족"
+
+
+# ──────────────────────────────────────────────
+# compute_aggregate_score (총점 가중 합산)
+# ──────────────────────────────────────────────
+
+class TestComputeAggregateScore:
+
+    def test_빈_입력_0(self):
+        assert compute_aggregate_score([]) == 0.0
+
+    def test_전부_충족_1(self):
+        fields = [("업력", "충족", 1.0), ("매출", "충족", 1.0)]
+        assert compute_aggregate_score(fields) == 1.0
+
+    def test_score_없으면_status에서_유도(self):
+        # score=None → 충족 1.0, 미충족 0.0 유도 → (1+0+0+0)/4 = 0.25
+        fields = [
+            ("업력", "충족", None),
+            ("매출", "미충족", None),
+            ("지역", "미충족", None),
+            ("나이", "미충족", None),
+        ]
+        assert compute_aggregate_score(fields) == pytest.approx(0.25)
+
+    def test_확인필요_0_3_반영(self):
+        # 충족 1.0 + 확인필요 0.3 → 평균 0.65 (단순 충족비율이면 0.5)
+        fields = [("업력", "충족", 1.0), ("매출", "확인필요", 0.3)]
+        assert compute_aggregate_score(fields) == pytest.approx(0.65)
+
+    def test_미충족_거리_부분점수_반영(self):
+        # 충족 1.0 + 미충족 부분점수 0.4 → 평균 0.7 (binary면 0.5)
+        fields = [("업력", "충족", 1.0), ("매출", "미충족", 0.4)]
+        assert compute_aggregate_score(fields) == pytest.approx(0.7)
+
+    def test_해당없음_None은_집계_제외(self):
+        # 해당없음(score None, status 해당없음)은 분모에서 빠짐 → 충족 1개만 → 1.0
+        fields = [("업력", "충족", 1.0), ("인증", "해당없음", None)]
+        assert compute_aggregate_score(fields) == 1.0
+
+    def test_저장된_score_우선(self):
+        # status는 충족이지만 score가 명시되면 그 값 사용
+        fields = [("업력", "충족", 0.5)]
+        assert compute_aggregate_score(fields) == 0.5
 
 # ──────────────────────────────────────────────
 # match_industry

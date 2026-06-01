@@ -119,6 +119,18 @@ class TestGetMatchingResults:
         assert items[1]["title"] == "LOW"
         assert items[1]["match_score"] == 0.25
 
+    def test_continuous_score_reflects_확인필요(self, client, db_session):
+        """확인필요는 충족(1.0)과 미충족(0.0) 사이 부분점수(0.3)로 총점에 반영."""
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session, title="MIXED")
+        _make_match_result(db_session, ann.id, company.id, field_name="업력", status="충족")
+        _make_match_result(db_session, ann.id, company.id, field_name="매출", status="확인필요")
+
+        response = client.get(f"/api/matching/{company.id}")
+        items = response.json()["items"]
+        # (1.0 + 0.3) / 2 = 0.65 — 단순 충족비율(0.5)과 구분됨
+        assert items[0]["match_score"] == 0.65
+
     def test_limit_caps_returned_items(self, client, db_session):
         company = _make_company(db_session)
         for i in range(5):
