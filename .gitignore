@@ -59,7 +59,7 @@ venv/
 ENV/
 
 # Celery
-celerybeat-schedule
+celerybeat-schedule*
 celerybeat.pid
 
 # Redis
