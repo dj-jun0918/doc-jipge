@@ -512,7 +512,10 @@ def match_company_announcements(self, company_id: str) -> dict:
             return {"status": "error", "reason": "company_not_found"}
 
         rows = db.scalars(
-            select(EligibilityResult).order_by(EligibilityResult.announcement_id)
+            select(EligibilityResult)
+            .join(Announcement, EligibilityResult.announcement_id == Announcement.id)
+            .where(Announcement.duplicate_of.is_(None))
+            .order_by(EligibilityResult.announcement_id)
         ).all()
         by_ann: dict[uuid.UUID, list[EligibilityResult]] = {}
         for r in rows:

@@ -30,6 +30,20 @@ services:
       - ./evaluation:/evaluation
       - attachments:/app/attachments
 
+  beat:
+    build: ./backend
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./evaluation:/evaluation
+
   # frontend:
   #   build: ./frontend
   #   ports: ["3000:3000"]

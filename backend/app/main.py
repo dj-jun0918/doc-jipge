@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api import announcements, attachments, companies, eligibility, matching, pipeline
+from app.api import announcements, attachments, companies, eligibility, matching, pipeline, quality
 
 app = FastAPI(
     title="Doc집게 API",
@@ -14,6 +14,7 @@ app.include_router(companies.router, prefix="/api/companies", tags=["기업"])
 app.include_router(matching.router, prefix="/api/matching", tags=["매칭"])
 app.include_router(eligibility.router, prefix="/api/eligibility", tags=["자격요건"])
 app.include_router(pipeline.router, prefix="/api/pipeline", tags=["파이프라인"])
+app.include_router(quality.router, prefix="/api/quality", tags=["품질"])
 
 
 @app.get("/health")

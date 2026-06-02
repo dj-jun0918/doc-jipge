@@ -6,12 +6,16 @@
     {
       "field_name": "업력",
       "condition": "7년 미만",
+      "value": 7,
+      "operator": "미만",
       "evidence": "공고일 기준 창업 후 7년 미만 기술창업기업",
       "evidence_source": "본문 2. 모집개요 모집대상"
     },
     {
       "field_name": "지역",
       "condition": "전국",
+      "value": null,
+      "operator": "무관",
       "evidence": "공고일 기준 창업 후 7년 미만 기술창업기업 / 전국 소재",
       "evidence_source": "본문 2. 모집개요 모집대상"
     }

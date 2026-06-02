@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.config import settings
 
@@ -20,3 +21,21 @@ celery_app.conf.update(
     task_soft_time_limit=540,
     task_default_rate_limit="30/m",  # concurrency=4 환경에서 OpenAI rate limit 폭증 방지
 )
+
+celery_app.conf.beat_schedule = {
+    "daily-bizinfo-collect": {
+        "task": "app.worker.tasks.collect_source",
+        "schedule": crontab(hour=9, minute=0),    # KST 9시
+        "args": ("bizinfo",),
+    },
+    "daily-kstartup-collect": {
+        "task": "app.worker.tasks.collect_source",
+        "schedule": crontab(hour=9, minute=30),   # KST 9:30
+        "args": ("kstartup",),
+    },
+    "daily-mss-collect": {
+        "task": "app.worker.tasks.collect_source",
+        "schedule": crontab(hour=10, minute=0),   # KST 10시
+        "args": ("mss",),
+    },
+}

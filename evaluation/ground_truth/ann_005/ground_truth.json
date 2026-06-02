@@ -6,25 +6,24 @@
     {
       "field_name": "업력",
       "condition": "7년 이내",
+      "value": 7,
+      "operator": "이하",
       "evidence": "창업 7년 이내 중소기업",
       "evidence_source": "첨부파일 2p 2. 지원대상"
     },
     {
       "field_name": "지역",
       "condition": "원주시 소재",
+      "value": ["원주시"],
+      "operator": "소재",
       "evidence": "본사, 주사무소 또는 사업장, 공장 원주시 소재 기업",
       "evidence_source": "첨부파일 2p 2. 지원대상"
-    },
-    {
-      "field_name": "융자한도",
-      "condition": "3억원 이하",
-      "evidence": "3억원 이하의 운전자금",
-      "evidence_source": "첨부파일 1p 1. 지원개요"
     }
   ],
   "exclusions": [
     "세금(국세 또는 지방세)을 체납 중인 업체 [cite: 728]",
     "휴업 또는 폐업신고를 한 업체 [cite: 726]",
     "최근 신고한 매출액이 없는 업체 [cite: 729]"
-  ]
+  ],
+  "notes": "융자한도 3억원 이하는 지원 한도(메타 정보)이므로 fields 제외 — 첨부파일 1p 1. 지원개요."
 }

@@ -64,14 +64,14 @@ async def _try_text_llm(announcement: dict[str, Any]) -> AnnouncementEligibility
     """2단계: 텍스트 LLM 단독 수행."""
     ann_id = str(announcement.get("source_id") or announcement.get("id") or "")
     title = announcement.get("title", "")
-    target_text = announcement.get("target_text") or ""
+    combined_text = _build_combined_text(announcement)
     exclusion_text = announcement.get("exclusion_text") or ""
 
-    if not target_text:
+    if not combined_text:
         return None
 
     try:
-        raw_text = await text_llm.extract(target_text, exclusion_text)
+        raw_text = await text_llm.extract(combined_text, exclusion_text)
         text_result = verifier.verify(raw_text)
         logger.info(f"[hybrid] 텍스트 LLM 단독 실행 성공: {len(text_result.fields)}개 필드")
         return _build_announcement_eligibility(ann_id, title, text_result)
@@ -86,15 +86,15 @@ async def _try_vision_llm(announcement: dict[str, Any]) -> AnnouncementEligibili
     title = announcement.get("title", "")
     
     # 텍스트 LLM 결과 선행 시도
-    target_text = announcement.get("target_text") or ""
+    combined_text = _build_combined_text(announcement)
     exclusion_text = announcement.get("exclusion_text") or ""
     text_result: ExtractionResult | None = None
-    if target_text:
+    if combined_text:
         try:
-            raw_text = await text_llm.extract(target_text, exclusion_text)
+            raw_text = await text_llm.extract(combined_text, exclusion_text)
             text_result = verifier.verify(raw_text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[hybrid] vision 경로 text LLM 선행 시도 실패: {e}")
 
     pdf_path = _get_attachment_pdf_path(announcement)
     if not pdf_path:
@@ -139,13 +139,13 @@ async def _heuristic_routing(announcement: dict[str, Any]) -> AnnouncementEligib
         )
 
     # 2단계: 텍스트 LLM
-    target_text = announcement.get("target_text") or ""
+    combined_text = _build_combined_text(announcement)
     exclusion_text = announcement.get("exclusion_text") or ""
 
     text_result: ExtractionResult | None = None
-    if target_text:
+    if combined_text:
         try:
-            raw_text = await text_llm.extract(target_text, exclusion_text)
+            raw_text = await text_llm.extract(combined_text, exclusion_text)
             text_result = verifier.verify(raw_text)
             logger.info(f"[hybrid] 2단계 텍스트 LLM: {len(text_result.fields)}개 필드")
         except Exception as e:
@@ -195,6 +195,21 @@ def _is_text_llm_sufficient(result: ExtractionResult) -> bool:
     )
     clear_ratio = clear_count / len(result.fields)
     return clear_ratio >= 0.8
+
+
+def _build_combined_text(announcement: dict[str, Any]) -> str:
+    """target_text + structured_tables markdown 통합. HWPX 첨부 표 LLM 입력에 포함."""
+    target_text = announcement.get("target_text") or ""
+    structured_tables = announcement.get("structured_tables") or []
+    if not structured_tables:
+        return target_text
+    tables_md = "\n\n".join(
+        f"## {t.get('name', f'표_{i}')}\n{t.get('markdown', '')}"
+        for i, t in enumerate(structured_tables)
+    )
+    if not target_text:
+        return f"# 첨부 표\n{tables_md}"
+    return f"{target_text}\n\n# 첨부 표\n{tables_md}"
 
 
 def _get_attachment_pdf_path(announcement: dict[str, Any]) -> str | None:

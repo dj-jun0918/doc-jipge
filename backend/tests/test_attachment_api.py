@@ -1,4 +1,4 @@
-"""attachment API 테스트 — IMPLEMENTATION.md §5-3 A-1."""
+"""attachment API 테스트."""
 import uuid
 from pathlib import Path
 
