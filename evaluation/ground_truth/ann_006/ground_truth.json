@@ -6,12 +6,16 @@
     {
       "field_name": "업력",
       "condition": "7년 미만",
+      "value": 7,
+      "operator": "미만",
       "evidence": "광명시 소재 7년 미만 스타트업(또는 예비창업자)",
       "evidence_source": "본문 모집개요 신청자격 ①"
     },
     {
       "field_name": "지역",
       "condition": "광명시",
+      "value": ["광명시"],
+      "operator": "소재",
       "evidence": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
       "evidence_source": "본문 모집개요 신청자격 ①"
     }

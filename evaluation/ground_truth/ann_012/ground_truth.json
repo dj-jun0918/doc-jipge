@@ -6,6 +6,7 @@
     {
       "field_name": "업종",
       "condition": "사업자등록증 상 업태에 '제조' 포함",
+      "value": ["제조"],
       "operator": "포함",
       "evidence": "신청대상 조건으로 업태에 제조가 포함되어야 함이 명시됨",
       "evidence_source": "공고문 4쪽 신청자격"

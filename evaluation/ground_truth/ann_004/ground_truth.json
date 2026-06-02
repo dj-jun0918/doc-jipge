@@ -6,18 +6,24 @@
     {
       "field_name": "업력",
       "condition": "7년이내",
+      "value": 7,
+      "operator": "이하",
       "evidence": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
       "evidence_source": "첨부파일 1p 사업 개요"
     },
     {
       "field_name": "나이",
       "condition": "만45세 이하",
+      "value": 45,
+      "operator": "이하",
       "evidence": "만45세 이하",
       "evidence_source": "첨부파일 1p 사업 개요"
     },
     {
       "field_name": "업종",
       "condition": "생산·제조 기업",
+      "value": ["생산·제조"],
+      "operator": "포함",
       "evidence": "관내 직접 생산·제조 기업",
       "evidence_source": "첨부파일 1p 사업 개요"
     }
