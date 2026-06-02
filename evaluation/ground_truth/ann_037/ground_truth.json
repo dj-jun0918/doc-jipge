@@ -1,0 +1,32 @@
+{
+  "announcement_id": "ann_037",
+  "title": "중견·중소기업 오픈이노베이션 창업기업 추가 모집공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/xUH1dk2hmL",
+  "fields": [
+    {
+      "field_name": "지역",
+      "condition": "광주 내 소재",
+      "value": [
+        "광주"
+      ],
+      "operator": "소재",
+      "evidence": "수요기업과 협업이 가능한 광주 소재(본점, 지점/지사, 연구소, 공장 등을 두고 있는 기업)",
+      "evidence_source": "첨부파일 1p 모집개요",
+      "notes": "광주광역시 내 본점, 지점/지사, 연구소, 공장 중 하나라도 둔 기업 대상"
+    },
+    {
+      "field_name": "업력",
+      "condition": "창업 7년 이내",
+      "value": 7,
+      "operator": "이하",
+      "evidence": "창업기업(공고일 기준 업력 7년 이내)",
+      "evidence_source": "첨부파일 1p 모집개요",
+      "notes": "창업 7년 이하 창업기업"
+    }
+  ],
+  "exclusions": [
+    "제출된 서류가 위/변조, 허위 등으로 밝혀진 경우",
+    "수요기업과의 투자 확정, 공급계약 체결 등의 특수 관계가 이미 형성된 창업기업"
+  ],
+  "notes": ""
+}

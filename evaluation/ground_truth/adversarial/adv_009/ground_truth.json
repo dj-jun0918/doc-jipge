@@ -1,0 +1,18 @@
+{
+  "announcement_id": "adv_009",
+  "title": "BOUNCE PIE 배치 프로그램 6기 스타트업 모집",
+  "source_url": "https://www.k-startup.go.kr/web/s/01XU5nfhmL",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "창업 7년 미만",
+      "value": 7,
+      "operator": "미만",
+      "evidence": "창업 7년 미반 투자 유치 희망 스타트업",
+      "evidence_source": "이미지 1p 신청대상",
+      "notes": "원문의 오타 '미반'을 '미만'으로 해석하여 업력 7년 미만 매핑"
+    }
+  ],
+  "exclusions": [],
+  "notes": "부산창조경제혁신센터에서 주관하는 투자 스타트업 발굴 프로그램 포스터이며, 표 외 이미지 내 텍스트 기반 자격요건 파싱 사례임."
+}

@@ -1,0 +1,18 @@
+{
+  "announcement_id": "adv_008",
+  "title": "2026년 전략기술 딥테크 창업 촉진 지원사업",
+  "source_url": "https://www.k-startup.go.kr/web/s/YHAU5nfhmL",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "2026년 창업기업",
+      "value": 1,
+      "operator": "미만",
+      "evidence": "공공기술 활용 사업화 예비창업자 또는 2026년 창업기업",
+      "evidence_source": "첨부파일 2p 모집대상",
+      "notes": "2026년도 당해 창업기업이 대상이므로 공고년도 기준 업력 1년 미만(0년차)으로 파싱하여 매핑함."
+    }
+  ],
+  "exclusions": [],
+  "notes": "공공연구기관(대학/출연연) 소속 예비창업자 및 공공기술 이전을 통한 기획창업팀 위주 모집공고임."
+}
