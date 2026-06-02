@@ -337,3 +337,95 @@ class TestSimulateMatching:
             json={"announcement_id": str(ann.id), "overrides": {"unknown": 1}},
         )
         assert res.status_code == 422  # SimulateOverrides extra="forbid"
+
+
+# ---------------------------------------------------------------------------
+# POST /api/matching/{company_id}/counterfactual  (반사실 분석)
+# ---------------------------------------------------------------------------
+
+class TestCounterfactualMatching:
+
+    def test_company_not_found_404(self, client, db_session):
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{uuid.uuid4()}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 404
+
+    def test_no_eligibility_achievable(self, client, db_session):
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["unmet"] == []
+        assert data["achievable"] is True
+
+    def test_unmet_revenue_below_suggests_grow(self, client, db_session):
+        # 회사 매출 5천만, 조건 "1억 이상"(하한) → 미충족. 반사실: 매출 키우면 충족
+        company = _make_company(db_session, revenue=50_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이상", value=100_000_000, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["unmet"]) == 1
+        item = data["unmet"][0]
+        assert item["field_name"] == "매출"
+        assert item["changeable"] is True
+        assert data["achievable"] is True
+
+    def test_revenue_over_cap_unchangeable(self, client, db_session):
+        # 회사 매출 5억, 조건 "1억 이하"(상한) → 미충족(초과). 축소 비현실 → changeable=False
+        company = _make_company(db_session, revenue=500_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이하", value=100_000_000, operator="이하")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert data["unmet"][0]["field_name"] == "매출"
+        assert data["unmet"][0]["changeable"] is False
+        assert data["achievable"] is False
+        assert data["note"] is not None
+
+    def test_already_met_no_unmet(self, client, db_session):
+        # 회사 매출 5천만, 조건 "1억 이하" → 이미 충족
+        company = _make_company(db_session, revenue=50_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이하", value=100_000_000, operator="이하")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert data["unmet"] == []
+        assert data["achievable"] is True
+
+    def test_unchangeable_age_blocks_achievable(self, client, db_session):
+        # 업력 5년 이상 조건, 회사 업력 ~3년 → 미충족 + 시간 기반이라 changeable=False
+        company = _make_company(db_session, founded_date=date(2023, 1, 1))
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="업력",
+                          condition_value="5년 이상", value=5, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert len(data["unmet"]) == 1
+        assert data["unmet"][0]["field_name"] == "업력"
+        assert data["unmet"][0]["changeable"] is False
+        assert data["achievable"] is False
+        assert data["note"] is not None
