@@ -14,7 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.matcher.matcher import compute_aggregate_score, match_announcement
+from app.matcher.matcher import (
+    compute_aggregate_score,
+    counterfactual_for_field,
+    match_announcement,
+)
 from app.models.announcement import Announcement
 from app.models.company import Company
 from app.models.eligibility import EligibilityResult
@@ -23,6 +27,9 @@ from app.schemas.eligibility import EligibilityField, ParsedCondition
 from app.schemas.matching import (
     CompanyMatchListResponse,
     CompanyMatchSummary,
+    CounterfactualItem,
+    CounterfactualRequest,
+    CounterfactualResponse,
     MatchResultDetailResponse,
     MatchResultItem,
     MatchResultStats,
@@ -191,6 +198,24 @@ def get_matching_detail(
     )
 
 
+def _eligibility_fields(elig_rows: list[EligibilityResult]) -> list[EligibilityField]:
+    """EligibilityResult 행들을 매칭 입력 EligibilityField로 변환."""
+    return [
+        EligibilityField(
+            field_name=er.field_name,
+            condition=ParsedCondition(
+                value=(er.condition_parsed or {}).get("value"),
+                operator=(er.condition_parsed or {}).get("operator"),
+                raw_text=er.condition_value,
+            ),
+            evidence=er.evidence or "",
+            evidence_source=er.evidence_source or "",
+            processing_path=er.processing_path,
+        )
+        for er in elig_rows
+    ]
+
+
 def _apply_overrides(company: Company, overrides: SimulateOverrides) -> Company:
     """Company의 detached copy 생성 후 overrides 적용 (None 아닌 필드만). session add X."""
     return Company(
@@ -241,20 +266,7 @@ def simulate_matching(
             matched_at=None,
         )
 
-    fields = [
-        EligibilityField(
-            field_name=er.field_name,
-            condition=ParsedCondition(
-                value=(er.condition_parsed or {}).get("value"),
-                operator=(er.condition_parsed or {}).get("operator"),
-                raw_text=er.condition_value,
-            ),
-            evidence=er.evidence or "",
-            evidence_source=er.evidence_source or "",
-            processing_path=er.processing_path,
-        )
-        for er in elig_rows
-    ]
+    fields = _eligibility_fields(elig_rows)
 
     sim_company = _apply_overrides(company, req.overrides)
     results = match_announcement(sim_company, fields, req.announcement_id)
@@ -287,6 +299,83 @@ def simulate_matching(
         items=items,
         stats=stats,
         matched_at=None,  # 시뮬레이션은 저장 X
+    )
+
+
+@router.post("/{company_id}/counterfactual", response_model=CounterfactualResponse)
+def counterfactual_matching(
+    company_id: str,
+    req: CounterfactualRequest,
+    db: Session = Depends(get_db),
+):
+    """반사실 분석 — 미충족 공고를 충족시키는 최소 프로필 변경 제안 (DB 저장 X)."""
+    company_uuid = _parse_uuid(company_id, "company_id")
+    company = db.get(Company, company_uuid)
+    if not company:
+        raise HTTPException(status_code=404, detail="회사를 찾을 수 없습니다")
+
+    elig_rows = db.scalars(
+        select(EligibilityResult).where(
+            EligibilityResult.announcement_id == req.announcement_id
+        )
+    ).all()
+    if not elig_rows:
+        return CounterfactualResponse(
+            company_id=company_uuid,
+            announcement_id=req.announcement_id,
+            unmet=[],
+            achievable=True,
+            note="자격요건이 없는 공고입니다",
+        )
+
+    fields = _eligibility_fields(elig_rows)
+    results = match_announcement(company, fields, req.announcement_id)
+
+    unmet: list[CounterfactualItem] = []
+    override_kwargs: dict = {}
+    has_unchangeable = False
+
+    for field, r in zip(fields, results):
+        if r.status != "미충족":
+            continue
+        cf = counterfactual_for_field(field, company)
+        if cf is None:
+            continue
+        unmet.append(CounterfactualItem(
+            field_name=field.field_name,
+            current_value=r.company_value,
+            requirement=r.requirement_value,
+            suggested_value=cf["suggested_value"],
+            explanation=cf["explanation"],
+            changeable=cf["changeable"],
+        ))
+        if cf["changeable"] and cf["override_attr"]:
+            override_kwargs[cf["override_attr"]] = cf["override_value"]
+        else:
+            has_unchangeable = True
+
+    # 달성 가능 여부 — changeable 변경 모두 적용 후 미충족이 없어야 함
+    if not unmet:
+        achievable = True
+    elif has_unchangeable:
+        achievable = False  # 변경 불가 조건이 미충족으로 남음
+    else:
+        sim_company = _apply_overrides(company, SimulateOverrides(**override_kwargs))
+        verified = match_announcement(sim_company, fields, req.announcement_id)
+        achievable = all(v.status != "미충족" for v in verified)
+
+    note = (
+        "일부 조건(업력/나이/업종 제외 등)은 프로필 변경으로 충족 불가"
+        if has_unchangeable
+        else None
+    )
+
+    return CounterfactualResponse(
+        company_id=company_uuid,
+        announcement_id=req.announcement_id,
+        unmet=unmet,
+        achievable=achievable,
+        note=note,
     )
 
 
