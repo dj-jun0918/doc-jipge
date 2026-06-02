@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import MatchResultCard, { MatchField } from "@/components/MatchResultCard";
@@ -19,6 +19,21 @@ const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ),
 });
 
+// 간단한 커스텀 디바운스 훅 구현
+function useDebouncedCallback<T extends (...args: any[]) => any>(callback: T, delay: number) {
+  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const debouncedFn = useCallback((...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
+    const newTimer = setTimeout(() => {
+      callback(...args);
+    }, delay);
+    setTimer(newTimer);
+  }, [callback, delay, timer]);
+
+  return debouncedFn;
+}
+
 interface PageProps {
   params: Promise<{ id: string }> | { id: string };
   searchParams: Promise<{ announcement_id?: string }> | { announcement_id?: string };
@@ -31,6 +46,7 @@ interface Company {
   region: string;
   revenue: number;
   employee_count: number;
+  founded_date?: string;
 }
 
 interface CompanyMatchSummary {
@@ -106,8 +122,6 @@ function isPromise<T>(value: unknown): value is Promise<T> {
 }
 
 export default function CompanyMatchingDetailPage(props: PageProps) {
-  // Next.js 15+ Client Component에서는 로컬 dev 런타임에 params가 일반 동기 객체일 때가 있습니다.
-  // 이 경우 use() 훅을 직접 호출하면 런타임 크래시가 나므로 thenable(Promise) 여부를 안전하게 확인하고 분기합니다.
   const params = isPromise<{ id: string }>(props.params)
     ? use(props.params)
     : props.params;
@@ -119,7 +133,9 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const companyId = params?.id || "";
   const initialAnnId = searchParams?.announcement_id || "";
 
-  // Core States
+  // ==========================================
+  // 1. All States Initialization
+  // ==========================================
   const [company, setCompany] = useState<Company | null>(null);
   const [announcements, setAnnouncements] = useState<CompanyMatchSummary[]>([]);
   const [selectedAnnId, setSelectedAnnId] = useState<string>(initialAnnId);
@@ -127,25 +143,92 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [matchDetails, setMatchDetails] = useState<MatchField[]>([]);
   const [stats, setStats] = useState<MatchResultDetailResponse["stats"] | null>(null);
   
-  // UI States
   const [activeTab, setActiveTab] = useState<"all" | "confirm">("all");
   const [loadingCompany, setLoadingCompany] = useState<boolean>(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(true);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
 
-  // Error States
   const [companyError, setCompanyError] = useState<string | null>(null);
   const [companyNotFound, setCompanyNotFound] = useState<boolean>(false);
   const [annError, setAnnError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailRetryNonce, setDetailRetryNonce] = useState<number>(0);
   
-  // PDF Viewer & Evidence Location States
   const [highlightPage, setHighlightPage] = useState<number | null>(null);
   const [evidenceText, setEvidenceText] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
 
-  // 1. 기업 정보 조회
+  const [overrides, setOverrides] = useState<Partial<Company>>({});
+  const [simResult, setSimResult] = useState<MatchResultDetailResponse | null>(null);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [isWhatIfExpanded, setIsWhatIfExpanded] = useState<boolean>(false);
+
+  // ==========================================
+  // 2. Pure Helper Functions (Must be declared before hooks to prevent TDZ)
+  // ==========================================
+  const parseMatchResultItems = useCallback((items: MatchResultDetailItem[]) => {
+    return (items || [])
+      .filter((item) => item.status !== "해당없음")
+      .map((item) => {
+        let page: number | undefined;
+        let text: string | undefined;
+        let location: any = null;
+
+        if (item.evidence) {
+          try {
+            const parsed = JSON.parse(item.evidence);
+            page = parsed.page || parsed.page_num || parsed.location?.page;
+            text = parsed.text || parsed.context;
+            location = parsed.location || null;
+
+            if (!location && page) {
+              location = {
+                location_type: "pdf_page",
+                page: page,
+              };
+            }
+          } catch {
+            text = item.evidence;
+            location = {
+              location_type: "raw_text",
+            };
+          }
+        }
+
+        return {
+          field_name: item.field_name,
+          status: item.status as "충족" | "미충족" | "확인필요",
+          criterion: String(item.requirement_value || ""),
+          current_value: String(item.company_value || ""),
+          reason: item.processing_path || "조건 평가 완료",
+          evidence_source: text ? { page, text, location } : null,
+          score: item.score !== undefined ? item.score : null,
+          distance: item.distance !== undefined ? item.distance : null,
+          constraint_type: item.constraint_type || null,
+        };
+      });
+  }, []);
+
+  const getBizAge = useCallback((foundedDateStr?: string) => {
+    if (!foundedDateStr) return 0;
+    const founded = new Date(foundedDateStr);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - founded.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return parseFloat((diffDays / 365.25).toFixed(2));
+  }, []);
+
+  const getSimulatedFoundedDate = useCallback((targetAgeYears: number) => {
+    const today = new Date();
+    const targetDays = targetAgeYears * 365.25;
+    const simulatedMs = today.getTime() - targetDays * 24 * 60 * 60 * 1000;
+    const simulatedDate = new Date(simulatedMs);
+    return simulatedDate.toISOString().split("T")[0];
+  }, []);
+
+  // ==========================================
+  // 3. API & Async Event Handlers / Hooks
+  // ==========================================
   useEffect(() => {
     async function fetchCompany() {
       try {
@@ -156,18 +239,6 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         const data = await res.json();
         let found = (data.items || []).find((c: Company) => c.id === companyId);
         
-        /* 🧪 테스트용 Mock Company Fallback (필요시 주석 제거하여 활성화)
-        if (!found) {
-          found = {
-            id: companyId,
-            name: "테스트컴퍼니A (테스트용)",
-            industry: "소프트웨어 개발업",
-            region: "대구광역시 수성구",
-            revenue: 350000000,
-            employee_count: 8
-          };
-        } */
-
         if (found) {
           setCompany(found);
           setCompanyNotFound(false);
@@ -185,7 +256,6 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     fetchCompany();
   }, [companyId]);
 
-  // 2. 기업 매칭 공고 요약 목록 조회
   useEffect(() => {
     async function fetchAnnouncements() {
       try {
@@ -196,29 +266,8 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         const data = await res.json();
         let items = data.items || [];
 
-        /* 🧪 테스트용 Mock Announcements 주입 (필요시 주석 제거하여 활성화)
-        if (items.length === 0) {
-          items = [
-            {
-              announcement_id: "b8b63599-1f5b-4b74-9bcc-48b352ffcae6",
-              title: "2026 강원 청년창업 지원사업 (테스트용)",
-              match_score: 0.85,
-              fulfilled_count: 3,
-              total_fields: 4
-            },
-            {
-              announcement_id: "22222222-2222-2222-2222-222222222222",
-              title: "서울청년AI 창업도약 패키지 (테스트용)",
-              match_score: 0.60,
-              fulfilled_count: 2,
-              total_fields: 4
-            }
-          ];
-        } */
-
         setAnnouncements(items);
 
-        // 쿼리 스트링에 없거나 매칭 목록에 없으면 첫 번째 공고 자동 선택
         if (!selectedAnnId && items.length > 0) {
           setSelectedAnnId(items[0].announcement_id);
         }
@@ -233,7 +282,6 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     fetchAnnouncements();
   }, [companyId, selectedAnnId]);
 
-  // 3. 선택된 공고의 매칭 상세 및 공고 원문 메타데이터 로드
   useEffect(() => {
     if (!selectedAnnId) return;
 
@@ -243,9 +291,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       setEvidenceText(null);
       setSelectedLocation(null);
       setDetailError(null);
+      setOverrides({});
+      setSimResult(null);
 
       try {
-        // A. 매칭 결과 세부 정보
         const matchRes = await fetch(`/api/matching/${companyId}?announcement_id=${selectedAnnId}`);
         if (!matchRes.ok) {
           throw new Error(`매칭 결과 HTTP ${matchRes.status}`);
@@ -253,188 +302,14 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         const matchData: MatchResultDetailResponse = await matchRes.json();
         setStats(matchData.stats);
 
-        let detailsList: MatchField[] = (matchData.items || [])
-          .filter((item) => item.status !== "해당없음")
-          .map((item) => {
-            // evidence 파싱
-            let page: number | undefined;
-            let text: string | undefined;
-            let location: any = null;
-
-            if (item.evidence) {
-              try {
-                const parsed = JSON.parse(item.evidence);
-                page = parsed.page || parsed.page_num || parsed.location?.page;
-                text = parsed.text || parsed.context;
-                location = parsed.location || null;
-
-                // 하위 호환성: 기존 파싱 구조에 page가 존재하면 pdf_page location으로 매핑
-                if (!location && page) {
-                  location = {
-                    location_type: "pdf_page",
-                    page: page,
-                  };
-                }
-              } catch {
-                // JSON이 아닌 일반 문자열인 경우 raw_text로 처리
-                text = item.evidence;
-                location = {
-                  location_type: "raw_text",
-                };
-              }
-            }
-
-            /* 🧪 B-1 시각화 검증을 위한 Mock 데이터 주입 (필요시 주석 제거하여 활성화)
-            if (item.field_name === "업력") {
-              text = "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)";
-              page = 2;
-              location = {
-                location_type: "pdf_page",
-                page: 2,
-                bbox: [100, 150, 480, 210],
-              };
-            } else if (item.field_name === "매출") {
-              text = "직전 사업연도(2025년) 매출액이 2억원 이상인 기업";
-              page = 3;
-              location = {
-                location_type: "pdf_page",
-                page: 3,
-                bbox: [120, 240, 500, 290],
-              };
-            } else if (item.field_name === "지역") {
-              text = "공고일 현재 대구광역시 내에 본사 또는 공장을 등록한 기업";
-              location = {
-                location_type: "hwpx_table",
-                table_index: 0,
-                row: 3,
-              };
-            } else if (item.field_name === "나이") {
-              text = "대표자가 만 39세 이하의 청년 창업자여야 함 (1986년 5월 31일 이후 출생자)";
-              location = {
-                location_type: "raw_text",
-              };
-            }
-            */
-
-            return {
-              field_name: item.field_name,
-              status: item.status as "충족" | "미충족" | "확인필요",
-              criterion: String(item.requirement_value || ""),
-              current_value: String(item.company_value || ""),
-              reason: item.processing_path || "조건 평가 완료",
-              evidence_source: text ? { page, text, location } : null,
-              score: item.score !== undefined ? item.score : null,
-              distance: item.distance !== undefined ? item.distance : null,
-              constraint_type: item.constraint_type || null,
-            };
-          });
-
-        /* 🧪 뷰어 검증용 목업 카드 무조건 상단 주입 (필요시 주석 제거하여 활성화)
-        const mockFields: MatchField[] = [
-          {
-            field_name: "업력",
-            status: "확인필요",
-            criterion: "창업 후 7년 이내",
-            current_value: "창업 3년차 (2023년 설립)",
-            reason: "창업 7년 이내 요건을 충족하나, 제출 서류 대조 필요",
-            evidence_source: {
-              page: 2,
-              text: "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)",
-              location: {
-                location_type: "pdf_page",
-                page: 2,
-                bbox: [100, 150, 480, 210],
-              }
-            },
-            score: 0.85,
-            distance: 0.15,
-            constraint_type: "soft"
-          },
-          {
-            field_name: "매출",
-            status: "충족",
-            criterion: "직전년도(2025) 매출 2억원 이상",
-            current_value: "직전년도 매출 3.5억원",
-            reason: "2025년도 매출액이 기준치인 2억원을 초과하여 충족함",
-            evidence_source: {
-              page: 3,
-              text: "직전 사업연도(2025년) 매출액이 2억원 이상인 기업",
-              location: {
-                location_type: "pdf_page",
-                page: 3,
-                bbox: [120, 240, 500, 290],
-              }
-            },
-            score: 1.00,
-            distance: 0.00,
-            constraint_type: "hard"
-          },
-          {
-            field_name: "지역",
-            status: "충족",
-            criterion: "대구광역시 내 본사 또는 공장 소재",
-            current_value: "본사: 대구광역시 수성구",
-            reason: "기업 본사 등록 소재지가 대구광역시로 확인됨",
-            evidence_source: {
-              page: 1,
-              text: "공고일 현재 대구광역시 내에 본사 또는 공장을 등록한 기업",
-              location: {
-                location_type: "hwpx_table",
-                table_index: 0,
-                row: 3,
-              }
-            },
-            score: 0.95,
-            distance: 0.05,
-            constraint_type: "soft"
-          },
-          {
-            field_name: "나이",
-            status: "확인필요",
-            criterion: "대표자 만 39세 이하",
-            current_value: "대표자 나이: 만 34세 (1992년생)",
-            reason: "대표자가 만 39세 이하의 청년 요건에 부합하는지 텍스트 대조 완료",
-            evidence_source: {
-              page: 1,
-              text: "대표자가 만 39세 이하의 청년 창업자여야 함 (1986년 5월 31일 이후 출생자)",
-              location: {
-                location_type: "raw_text",
-              }
-            },
-            score: 0.50,
-            distance: 0.50,
-            constraint_type: "soft"
-          }
-        ];
-
-        detailsList = [...mockFields, ...detailsList];
-        */
-
+        const detailsList = parseMatchResultItems(matchData.items);
         setMatchDetails(detailsList);
 
-        // B. 공고 원본 메타데이터 (첨부파일 구조 포함)
         const annRes = await fetch(`/api/announcements?id=${selectedAnnId}`);
         if (!annRes.ok) {
           throw new Error(`공고 메타데이터 HTTP ${annRes.status}`);
         }
         const annData: AnnouncementDetail = await annRes.json();
-
-        /* 🧪 HWPX 테이블 테스트용 Mock 데이터 주입 (필요시 주석 제거하여 활성화)
-        if (!annData.structured_tables || annData.structured_tables.length === 0) {
-          annData.structured_tables = [
-            {
-              name: "신청자격 요약 및 제외대상 목록",
-              markdown: `| 구분 | 조건 | 대상자 |
-|---|---|---|
-| 업력 | 창업 7년 이내 | 창업기업 대표자 |
-| 매출 | 직전년도 2억원 이상 | 일반 법인 및 개인사업자 |
-| 지역 | 대구광역시 소재 | 본사 또는 공장 등록 기업 |
-| 연령 | 만 39세 이하 | 청년 창업자 (1986년 이후 출생) |`,
-            }
-          ];
-        }
-        */
-
         setSelectedAnnDetail(annData);
       } catch (err) {
         console.error("상세 매칭 결과 로드 실패:", err);
@@ -448,25 +323,91 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     }
 
     fetchDetailsAndMetadata();
-  }, [companyId, selectedAnnId, detailRetryNonce]);
+  }, [companyId, selectedAnnId, detailRetryNonce, parseMatchResultItems]);
 
-  // 원문 근거 클릭 시 PDF 뷰어 연동 점프
   const handleEvidenceClick = (page: number, text: string, location?: any) => {
     setHighlightPage(page);
     setEvidenceText(text);
     setSelectedLocation(location || null);
   };
 
-  // 백엔드 제공 stats 정보 직접 매핑
-  const fulfilledCount = stats?.충족 ?? 0;
-  const unfulfilledCount = stats?.미충족 ?? 0;
-  const confirmRequiredCount = stats?.확인필요 ?? 0;
-  const totalFields = matchDetails.length;
+  const handleSimulate = useDebouncedCallback(async (newOverrides: Partial<Company>) => {
+    if (!companyId || !selectedAnnId) return;
+    setIsSimulating(true);
 
+    try {
+      let calculatedFoundedDate = company?.founded_date;
+      if (newOverrides.founded_date) {
+        calculatedFoundedDate = newOverrides.founded_date;
+      }
+
+      const payload = {
+        announcement_id: selectedAnnId,
+        overrides: {
+          revenue: newOverrides.revenue !== undefined ? newOverrides.revenue : null,
+          employee_count: newOverrides.employee_count !== undefined ? newOverrides.employee_count : null,
+          founded_date: calculatedFoundedDate || null,
+          region: newOverrides.region || null,
+          industry: newOverrides.industry || null,
+        },
+      };
+
+      const res = await fetch(`/api/matching/${companyId}/simulate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error(`시뮬레이션 HTTP ${res.status}`);
+      }
+
+      const data: MatchResultDetailResponse = await res.json();
+      setSimResult(data);
+    } catch (err) {
+      console.error("시뮬레이션 연동 실패:", err);
+    } finally {
+      setIsSimulating(false);
+    }
+  }, 300);
+
+  // ==========================================
+  // 4. Derived Variables & Fallbacks
+  // ==========================================
   const selectedAnnSummary = announcements.find((a) => a.announcement_id === selectedAnnId);
-  const matchScorePercentage = selectedAnnSummary ? Math.round(selectedAnnSummary.match_score * 100) : 0;
 
-  // 메인 첨부파일 선정 분기 규칙 적용
+  const originalBizAge = company?.founded_date ? getBizAge(company.founded_date) : 0;
+  const originalRevenue = company?.revenue ?? 0;
+  const originalEmployeeCount = company?.employee_count ?? 0;
+  const originalRegion = company?.region ?? "";
+
+  const isSimulatedActive = Object.keys(overrides).length > 0 && simResult !== null;
+  const currentDetails = isSimulatedActive
+    ? parseMatchResultItems(simResult.items)
+    : matchDetails;
+
+  const currentStats = isSimulatedActive
+    ? simResult.stats
+    : stats;
+
+  const fulfilledCount = currentStats?.충족 ?? 0;
+  const unfulfilledCount = currentStats?.미충족 ?? 0;
+  const confirmRequiredCount = currentStats?.확인필요 ?? 0;
+  const totalFields = currentDetails.length;
+
+  const getMatchScorePct = () => {
+    if (isSimulatedActive) {
+      const scoredItems = simResult.items.filter(item => item.score !== null && item.status !== "해당없음");
+      if (scoredItems.length === 0) return 0;
+      const sum = scoredItems.reduce((acc, cur) => acc + (cur.score || 0), 0);
+      return Math.round((sum / scoredItems.length) * 100);
+    }
+    return selectedAnnSummary ? Math.round(selectedAnnSummary.match_score * 100) : 0;
+  };
+  const matchScorePercentage = getMatchScorePct();
+
   const mainAttachment = selectedAnnDetail ? pickMainAttachment(selectedAnnDetail.attachments) : null;
 
   // 404 - 잘못된 company_id 직접 접근 처리
@@ -493,6 +434,212 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     );
   }
 
+  // ==========================================
+  // 5. What-if Slider Control Panel Component
+  // ==========================================
+  function WhatIfPanel() {
+    if (!company) return null;
+
+    const currentRevenue = overrides.revenue !== undefined ? overrides.revenue : originalRevenue;
+    const currentBizAge = overrides.founded_date ? getBizAge(overrides.founded_date) : originalBizAge;
+    const currentEmployeeCount = overrides.employee_count !== undefined ? overrides.employee_count : originalEmployeeCount;
+    const currentRegion = overrides.region !== undefined ? overrides.region : originalRegion;
+
+    return (
+      <div className="rounded-2xl border border-blue-200 bg-white shadow-md mb-8 overflow-hidden transition-all duration-300">
+        {/* Header Accordion Bar */}
+        <button
+          onClick={() => setIsWhatIfExpanded(!isWhatIfExpanded)}
+          className="w-full text-left bg-gradient-to-r from-blue-50/50 via-indigo-50/10 to-white hover:from-blue-50 hover:via-indigo-50/20 px-6 py-4 flex items-center justify-between gap-4 border-b border-blue-100 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">🔮</span>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                What-if 시뮬레이터 (실시간 기업 정보 가상 변경)
+                {isSimulatedActive && (
+                  <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                    가상 모드 활성화됨
+                  </span>
+                )}
+                {isSimulating && (
+                  <span className="text-xs text-gray-400 font-normal animate-pulse">
+                    (시뮬레이션 분석 중...)
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                기업의 매출액, 업력, 지역, 임직원 수를 가상으로 조정하여 실시간 매칭률과 충족 여부의 변화를 시뮬레이션합니다. (FastAPI 실시간 계산 연동)
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {isSimulatedActive && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOverrides({});
+                  setSimResult(null);
+                }}
+                className="text-xs text-red-500 hover:text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg transition font-semibold cursor-pointer"
+              >
+                초기화
+              </button>
+            )}
+            <svg
+              className={`w-5 h-5 text-gray-400 transform transition-transform duration-300 ${
+                isWhatIfExpanded ? "rotate-180" : ""
+              }`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Simulated Sliders Grid */}
+        {isWhatIfExpanded && (
+          <div className="p-6 bg-gradient-to-b from-blue-50/5 to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 border-b border-gray-100">
+            {/* 1. 매출액 슬라이더 */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-600">💰 가상 매출액</span>
+                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {(currentRevenue / 100000000).toFixed(1)}억원
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="10000000000" // 100억원
+                step="100000000" // 1억원
+                value={currentRevenue}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  const next = { ...overrides, revenue: val };
+                  setOverrides(next);
+                  handleSimulate(next);
+                }}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>0원</span>
+                <span>원본: {(originalRevenue / 100000000).toFixed(1)}억</span>
+                <span>100억원</span>
+              </div>
+            </div>
+
+            {/* 2. 업력 슬라이더 */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-600">⏳ 가상 업력</span>
+                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {currentBizAge.toFixed(1)}년
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="15"
+                step="0.5"
+                value={currentBizAge}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  const simulatedDate = getSimulatedFoundedDate(val);
+                  const next = { ...overrides, founded_date: simulatedDate };
+                  setOverrides(next);
+                  handleSimulate(next);
+                }}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>0년</span>
+                <span>원본: {originalBizAge.toFixed(1)}년</span>
+                <span>15년</span>
+              </div>
+            </div>
+
+            {/* 3. 종업원 수 슬라이더 */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-600">👥 가상 임직원 수</span>
+                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {currentEmployeeCount}명
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="300"
+                step="5"
+                value={currentEmployeeCount}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  const next = { ...overrides, employee_count: val };
+                  setOverrides(next);
+                  handleSimulate(next);
+                }}
+                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>0명</span>
+                <span>원본: {originalEmployeeCount}명</span>
+                <span>300명</span>
+              </div>
+            </div>
+
+            {/* 4. 지역 선택 */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-gray-600">📍 가상 소재지</span>
+                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {currentRegion}
+                </span>
+              </div>
+              <select
+                value={currentRegion}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const next = { ...overrides, region: val };
+                  setOverrides(next);
+                  handleSimulate(next);
+                }}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-500 focus:outline-none cursor-pointer"
+              >
+                <option value="서울특별시">서울</option>
+                <option value="경기도">경기</option>
+                <option value="인천광역시">인천</option>
+                <option value="부산광역시">부산</option>
+                <option value="대구광역시">대구</option>
+                <option value="광주광역시">광주</option>
+                <option value="대전광역시">대전</option>
+                <option value="울산광역시">울산</option>
+                <option value="세종특별자치시">세종</option>
+                <option value="강원특별자치도">강원</option>
+                <option value="충청북도">충북</option>
+                <option value="충청남도">충남</option>
+                <option value="전라북도">전북</option>
+                <option value="전라남도">전남</option>
+                <option value="경상북도">경북</option>
+                <option value="경상남도">경남</option>
+                <option value="제주특별자치도">제주</option>
+              </select>
+              <div className="flex justify-between text-[10px] text-gray-400">
+                <span>전국 17개 지자체 중 선택</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ==========================================
+  // 6. JSX Render
+  // ==========================================
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 px-6 py-10">
       <section className="mx-auto max-w-7xl">
@@ -584,6 +731,9 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           </div>
         )}
 
+        {/* 🔮 What-if 시뮬레이터 패널 랜더링 */}
+        <WhatIfPanel />
+
         {/* 메인 2분할 레이아웃 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* 1. 좌측 공고 목록 컬럼 (lg: 4/12) */}
@@ -630,7 +780,6 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                           <span className="text-gray-400">
                             요건 필드: {ann.total_fields}개
                           </span>
-                          {/* 💡 임의 점수 분류 제거 및 단일 UI 테마 뱃지 적용 */}
                           <span className="font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                             {scorePct}% 충족
                           </span>
@@ -668,11 +817,11 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     }`}
                   >
                     ⚠️ 수동 확인 필요
-                    {matchDetails.filter((f) => f.status === "확인필요").length > 0 && (
+                    {currentDetails.filter((f) => f.status === "확인필요").length > 0 && (
                       <span className={`text-[10px] font-black rounded-full px-1.5 py-0.5 ${
                         activeTab === "confirm" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"
                       }`}>
-                        {matchDetails.filter((f) => f.status === "확인필요").length}
+                        {currentDetails.filter((f) => f.status === "확인필요").length}
                       </span>
                     )}
                   </button>
@@ -705,11 +854,11 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               ) : (
                 <div className="space-y-6">
                   {activeTab === "all" ? (
-                    matchDetails.length === 0 ? (
+                    currentDetails.length === 0 ? (
                       <p className="text-gray-400 text-sm py-12 text-center">자격 요건 데이터가 존재하지 않습니다.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-5">
-                        {matchDetails.map((field) => (
+                        {currentDetails.map((field) => (
                           <MatchResultCard
                             key={field.field_name}
                             field={field}
@@ -720,7 +869,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     )
                   ) : (
                     <ConfirmRequiredTab
-                      fields={matchDetails}
+                      fields={currentDetails}
                       onEvidenceClick={handleEvidenceClick}
                     />
                   )}
@@ -763,17 +912,17 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 // 기본 fallback은 기존의 첨부파일 기반 PDF Viewer 또는 플레이스홀더
                 if (mainAttachment) {
                   if (mainAttachment.has_pdf) {
-                  return (
-                    <div className="h-[600px]">
-                      <PdfViewer
-                        pdfUrl={/* mainAttachment.id === "test-attachment-id" ? "/sample.pdf" : */ `/api/attachments/${mainAttachment.id}/file`}
-                        highlightPage={highlightPage}
-                        evidenceText={evidenceText}
-                        location={selectedLocation}
-                      />
-                    </div>
-                  );
-                }
+                    return (
+                      <div className="h-[600px]">
+                        <PdfViewer
+                          pdfUrl={`/api/attachments/${mainAttachment.id}/file`}
+                          highlightPage={highlightPage}
+                          evidenceText={evidenceText}
+                          location={selectedLocation}
+                        />
+                      </div>
+                    );
+                  }
                   if (mainAttachment.file_type === "hwpx") {
                     return <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />;
                   }
@@ -800,4 +949,3 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     </main>
   );
 }
-
