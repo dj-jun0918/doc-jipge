@@ -6,18 +6,24 @@
     {
       "field_name": "업력",
       "condition": "1년 이상",
+      "value": 1,
+      "operator": "이상",
       "evidence": "공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
       "evidence_source": "첨부파일 4p 지원자격 및 조건"
     },
     {
-      "field_name": "인력",
+      "field_name": "종업원 수",
       "condition": "3인 이상",
+      "value": 3,
+      "operator": "이상",
       "evidence": "사업장 4대보험가입자가 3인 이상인 기업",
       "evidence_source": "첨부파일 4p 지원자격 및 조건"
     },
     {
       "field_name": "지역",
       "condition": "전북 소재",
+      "value": ["전북"],
+      "operator": "소재",
       "evidence": "본사가 전북특별자치도 내에 소재하는 중소기업",
       "evidence_source": "첨부파일 5p 사업참여 제한사유 ①"
     }
