@@ -15,6 +15,7 @@ export default function Layout({ children }: LayoutProps) {
     { href: "/announcements", label: "공고 목록" },
     { href: "/companies", label: "기업 관리" },
     { href: "/matching", label: "매칭 대시보드" },
+    { href: "/evaluation", label: "평가 대시보드" },
   ];
 
   return (

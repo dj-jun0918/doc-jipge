@@ -1,0 +1,33 @@
+{
+  "announcement_id": "adv_002",
+  "title": "2026년 성장 창업사업화 지원 사업 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/95PT5nfhmL",
+  "fields": [
+    {
+      "field_name": "지역",
+      "condition": "대구 서구 소재",
+      "value": [
+        "대구",
+        "서구"
+      ],
+      "operator": "소재",
+      "evidence": "공고일 기준 대구 서구 소재 영업장(사업자등록증 기준)의 3년 이내 창업기업 또는 예비 창업자",
+      "evidence_source": "첨부파일 1p 지원대상",
+      "notes": "대구광역시 서구 소재 기업 대상"
+    },
+    {
+      "field_name": "업력",
+      "condition": "창업 3년 이내",
+      "value": 3,
+      "operator": "이하",
+      "evidence": "3년 이내 창업기업 또는 예비 창업자",
+      "evidence_source": "첨부파일 1p 지원대상",
+      "notes": "창업 3년 이하 초기창업기업"
+    }
+  ],
+  "exclusions": [
+    "국세·지방세 체납으로 규제 중이거나 금융기관 등으로부터 채무불이행으로 규제 중인 자(기업)",
+    "중소기업창업 지원법 시행령 제4조(창업에서 제외되는 업종)의 업종을 영위하고자 하는 자(기업)"
+  ],
+  "notes": "활동지역 출신 중장년, 서울시50플러스재단 참여자 등 모호한 우대 조건은 필수 조건이 아니므로 fields에서 제외함."
+}

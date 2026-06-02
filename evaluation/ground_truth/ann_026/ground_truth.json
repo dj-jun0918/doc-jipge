@@ -1,0 +1,30 @@
+{
+  "announcement_id": "ann_026",
+  "title": "2026년 서울-BMS 이노베이션 스퀘어 챌린지 참여기업 모집 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/ewOEsnfhmL",
+  "fields": [
+    {
+      "field_name": "업력",
+      "condition": "10년 미만",
+      "value": 10,
+      "operator": "미만",
+      "evidence": "바이오·헬스케어 분야 혁신기술을 보유한, 업력 10년 미만 창업기업 및 예비창업자",
+      "evidence_source": "첨부파일 2p 모집대상",
+      "notes": "공고일(2026.6.1.) 기준으로 법인설립등기일 2016년 6월 2일 이후 설립"
+    },
+    {
+      "field_name": "업종",
+      "condition": "바이오·헬스케어 분야",
+      "value": [
+        "바이오",
+        "헬스케어"
+      ],
+      "operator": "포함",
+      "evidence": "바이오·헬스케어 분야 혁신기술을 보유한, 업력 10년 미만 창업기업 및 예비창업자",
+      "evidence_source": "첨부파일 2p 모집대상",
+      "notes": "바이오 및 헬스케어 분야 혁신기술 보유 기업 대상"
+    }
+  ],
+  "exclusions": [],
+  "notes": ""
+}

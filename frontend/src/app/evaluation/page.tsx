@@ -1,46 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  BarChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
-} from "recharts";
 
-// ==========================================
-// Types & Interfaces
-// ==========================================
-interface MetricItem {
+// Types matching backend app/schemas/evaluation.py
+interface MetricValue {
   precision: number;
   recall: number;
   f1: number;
 }
 
-interface PathMetricItem extends MetricItem {
+interface PathMetric extends MetricValue {
   count: number;
   cost_usd: number;
 }
 
-interface EvaluationMetrics {
-  overall: MetricItem;
-  by_field: Record<string, MetricItem>;
-  by_path: Record<string, PathMetricItem>;
+interface MetricsData {
+  overall: MetricValue;
+  by_field: { [key: string]: MetricValue };
+  by_path: { [key: string]: PathMetric };
   total_cost_usd: number;
 }
 
@@ -49,40 +26,40 @@ interface AblationCondition {
   name: string;
   components: string[];
   description: string;
-  metrics: MetricItem;
+  metrics: MetricValue;
   cost_estimate_usd: number;
 }
 
-interface AblationResponse {
+interface AblationData {
   conditions: AblationCondition[];
 }
 
-interface IaaFieldScore {
+interface FieldKappa {
   field_name: string;
   kappa: number;
   agreement_level: string;
 }
 
-interface IaaResponse {
+interface IaaData {
   overall_kappa: number;
-  by_field: IaaFieldScore[];
+  by_field: FieldKappa[];
   evaluated_count: number;
 }
 
-interface BootstrapMetricCi {
+interface CiBound {
   point_estimate: number;
   ci_low: number;
   ci_high: number;
 }
 
-interface BootstrapResponse {
-  precision: BootstrapMetricCi;
-  recall: BootstrapMetricCi;
-  f1: BootstrapMetricCi;
+interface BootstrapData {
+  precision: CiBound;
+  recall: CiBound;
+  f1: CiBound;
   resampling_iterations: number;
 }
 
-interface ErrorCaseExample {
+interface ErrorExample {
   announcement_id: string;
   title: string;
   field_name: string;
@@ -90,581 +67,463 @@ interface ErrorCaseExample {
   prediction: any;
 }
 
-interface ErrorPatternItem {
+interface ErrorPattern {
   pattern_name: string;
   count: number;
   ratio: number;
   description: string;
-  examples: ErrorCaseExample[];
+  examples: ErrorExample[];
 }
 
-interface ErrorAnalysisResponse {
+interface ErrorsData {
   total_errors: number;
-  patterns: ErrorPatternItem[];
+  patterns: ErrorPattern[];
 }
-
-// 필드 키 한글 맵핑용 사전
-const FIELD_KOREAN_NAMES: Record<string, string> = {
-  age: "업력 / 연령",
-  location: "소재 지역",
-  company_scale: "기업 규모",
-  is_small_business: "소상공인 여부",
-  constraint: "제한 조건",
-  certification: "인증 자격"
-};
-
-const ERROR_COLORS = ["#FF6B6B", "#FFD93D", "#6BCB77"];
 
 export default function EvaluationDashboardPage() {
-  // States for APIs
-  const [metrics, setMetrics] = useState<EvaluationMetrics | null>(null);
-  const [ablation, setAblation] = useState<AblationResponse | null>(null);
-  const [iaa, setIaa] = useState<IaaResponse | null>(null);
-  const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null);
-  const [errors, setErrors] = useState<ErrorAnalysisResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [ablation, setAblation] = useState<AblationData | null>(null);
+  const [iaa, setIaa] = useState<IaaData | null>(null);
+  const [bootstrap, setBootstrap] = useState<BootstrapData | null>(null);
+  const [errors, setErrors] = useState<ErrorsData | null>(null);
 
-  // UI States
   const [loading, setLoading] = useState<boolean>(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [expandedErrorPattern, setExpandedErrorPattern] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("overall");
 
   useEffect(() => {
-    async function loadEvaluationData() {
+    async function fetchAllEvaluationData() {
       setLoading(true);
-      setErrorMsg(null);
+      setErrorMessage(null);
       try {
         const [resMetrics, resAblation, resIaa, resBootstrap, resErrors] = await Promise.all([
-          fetch("/api/evaluation/metrics").then((r) => r.json()),
-          fetch("/api/evaluation/ablation").then((r) => r.json()),
-          fetch("/api/evaluation/iaa").then((r) => r.json()),
-          fetch("/api/evaluation/bootstrap").then((r) => r.json()),
-          fetch("/api/evaluation/errors").then((r) => r.json())
+          fetch("/backend-api/evaluation/metrics"),
+          fetch("/backend-api/evaluation/ablation"),
+          fetch("/backend-api/evaluation/iaa"),
+          fetch("/backend-api/evaluation/bootstrap"),
+          fetch("/backend-api/evaluation/errors"),
         ]);
 
-        setMetrics(resMetrics);
-        setAblation(resAblation);
-        setIaa(resIaa);
-        setBootstrap(resBootstrap);
-        setErrors(resErrors);
+        if (!resMetrics.ok || !resAblation.ok || !resIaa.ok || !resBootstrap.ok || !resErrors.ok) {
+          throw new Error("평가 API 호출 중 오류가 발생했습니다.");
+        }
+
+        const [dataMetrics, dataAblation, dataIaa, dataBootstrap, dataErrors] = await Promise.all([
+          resMetrics.json(),
+          resAblation.json(),
+          resIaa.json(),
+          resBootstrap.json(),
+          resErrors.json(),
+        ]);
+
+        setMetrics(dataMetrics);
+        setAblation(dataAblation);
+        setIaa(dataIaa);
+        setBootstrap(dataBootstrap);
+        setErrors(dataErrors);
       } catch (err) {
-        console.error("평가 데이터 로드 에러:", err);
-        setErrorMsg("평가 지표 데이터를 불러오는 중 오류가 발생했습니다.");
+        console.error("평가 프레임워크 데이터 로드 실패:", err);
+        setErrorMessage("평가 데이터를 로드하지 못했습니다. 백엔드 서비스(FastAPI)가 기동 중인지 확인하세요.");
       } finally {
         setLoading(false);
       }
     }
 
-    loadEvaluationData();
+    fetchAllEvaluationData();
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-        <p className="text-gray-500 font-semibold text-sm">평가 결과 지표 분석용 대시보드를 로딩하는 중...</p>
-      </div>
+      <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 text-gray-900 px-6 py-10">
+        <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-blue-600 animate-spin" />
+        <p className="text-gray-500 text-sm font-semibold">평가 프레임워크 실시간 결과 집계 중...</p>
+      </main>
     );
   }
 
-  if (errorMsg || !metrics || !ablation || !iaa || !bootstrap || !errors) {
+  if (errorMessage) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
-        <div className="max-w-md bg-white border rounded-2xl shadow-sm p-8 text-center">
-          <svg className="mx-auto h-12 w-12 text-red-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">데이터 로드 실패</h2>
-          <p className="text-sm text-gray-500 mb-6">{errorMsg || "일부 지표 데이터를 불러올 수 없습니다."}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition"
-          >
-            다시 시도
-          </button>
-        </div>
-      </div>
+      <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-900 px-6 py-10 text-center">
+        <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <p className="text-base font-semibold text-gray-900">{errorMessage}</p>
+        <p className="text-xs text-gray-500 max-w-md">이 오류는 백엔드 서버(FastAPI)가 포트 8000에서 정상 동작하지 않거나 네트워크 연동에 문제가 있을 때 발생할 수 있습니다.</p>
+      </main>
     );
   }
 
-  // 필드별 성능 시각화용 데이터 포맷터
-  const radarData = Object.entries(metrics.by_field).map(([key, value]) => ({
-    subject: FIELD_KOREAN_NAMES[key] || key,
-    precision: Math.round(value.precision * 100),
-    recall: Math.round(value.recall * 100),
-    f1: Math.round(value.f1 * 100)
-  }));
-
-  // Ablation 차트용 데이터 포맷터 (비용은 usd, f1은 % 변환)
-  const ablationChartData = ablation.conditions.map((c) => ({
-    name: c.condition_id,
-    fullName: c.name,
-    "F1-Score (%)": Math.round(c.metrics.f1 * 100),
-    "정밀도 (%)": Math.round(c.metrics.precision * 100),
-    "재현율 (%)": Math.round(c.metrics.recall * 100),
-    "추정 비용 (USD)": c.cost_estimate_usd
-  }));
-
-  // 오류 파이 차트 데이터
-  const errorPieData = errors.patterns.map((p) => ({
-    name: p.pattern_name.split(" ")[0],
-    value: p.count,
-    ratio: Math.round(p.ratio * 100)
-  }));
-
-  // IAA 카파 등급 색상 정의
-  const getKappaColor = (kappa: number) => {
-    if (kappa >= 0.6) return "text-emerald-700 bg-emerald-50 border-emerald-200";
-    if (kappa >= 0.4) return "text-amber-700 bg-amber-50 border-amber-200";
-    return "text-red-700 bg-red-50 border-red-200";
-  };
+  // Helper for displaying percentages
+  const pct = (num: number) => `${Math.round(num * 1000) / 10}%`;
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 px-6 py-10">
-      <section className="mx-auto max-w-7xl">
-        
-        {/* 상단 브레드크럼 */}
-        <div className="mb-6">
-          <Link
-            href="/matching"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 transition"
-          >
-            ← 대시보드로 돌아가기
-          </Link>
+      <section className="mx-auto max-w-6xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">
+            📊 평가 프레임워크 & IAA 분석 대시보드
+          </h1>
+          <p className="text-gray-600 mt-2 text-sm max-w-2xl">
+            추출 정확도, 소거법(Ablation) 연구, Bootstrap 95% 신뢰구간 측정, 라벨러 합의도(IAA)를 투명하게 시각화한 종합 통계 보드입니다.
+          </p>
         </div>
 
-        {/* 상단 헤더 섹션 */}
-        <div className="rounded-2xl border bg-white p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              🔬 매칭 엔진 통합 성능 평가 리포트
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">
-              GT 라벨링 정합성 기준 시스템의 종합 정밀도, 재현율, Ablation 실험, 신뢰도 한계치 및 오답 분석 통계를 보여줍니다.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2 text-center">
-              <span className="text-[10px] font-bold text-blue-500 block uppercase tracking-wider">누적 평가 비용</span>
-              <span className="text-lg font-black text-blue-700">${metrics.total_cost_usd.toFixed(2)}</span>
-            </div>
-            <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-2 text-center">
-              <span className="text-[10px] font-bold text-purple-500 block uppercase tracking-wider">GT 합의도 (Kappa)</span>
-              <span className="text-lg font-black text-purple-700">{iaa.overall_kappa.toFixed(3)}</span>
-            </div>
-          </div>
+        {/* Tab navigation */}
+        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto gap-1">
+          {[
+            { id: "overall", label: "📈 종합 정확도 & 신뢰구간" },
+            { id: "ablation", label: "🧪 소거법(Ablation) 연구" },
+            { id: "iaa", label: "🤝 라벨러 합의도(IAA)" },
+            { id: "errors", label: "❌ 오답 패턴 분석(Taxonomy)" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap px-5 py-3.5 text-sm font-bold border-b-2 transition cursor-pointer ${
+                activeTab === tab.id
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* 1. 종합 메트릭 카드 및 Bootstrap 95% CI 영역 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Precision Card */}
-          <div className="bg-white rounded-2xl border p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold text-gray-400">정밀도 (Precision)</span>
-              <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold border border-indigo-100">발굴 정확도</span>
-            </div>
-            <div>
-              <h2 className="text-4xl font-black text-slate-800 leading-none">
-                {Math.round(bootstrap.precision.point_estimate * 1000) / 10}%
-              </h2>
-              {/* Bootstrap CI Range 표시 */}
-              <div className="mt-4 bg-gray-50 rounded-lg border p-3 flex flex-col gap-1">
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>95% 신뢰 하한</span>
-                  <span>95% 신뢰 상한</span>
-                </div>
-                <div className="flex justify-between text-xs font-bold text-gray-700">
-                  <span>{(bootstrap.precision.ci_low * 100).toFixed(1)}%</span>
-                  <span>{(bootstrap.precision.ci_high * 100).toFixed(1)}%</span>
-                </div>
-                {/* 시각적인 레인지 바 */}
-                <div className="w-full h-1.5 bg-gray-200 rounded-full relative mt-1.5 overflow-hidden">
-                  <div
-                    className="absolute h-full bg-indigo-600 rounded-full"
-                    style={{
-                      left: `${bootstrap.precision.ci_low * 100}%`,
-                      right: `${100 - bootstrap.precision.ci_high * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recall Card */}
-          <div className="bg-white rounded-2xl border p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold text-gray-400">재현율 (Recall)</span>
-              <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold border border-emerald-100">발굴 커버리지</span>
-            </div>
-            <div>
-              <h2 className="text-4xl font-black text-slate-800 leading-none">
-                {Math.round(bootstrap.recall.point_estimate * 1000) / 10}%
-              </h2>
-              {/* Bootstrap CI Range 표시 */}
-              <div className="mt-4 bg-gray-50 rounded-lg border p-3 flex flex-col gap-1">
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>95% 신뢰 하한</span>
-                  <span>95% 신뢰 상한</span>
-                </div>
-                <div className="flex justify-between text-xs font-bold text-gray-700">
-                  <span>{(bootstrap.recall.ci_low * 100).toFixed(1)}%</span>
-                  <span>{(bootstrap.recall.ci_high * 100).toFixed(1)}%</span>
-                </div>
-                {/* 시각적인 레인지 바 */}
-                <div className="w-full h-1.5 bg-gray-200 rounded-full relative mt-1.5 overflow-hidden">
-                  <div
-                    className="absolute h-full bg-emerald-600 rounded-full"
-                    style={{
-                      left: `${bootstrap.recall.ci_low * 100}%`,
-                      right: `${100 - bootstrap.recall.ci_high * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* F1-Score Card */}
-          <div className="bg-white rounded-2xl border p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold text-gray-400">조화 평균 (F1-Score)</span>
-              <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-semibold border border-purple-100">종합 성능 균형</span>
-            </div>
-            <div>
-              <h2 className="text-4xl font-black text-slate-800 leading-none">
-                {Math.round(bootstrap.f1.point_estimate * 1000) / 10}%
-              </h2>
-              {/* Bootstrap CI Range 표시 */}
-              <div className="mt-4 bg-gray-50 rounded-lg border p-3 flex flex-col gap-1">
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>95% 신뢰 하한</span>
-                  <span>95% 신뢰 상한</span>
-                </div>
-                <div className="flex justify-between text-xs font-bold text-gray-700">
-                  <span>{(bootstrap.f1.ci_low * 100).toFixed(1)}%</span>
-                  <span>{(bootstrap.f1.ci_high * 100).toFixed(1)}%</span>
-                </div>
-                {/* 시각적인 레인지 바 */}
-                <div className="w-full h-1.5 bg-gray-200 rounded-full relative mt-1.5 overflow-hidden">
-                  <div
-                    className="absolute h-full bg-purple-600 rounded-full"
-                    style={{
-                      left: `${bootstrap.f1.ci_low * 100}%`,
-                      right: `${100 - bootstrap.f1.ci_high * 100}%`
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Ablation실험 & 필드별 성능 시각화 그래프 영역 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8 items-stretch">
-          {/* Ablation Chart (lg: 7/12) */}
-          <div className="lg:col-span-7 bg-white rounded-2xl border p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <h3 className="text-base font-bold text-gray-900 mb-1 flex items-center gap-2">
-                🧩 Component Ablation Study (소거 실험 분석)
-              </h3>
-              <p className="text-xs text-gray-400 mb-6">
-                규칙 Baseline(C1)부터 Verifier를 적용한 최종 하이브리드 파이프라인(C4)까지의 F1성능과 예상 토큰 비용의 흐름.
-              </p>
-            </div>
-            
-            <div className="h-[280px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={ablationChartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis yAxisId="left" domain={[40, 100]} unit="%" tickCount={4} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 60]} unit="$" />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-white border rounded-xl shadow-lg p-3 text-xs leading-normal">
-                            <p className="font-bold text-gray-800 mb-1">[{data.name}] {data.fullName}</p>
-                            <p className="text-purple-600 font-semibold">F1-Score: {data["F1-Score (%)"]}%</p>
-                            <p className="text-indigo-600">정밀도: {data["정밀도 (%)"]}% | 재현율: {data["재현율 (%)"]}%</p>
-                            <p className="text-amber-600 font-semibold mt-1">예상 비용: ${data["추정 비용 (USD)"].toFixed(2)}</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend />
-                  <Bar yAxisId="right" dataKey="추정 비용 (USD)" fill="#FFD93D" radius={[4, 4, 0, 0]} opacity={0.8} barSize={40} />
-                  <Line yAxisId="left" type="monotone" dataKey="F1-Score (%)" stroke="#8884d8" strokeWidth={3} dot={{ r: 5 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Radar Chart for by_field (lg: 5/12) */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">
-                🏷️ 자격 요건 필드별 매칭 정확도
-              </h3>
-              <p className="text-xs text-gray-400 mb-4">
-                각 파싱 필드별 Precision, Recall, F1 지표 분포도.
-              </p>
-            </div>
-            
-            <div className="h-[280px] w-full flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                  <PolarGrid stroke="#E2E8F0" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8 }} />
-                  <Radar name="F1-Score" dataKey="f1" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
-                  <Radar name="Precision" dataKey="precision" stroke="#38BDF8" fill="#38BDF8" fillOpacity={0.1} />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: "10px", marginTop: "10px" }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. 처리 경로별 비용 분석 및 IAA 합의 지표 영역 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8 items-stretch">
-          {/* Path Metrics (lg: 6/12) */}
-          <div className="lg:col-span-6 bg-white rounded-2xl border p-6 shadow-sm flex flex-col justify-between">
-            <div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">
-                ⚡ 라우팅 경로별 처리량 및 효율성
-              </h3>
-              <p className="text-xs text-gray-400 mb-4">
-                정규표현 규칙과 LLM 추출 파이프라인별 판정 성공 수량과 소요 비용 대조.
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b text-gray-400 font-semibold bg-gray-50/50">
-                    <th className="py-2.5 px-3 rounded-l-lg">라우팅 경로</th>
-                    <th className="py-2.5 px-2">건수 (Count)</th>
-                    <th className="py-2.5 px-2">정밀도</th>
-                    <th className="py-2.5 px-2">재현율</th>
-                    <th className="py-2.5 px-2">F1</th>
-                    <th className="py-2.5 px-3 rounded-r-lg text-right">소요 비용</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y font-medium text-gray-700">
-                  {Object.entries(metrics.by_path).map(([pathKey, val]) => (
-                    <tr key={pathKey} className="hover:bg-gray-50/40">
-                      <td className="py-3 px-3 font-bold text-slate-800 capitalize">
-                        {pathKey.replace("_", " ")}
-                      </td>
-                      <td className="py-3 px-2">{val.count}건</td>
-                      <td className="py-3 px-2">{(val.precision * 100).toFixed(1)}%</td>
-                      <td className="py-3 px-2">{(val.recall * 100).toFixed(1)}%</td>
-                      <td className="py-3 px-2 text-indigo-600 font-bold">{(val.f1 * 100).toFixed(1)}%</td>
-                      <td className="py-3 px-3 text-right font-bold text-amber-600">
-                        ${val.cost_usd.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* IAA Cohen's Kappa (lg: 6/12) */}
-          <div className="lg:col-span-6 bg-white rounded-2xl border p-6 shadow-sm flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-4 mb-1">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">
-                  🤝 라벨러 신뢰성 합의도 (IAA - Cohen's κ)
-                </h3>
-                <p className="text-xs text-gray-400">
-                  독립 작업자(임태규, 방정우) 간 교차 평가 {iaa.evaluated_count}건에 대한 필드별 일치도.
-                </p>
-              </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full border font-black block tracking-wide ${getKappaColor(iaa.overall_kappa)}`}>
-                종합 κ: {iaa.overall_kappa.toFixed(3)}
-              </span>
-            </div>
-
-            <div className="flex-1 overflow-x-auto mt-4">
-              <table className="w-full text-left text-[11px] border-collapse">
-                <thead>
-                  <tr className="border-b text-gray-400 font-semibold bg-gray-50/50">
-                    <th className="py-2 px-3 rounded-l-lg">필드명</th>
-                    <th className="py-2 px-2">카파 계수 (Kappa)</th>
-                    <th className="py-2 px-3 rounded-r-lg">합의 신뢰도 수준</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y font-medium text-gray-700">
-                  {iaa.by_field.map((item) => (
-                    <tr key={item.field_name} className="hover:bg-gray-50/40">
-                      <td className="py-2 px-3 font-bold text-slate-800">
-                        {FIELD_KOREAN_NAMES[item.field_name] || item.field_name}
-                      </td>
-                      <td className="py-2 px-2 font-mono">
-                        <span className={`px-1.5 py-0.5 rounded border text-xs font-bold ${getKappaColor(item.kappa)}`}>
-                          {item.kappa.toFixed(3)}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-gray-500">{item.agreement_level}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. 오류 Taxonomy 및 실제 불일치 케이스 디버깅 영역 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Error Taxonomy Pie Chart (lg: 5/12) */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border p-6 shadow-sm">
-            <h3 className="text-base font-bold text-gray-900 mb-1">
-              🚨 Error Taxonomy (오답 패턴 비율)
-            </h3>
-            <p className="text-xs text-gray-400 mb-6">
-              총 {errors.total_errors}개 오추출 불일치 항목의 원인별 비율 분석.
-            </p>
-
-            <div className="h-[220px] w-full relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={errorPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {errorPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={ERROR_COLORS[index % ERROR_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-white border rounded-xl shadow-md p-2 text-xs">
-                            <span className="font-bold">{data.name}</span>: {data.value}건 ({data.ratio}%)
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              
-              {/* 도넛 차트 중앙에 에러 개수 바인딩 */}
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-3xl font-black text-slate-800">{errors.total_errors}건</span>
-                <span className="text-[10px] text-gray-400 font-bold">오예측 누적</span>
-              </div>
-            </div>
-
-            {/* 범례 카드 형태 */}
-            <div className="mt-4 flex flex-col gap-2">
-              {errors.patterns.map((p, index) => (
-                <div key={p.pattern_name} className="flex justify-between items-center text-xs p-2 rounded-lg bg-gray-50 border border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ERROR_COLORS[index % ERROR_COLORS.length] }} />
-                    <span className="font-bold text-slate-700">{p.pattern_name}</span>
+        {/* 1. 종합 정확도 & 신뢰구간 탭 */}
+        {activeTab === "overall" && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Top row overall cards */}
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                { title: "정밀도 (Precision)", data: bootstrap?.precision, desc: "추출한 조건 중 실제 정답인 비율" },
+                { title: "재현율 (Recall)", data: bootstrap?.recall, desc: "정답 자격조건 중 실제 추출해낸 비율" },
+                { title: "F1-Score", data: bootstrap?.f1, desc: "정밀도와 재현율의 균형 조화 평균값" },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-full pointer-events-none" />
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-500">{item.title}</h4>
+                    <h3 className="text-4xl font-black text-blue-600 mt-3">{metrics ? pct(item.data?.point_estimate || 0) : "-"}</h3>
+                    <p className="text-[11px] text-gray-400 mt-1">{item.desc}</p>
                   </div>
-                  <span className="font-mono text-gray-500">
-                    {p.count}건 ({Math.round(p.ratio * 100)}%)
-                  </span>
+                  {item.data && (
+                    <div className="mt-4 border-t pt-3 flex justify-between items-center text-xs text-gray-600">
+                      <span>95% 신뢰구간 (CI):</span>
+                      <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
+                        {pct(item.data.ci_low)} ~ {pct(item.data.ci_high)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Bootstrap Resampling Iterations Note */}
+            {bootstrap && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-xs text-blue-800 flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  전체 메트릭의 95% 신뢰구간(Confidence Interval)은 <strong>Bootstrap Resampling {bootstrap.resampling_iterations}회</strong> 모사 수행을 통해 정교하게 측정되었습니다.
+                </span>
+              </div>
+            )}
+
+            {/* Grid for field-specific and path-specific */}
+            <div className="grid lg:grid-cols-2 gap-8">
+              {/* Field specific metrics */}
+              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 border-b pb-3 mb-5">
+                  🏷️ 표준 조건 항목별 정확도
+                </h3>
+                <div className="space-y-4">
+                  {metrics &&
+                    Object.entries(metrics.by_field).map(([field, m]) => {
+                      // Translate key to Korean display name
+                      const fieldNamesKo: { [key: string]: string } = {
+                        age: "나이",
+                        location: "지역",
+                        company_scale: "업력",
+                        is_small_business: "업종",
+                        certification: "인증",
+                        employee_count: "종업원 수",
+                        revenue: "매출",
+                      };
+                      return (
+                        <div key={field} className="group">
+                          <div className="flex items-center justify-between mb-1.5 text-xs font-semibold">
+                            <span className="text-gray-700 font-bold group-hover:text-blue-600 transition-colors">
+                              {fieldNamesKo[field] || field}
+                            </span>
+                            <div className="flex gap-3 text-[11px]">
+                              <span className="text-gray-500">P: {pct(m.precision)}</span>
+                              <span className="text-gray-500">R: {pct(m.recall)}</span>
+                              <span className="text-gray-900 font-extrabold">F1: {pct(m.f1)}</span>
+                            </div>
+                          </div>
+                          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                            <div
+                              className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.round(m.f1 * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Path specific metrics */}
+              <div className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 border-b pb-3 mb-5">
+                    ⚙️ 추출 파이프라인(Path)별 효율 & 비용
+                  </h3>
+                  <div className="space-y-5">
+                    {metrics &&
+                      Object.entries(metrics.by_path).map(([path, m]) => {
+                        const pathLabels: { [key: string]: string } = {
+                          rule_based: "규칙 엔진 (Rule Parser)",
+                          text_llm: "텍스트 거대언어모델 (Text LLM)",
+                          vision_llm: "시각 거대언어모델 (Vision LLM)",
+                        };
+                        return (
+                          <div key={path} className="rounded-xl border p-4 bg-gray-50/50 hover:bg-gray-50 transition">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-sm font-bold text-gray-900">{pathLabels[path] || path}</h4>
+                              <span className="text-xs font-extrabold bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                                F1: {pct(m.f1)}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center text-xs mt-3">
+                              <div className="border-r">
+                                <p className="text-gray-500 text-[10px]">처리 수</p>
+                                <p className="font-bold text-gray-800 mt-1">{m.count}건</p>
+                              </div>
+                              <div className="border-r">
+                                <p className="text-gray-500 text-[10px]">정밀도/재현율</p>
+                                <p className="font-bold text-gray-800 mt-1">{pct(m.precision)} / {pct(m.recall)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-500 text-[10px]">사용 비용</p>
+                                <p className="font-bold text-emerald-600 mt-1">${m.cost_usd.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {metrics && (
+                  <div className="mt-6 border-t pt-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase">분석 누적 총 비용 (USD)</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Vision LLM 및 API 사용료 포함</p>
+                    </div>
+                    <p className="text-3xl font-black text-emerald-600">${metrics.total_cost_usd.toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. 소거법(Ablation) 연구 탭 */}
+        {activeTab === "ablation" && ablation && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="rounded-2xl border bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-900 border-b pb-3 mb-6">
+                🧪 Component-wise Ablation 실험 결과
+              </h3>
+              <div className="space-y-6">
+                {ablation.conditions.map((cond, idx) => {
+                  const scorePct = Math.round(cond.metrics.f1 * 100);
+                  return (
+                    <div key={cond.condition_id} className="relative overflow-hidden group rounded-xl border p-5 bg-white hover:bg-blue-50/5 transition duration-300 hover:shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white font-extrabold flex items-center justify-center text-xs">
+                              {cond.condition_id}
+                            </span>
+                            <h4 className="text-base font-bold text-gray-900">{cond.name}</h4>
+                          </div>
+                          <p className="text-xs text-gray-600 max-w-2xl">{cond.description}</p>
+                          <div className="flex flex-wrap gap-1.5 pt-2">
+                            {cond.components.map((c) => (
+                              <span key={c} className="text-[10px] bg-gray-100 font-semibold px-2 py-0.5 rounded text-gray-600 border">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Ablation Metrics */}
+                        <div className="flex items-center gap-6 self-start md:self-auto min-w-[240px] justify-between md:justify-end">
+                          <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-semibold">예상 비용 (USD)</p>
+                            <p className="text-xs font-bold text-gray-800 mt-1">${cond.cost_estimate_usd.toFixed(2)}</p>
+                          </div>
+                          <div className="border-r h-8" />
+                          <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-semibold">Precision / Recall</p>
+                            <p className="text-xs font-bold text-gray-800 mt-1">
+                              {pct(cond.metrics.precision)} / {pct(cond.metrics.recall)}
+                            </p>
+                          </div>
+                          <div className="border-r h-8" />
+                          <div className="flex flex-col items-end">
+                            <span className="text-2xl font-black text-blue-600">{scorePct}%</span>
+                            <span className="text-[9px] text-gray-400 font-semibold">F1 Score</span>
+                          </div>
+                          <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                            <div className="h-full bg-blue-600 rounded-full" style={{ width: `${scorePct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. 라벨러 합의도(IAA) 탭 */}
+        {activeTab === "iaa" && iaa && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Top overall card */}
+            <div className="rounded-2xl border bg-white p-8 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full pointer-events-none" />
+              <div className="space-y-2">
+                <h3 className="text-xl font-extrabold text-gray-900">
+                  🤝 Inter-Annotator Agreement (Inter-라벨러 합의도)
+                </h3>
+                <p className="text-sm text-gray-500 max-w-2xl leading-relaxed">
+                  임태규 라벨러와 방정우 라벨러가 구축한 동일 공고 자격요건에 대한 교차검증(Cross-Labeling) 일치 지표입니다. 
+                  신뢰도 지표 산출에는 통계적으로 정교한 <strong>Cohen's Kappa (코헨의 카파 계수 κ)</strong> 통계식이 사용됩니다.
+                </p>
+                <div className="flex gap-4 text-xs text-gray-500 pt-2">
+                  <span>📊 교차 평가 공고 수: <strong className="text-gray-900">{iaa.evaluated_count}개</strong></span>
+                  <span>•</span>
+                  <span>📝 Cohen's κ 일치 평가 규모: <strong className="text-gray-900">상당한 합의수준</strong></span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 text-center min-w-[200px]">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">종합 Cohen's κ 수치</p>
+                <h2 className="text-5xl font-black text-blue-600 mt-2">{iaa.overall_kappa.toFixed(3)}</h2>
+                <span className="inline-block mt-3 text-xs bg-blue-600 text-white font-bold px-3 py-1 rounded-full shadow-sm">
+                  상당한 합의 (Substantial)
+                </span>
+              </div>
+            </div>
+
+            {/* Field kappa scores grid */}
+            <div className="rounded-2xl border bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-900 border-b pb-3 mb-6">
+                📝 표준 조건별 Cohen's κ 지표 상세
+              </h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                {iaa.by_field.map((f) => {
+                  const fieldNamesKo: { [key: string]: string } = {
+                    age: "나이",
+                    location: "지역",
+                    company_scale: "업력",
+                    is_small_business: "업종",
+                    constraint: "종업원 수/기타 요건",
+                    certification: "인증",
+                  };
+                  return (
+                    <div key={f.field_name} className="flex items-center justify-between p-4 rounded-xl border hover:border-blue-200 hover:bg-blue-50/5 transition">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-gray-900">{fieldNamesKo[f.field_name] || f.field_name}</h4>
+                        <p className="text-[10px] text-gray-400 font-semibold">{f.agreement_level}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xl font-black text-blue-600">{f.kappa.toFixed(3)}</span>
+                        <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shadow-inner mt-1.5">
+                          <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.round(f.kappa * 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. 오답 패턴 분석(Taxonomy) 탭 */}
+        {activeTab === "errors" && errors && (
+          <div className="space-y-8 animate-fadeIn">
+            {/* Total errors header card */}
+            <div className="rounded-2xl border bg-white p-6 shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">❌ 오답 패턴 분석 (Error Taxonomy)</h3>
+                <p className="text-gray-500 text-xs mt-1">파이프라인 추론 결과 중 실패 사례들을 분석해 분류한 결과입니다.</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold text-gray-400">발견된 총 오류</span>
+                <p className="text-3xl font-black text-red-600 mt-1">{errors.total_errors}건</p>
+              </div>
+            </div>
+
+            {/* Error patterns lists */}
+            <div className="space-y-6">
+              {errors.patterns.map((p) => (
+                <div key={p.pattern_name} className="rounded-2xl border bg-white p-6 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 border-b pb-4 gap-2">
+                    <div>
+                      <h4 className="text-base font-bold text-gray-900">{p.pattern_name}</h4>
+                      <p className="text-xs text-gray-500 mt-1">{p.description}</p>
+                    </div>
+                    <div className="text-right sm:self-center">
+                      <span className="text-lg font-extrabold text-red-600">{p.count}건</span>
+                      <span className="text-xs text-gray-400 font-semibold ml-2">({pct(p.ratio)})</span>
+                    </div>
+                  </div>
+
+                  {/* Examples table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 text-gray-500 border-b">
+                          <th className="px-4 py-3 font-semibold">공고 ID</th>
+                          <th className="px-4 py-3 font-semibold">공고 제목</th>
+                          <th className="px-4 py-3 font-semibold">해당 항목</th>
+                          <th className="px-4 py-3 font-semibold text-red-600">Ground Truth (실제 정답)</th>
+                          <th className="px-4 py-3 font-semibold text-gray-500">Prediction (모델 추출값)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {p.examples.map((ex, idx) => {
+                          const gtStr = ex.ground_truth ? JSON.stringify(ex.ground_truth) : "누락(None)";
+                          const predStr = ex.prediction ? JSON.stringify(ex.prediction) : "미추출(None)";
+                          return (
+                            <tr key={idx} className="border-b hover:bg-gray-50/50">
+                              <td className="px-4 py-3 font-bold text-gray-700">{ex.announcement_id}</td>
+                              <td className="px-4 py-3 text-gray-900 font-medium">{ex.title}</td>
+                              <td className="px-4 py-3 font-semibold text-gray-600 bg-gray-100/50 rounded px-1.5 py-0.5 inline-block my-2">
+                                {ex.field_name === "age" ? "나이" : ex.field_name === "location" ? "지역" : ex.field_name === "company_scale" ? "업력" : ex.field_name === "is_small_business" ? "업종" : ex.field_name === "certification" ? "인증" : ex.field_name}
+                              </td>
+                              <td className="px-4 py-3 text-red-700 font-semibold bg-red-50/30">{gtStr}</td>
+                              <td className="px-4 py-3 text-gray-600 font-medium">{predStr}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Interactive Debugging List (lg: 7/12) */}
-          <div className="lg:col-span-7 bg-white rounded-2xl border p-6 shadow-sm">
-            <h3 className="text-base font-bold text-gray-900 mb-1">
-              🔎 오답 디버그 콘솔 (GT vs Prediction 대조)
-            </h3>
-            <p className="text-xs text-gray-400 mb-6">
-              패턴별 카드 클릭 시 실제 불일치가 발생한 공고 ID와 원본-예측 추출 데이터 대조표를 확인합니다.
-            </p>
-
-            <div className="space-y-4">
-              {errors.patterns.map((p) => {
-                const isExpanded = expandedErrorPattern === p.pattern_name;
-
-                return (
-                  <div
-                    key={p.pattern_name}
-                    className="border rounded-xl overflow-hidden transition-all duration-300 bg-white"
-                  >
-                    <button
-                      onClick={() => setExpandedErrorPattern(isExpanded ? null : p.pattern_name)}
-                      className="w-full text-left p-4 hover:bg-gray-50/50 flex items-center justify-between gap-4 cursor-pointer"
-                    >
-                      <div>
-                        <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                          {p.pattern_name}
-                          <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 rounded px-1.5 py-0.5">
-                            {p.count}건
-                          </span>
-                        </h4>
-                        <p className="text-xs text-gray-400 mt-1 leading-snug">{p.description}</p>
-                      </div>
-                      <svg
-                        className={`w-4 h-4 text-gray-400 transform transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="p-4 bg-gray-50/30 border-t space-y-4.5">
-                        {p.examples.map((ex, idx) => (
-                          <div key={idx} className="bg-white border rounded-lg p-3.5 shadow-sm text-xs space-y-2.5">
-                            <div className="flex justify-between items-center border-b pb-1.5">
-                              <span className="font-bold text-slate-800 truncate max-w-[240px]">
-                                {ex.title}
-                              </span>
-                              <span className="font-semibold text-gray-400 font-mono text-[10px]">
-                                ID: {ex.announcement_id}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="bg-emerald-50/20 border border-emerald-100 rounded-lg p-2">
-                                <span className="text-[9px] font-bold text-emerald-600 block mb-1">GT (정답 라벨)</span>
-                                <pre className="font-mono text-[10px] text-emerald-800 whitespace-pre-wrap leading-tight">
-                                  {JSON.stringify(ex.ground_truth, null, 2)}
-                                </pre>
-                              </div>
-                              <div className="bg-rose-50/20 border border-rose-100 rounded-lg p-2">
-                                <span className="text-[9px] font-bold text-rose-600 block mb-1">PREDICTION (예측 추출)</span>
-                                <pre className="font-mono text-[10px] text-rose-800 whitespace-pre-wrap leading-tight">
-                                  {ex.prediction ? JSON.stringify(ex.prediction, null, 2) : "None (추출 누락됨)"}
-                                </pre>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
+        )}
       </section>
     </main>
   );

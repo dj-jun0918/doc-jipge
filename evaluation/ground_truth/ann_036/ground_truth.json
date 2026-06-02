@@ -1,0 +1,40 @@
+{
+  "announcement_id": "ann_036",
+  "title": "광주청년창업기업 엑셀러레이팅 프로그램 참여기업 모집 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/jP3wTl2hmL",
+  "fields": [
+    {
+      "field_name": "지역",
+      "condition": "광주 내 소재",
+      "value": [
+        "광주"
+      ],
+      "operator": "소재",
+      "evidence": "모집대상 : 광주 내 초기 청년창업기업",
+      "evidence_source": "첨부파일 1p 모집개요",
+      "notes": "광주광역시 소재 기업"
+    },
+    {
+      "field_name": "업력",
+      "condition": "창업 3년 이내",
+      "value": 3,
+      "operator": "이하",
+      "evidence": "공고일 기준 창업 3년이내이면서",
+      "evidence_source": "첨부파일 1p 모집개요",
+      "notes": "창업 3년 이하 초기창업기업"
+    },
+    {
+      "field_name": "나이",
+      "condition": "대표자가 만 39세 이하",
+      "value": 39,
+      "operator": "이하",
+      "evidence": "대표자가 만 39세 이하인 기업",
+      "evidence_source": "첨부파일 1p 모집개요",
+      "notes": "만 39세 이하 청년 대표자"
+    }
+  ],
+  "exclusions": [
+    "제출된 서류가 위/변조, 허위 등으로 밝혀진 경우"
+  ],
+  "notes": ""
+}

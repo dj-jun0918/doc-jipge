@@ -37,7 +37,14 @@ COLLECTORS = {
 }
 
 # 첨부파일 저장 루트 경로 (컨테이너 내부 경로)
+# 로컬 개발/테스트 시 루트 쓰기 실패 방지 fallback 처리
 STORAGE_ROOT = Path("/app/storage")
+try:
+    if not STORAGE_ROOT.exists() and not Path("/app").exists():
+        # 프로젝트 루트 하위의 storage로 변경
+        STORAGE_ROOT = Path(__file__).resolve().parents[3] / "storage"
+except Exception:
+    STORAGE_ROOT = Path(__file__).resolve().parents[3] / "storage"
 
 
 # ---------------------------------------------------------------------------
