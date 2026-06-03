@@ -558,7 +558,7 @@ def match_company_announcements(self, company_id: str) -> dict:
                     constraint_type=r.constraint_type,
                     company_value=r.company_value,
                     requirement_value=r.requirement_value,
-                    evidence=r.evidence,
+                    evidence=r.evidence.model_dump() if r.evidence else None,  # Evidence 객체 → JSONB
                     processing_path=r.processing_path,
                 ))
             matched_count += 1

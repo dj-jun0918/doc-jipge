@@ -63,7 +63,7 @@ def _make_match_result(
         status=status,
         company_value=company_value,
         requirement_value=requirement_value,
-        evidence="테스트 evidence",
+        evidence={"text": "테스트 evidence", "location": None},  # evidence는 JSONB
         processing_path=processing_path,
     )
     db.add(mr)
@@ -237,6 +237,28 @@ class TestGetMatchingDetail:
         # 필드 데이터 점검
         names = {item["field_name"] for item in body["items"]}
         assert names == {"업력", "지역", "매출"}
+
+    def test_detail_returns_evidence_location(self, client, db_session):
+        """evidence JSONB의 location이 응답에 그대로 노출 (PDF 점프용)."""
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        mr = MatchResult(
+            announcement_id=ann.id,
+            company_id=company.id,
+            field_name="업력",
+            status="충족",
+            evidence={"text": "창업 3년 미만", "location": {"location_type": "pdf_page", "page": 2}},
+            processing_path="text_llm",
+        )
+        db_session.add(mr)
+        db_session.commit()
+
+        res = client.get(f"/api/matching/{company.id}/{ann.id}")
+        assert res.status_code == 200
+        item = res.json()["items"][0]
+        assert item["evidence"]["text"] == "창업 3년 미만"
+        assert item["evidence"]["location"]["location_type"] == "pdf_page"
+        assert item["evidence"]["location"]["page"] == 2
 
 
 # ---------------------------------------------------------------------------

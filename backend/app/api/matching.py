@@ -412,7 +412,7 @@ def _row_values(match: MatchResult, ann: Announcement) -> list:
         round(match.score, 3) if match.score is not None else "",
         round(match.distance, 3) if match.distance is not None else "",
         match.constraint_type or "",
-        match.evidence or "",
+        (match.evidence or {}).get("text", ""),  # evidence JSONB에서 표시용 text만
         match.processing_path,
     ]
 
