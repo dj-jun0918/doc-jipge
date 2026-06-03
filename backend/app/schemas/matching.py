@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.eligibility import Evidence
+
 MatchStatus = Literal["충족", "미충족", "확인필요", "해당없음"]
 
 
@@ -22,7 +24,7 @@ class MatchResultItem(BaseModel):
     constraint_type: Literal["hard", "soft"] | None = None
     company_value: str | None = None
     requirement_value: str | None = None
-    evidence: str | None = None
+    evidence: Evidence | None = None
     processing_path: str
 
 
