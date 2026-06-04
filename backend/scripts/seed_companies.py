@@ -14,7 +14,7 @@ COMPANIES = [
         "industry": "소프트웨어 개발",
         "employee_count": 8,
         "ceo_birth_date": date(1990, 3, 15),
-        "certifications": {"vc_certified": True},
+        "certifications": {"venture_company": True},
         "is_edge_case": True,
     },
     # 2. 업력 3년 정각
@@ -126,7 +126,7 @@ COMPANIES.extend([
         "industry": "제조업",
         "employee_count": 45,
         "ceo_birth_date": date(1975, 11, 20),
-        "certifications": {"iso9001": True},
+        "certifications": {"iso_9001": True},
         "is_edge_case": False,
     },
     {

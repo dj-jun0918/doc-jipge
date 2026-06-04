@@ -570,7 +570,7 @@ class ParsedCondition(BaseModel):
 - GT `cert_keys`/`value`는 위 표준 키만 사용.
 - 표에 **없는** 인증/지정(조달청 혁신제품 등록, 중기부 R&D 이력, TIPS 선정 등)은 표준 인증이 아니므로 `fields` 제외 + `notes`에 원문 기록 (§2). cert_mapping 추가가 필요하면 함준규에게 요청 → 모듈과 본 표 동시 갱신.
 
-> ⚠️ **시스템 정합 미완**: 현재 회사 데이터(`seed_companies.py`)와 매칭(`matcher.py`의 `match_certification`)은 구 키(`vc_certified` 등)를 사용한다. cert_mapping.py(PR#24) 표준 키로의 통일은 **별도 시스템 작업**으로 남아 있음. 평가는 cert_mapping 키 기준이므로 GT는 위 표준 키로 작성한다.
+> ✅ **시스템 정합 완료**: 회사 데이터(`seed_companies.py`)·추출(`text_llm`)·매칭(`matcher.py`)·평가(`measure.py`) 모두 cert_mapping 표준 키(`venture_company` 등)를 사용한다. GT도 위 표준 키로 작성한다.
 
 > 💡 **OR 매칭**: 복수 인증 택1(OR)은 matcher가 AND로 처리하므로 `value: null` + `notes`에 원문 표기.
 
