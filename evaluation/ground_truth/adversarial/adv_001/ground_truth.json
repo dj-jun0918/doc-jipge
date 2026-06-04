@@ -1,0 +1,20 @@
+{
+  "announcement_id": "adv_001",
+  "title": "2026년도 M&A 활성화 지원사업 공고",
+  "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1066233&parentSeq=1066233",
+  "fields": [
+    {
+      "field_name": "매출",
+      "condition": "평균 매출액 400억원 이하",
+      "value": 40000000000,
+      "operator": "이하",
+      "evidence": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업",
+      "evidence_source": "첨부파일 2p ➊ M&A 기업가치 평가비용 지원",
+      "notes": "직전 3개년 평균 매출액 400억원 이하 중소기업 대상"
+    }
+  ],
+  "exclusions": [
+    "동일 사업내용(전시회, 행사 등)에 대해 타 정부지원과 중복 수혜가 확인되는 경우"
+  ],
+  "notes": "벤처기업의 경우 지원 비율 우대(수수료의 60% 최대 2,000만원 한도 내 지원)사항이 있으나 필수가 아니므로 fields에서 배제하고 notes에 기록함."
+}
