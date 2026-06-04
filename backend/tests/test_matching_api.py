@@ -451,3 +451,28 @@ class TestCounterfactualMatching:
         assert data["unmet"][0]["changeable"] is False
         assert data["achievable"] is False
         assert data["note"] is not None
+
+    def test_unmet_sorted_by_sensitivity_changeable_first(self, client, db_session):
+        # 변경 가능(종업원 far > 매출 near)을 먼저, 변경 불가(업력)는 sensitivity 높아도 뒤로
+        company = _make_company(
+            db_session, revenue=90_000_000, employee_count=10,
+            founded_date=date(2023, 1, 1),
+        )
+        ann = _make_announcement(db_session)
+        # 종업원: 한참 미달(eff≈0) → changeable, sensitivity 최대
+        _make_eligibility(db_session, ann.id, field_name="종업원 수",
+                          condition_value="1000명 이상", value=1000, operator="이상")
+        # 매출: 9천만 vs 1억(근소 미달, eff>0) → changeable, sensitivity 더 낮음
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이상", value=100_000_000, operator="이상")
+        # 업력: ~3년 vs 10년 → 미충족이지만 시간 기반 changeable=False
+        _make_eligibility(db_session, ann.id, field_name="업력",
+                          condition_value="10년 이상", value=10, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        order = [it["field_name"] for it in res.json()["unmet"]]
+        # changeable(종업원 > 매출) 먼저, changeable=False(업력) 마지막
+        assert order == ["종업원 수", "매출", "업력"]

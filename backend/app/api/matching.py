@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.matcher.matcher import (
     compute_aggregate_score,
+    compute_field_sensitivities,
     counterfactual_for_field,
     match_announcement,
 )
@@ -308,7 +309,10 @@ def counterfactual_matching(
     req: CounterfactualRequest,
     db: Session = Depends(get_db),
 ):
-    """반사실 분석 — 미충족 공고를 충족시키는 최소 프로필 변경 제안 (DB 저장 X)."""
+    """반사실 분석 — 미충족 공고를 충족시키는 최소 프로필 변경 제안 (DB 저장 X).
+
+    제안은 변경 가능 조건을 먼저, 그 안에서 영향 큰(총점 상승폭 큰) 조건 순으로 정렬한다.
+    """
     company_uuid = _parse_uuid(company_id, "company_id")
     company = db.get(Company, company_uuid)
     if not company:
@@ -353,6 +357,12 @@ def counterfactual_matching(
             override_kwargs[cf["override_attr"]] = cf["override_value"]
         else:
             has_unchangeable = True
+
+    # 영향 큰 조건부터 — 변경 가능 조건을 먼저, 그 안에서 sensitivity(총점 상승폭) 내림차순
+    sens = compute_field_sensitivities(
+        [(r.field_name, r.status, r.score) for r in results]
+    )
+    unmet.sort(key=lambda it: (it.changeable, sens.get(it.field_name, 0.0)), reverse=True)
 
     # 달성 가능 여부 — changeable 변경 모두 적용 후 미충족이 없어야 함
     if not unmet:
