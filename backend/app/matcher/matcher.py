@@ -213,7 +213,7 @@ def match_certification(
     """
     인증 보유 여부 비교.
     condition.value: 요구 인증 키 문자열 또는 키 목록.
-    예: "vc_certified" → company_certs["vc_certified"] == True 이면 충족.
+    예: "venture_company" → company_certs["venture_company"] == True 이면 충족.
 
     operator:
         - "보유"  → 해당 인증 True이면 충족
