@@ -17,6 +17,7 @@ from app.matcher.matcher import (
     calculate_biz_age,
     compute_aggregate_score,
     compute_field_score,
+    compute_field_sensitivities,
     compute_numeric_distance,
     match_announcement,
     match_certification,
@@ -285,6 +286,33 @@ class TestComputeAggregateScore:
         # status는 충족이지만 score가 명시되면 그 값 사용
         fields = [("업력", "충족", 0.5)]
         assert compute_aggregate_score(fields) == 0.5
+
+# ──────────────────────────────────────────────
+# compute_field_sensitivities (Counterfactual 우선순위용)
+# ──────────────────────────────────────────────
+
+class TestComputeFieldSensitivities:
+
+    def test_빈_입력(self):
+        assert compute_field_sensitivities([]) == {}
+
+    def test_충족_필드는_0_미충족만_양수(self):
+        # 충족은 더 올릴 여지 없어 0, 미충족은 (1-0)/denom
+        sens = compute_field_sensitivities([("업력", "충족", 1.0), ("매출", "미충족", 0.0)])
+        assert sens["업력"] == pytest.approx(0.0)
+        assert sens["매출"] == pytest.approx(0.5)
+
+    def test_미충족_심할수록_sensitivity_큼(self):
+        # eff 낮은(더 멀리 미충족) 필드가 충족 시 총점 상승폭 큼
+        sens = compute_field_sensitivities([("매출", "미충족", 0.0), ("종업원 수", "미충족", 0.4)])
+        assert sens["매출"] > sens["종업원 수"]
+        assert sens["매출"] == pytest.approx(0.5)
+        assert sens["종업원 수"] == pytest.approx(0.3)
+
+    def test_해당없음은_제외(self):
+        sens = compute_field_sensitivities([("업력", "충족", 1.0), ("인증", "해당없음", None)])
+        assert "인증" not in sens
+        assert sens == {"업력": pytest.approx(0.0)}
 
 # ──────────────────────────────────────────────
 # match_industry

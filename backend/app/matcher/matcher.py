@@ -372,6 +372,35 @@ def compute_aggregate_score(
     return num / denom if denom > 0 else 0.0
 
 
+def compute_field_sensitivities(
+    fields: list[tuple[str, MatchStatus, float | None]],
+) -> dict[str, float]:
+    """필드별 sensitivity — 그 필드를 충족(1.0)시킬 때 공고 총점(aggregate) 상승폭.
+
+    Δaggregate = weight × (1.0 − eff) / Σweight (선형 aggregate의 단순 미분).
+    미충족이 심한(eff 낮은) 필드일수록 크다. Counterfactual에서 영향 큰 조건부터
+    변경 제안하기 위한 정렬 키로 쓰고, raw 값은 사용자에게 노출하지 않는다.
+
+    Args:
+        fields: (field_name, status, score) 튜플 리스트 — compute_aggregate_score와 동일 입력.
+
+    Returns:
+        {field_name: sensitivity(0~1)}. 해당없음 필드는 제외, 집계 대상 없으면 {}.
+    """
+    active: list[tuple[str, float, float]] = []
+    denom = 0.0
+    for field_name, status, score in fields:
+        eff = _effective_field_score(status, score)
+        if eff is None:
+            continue
+        weight = FIELD_WEIGHTS.get(field_name, 1.0)
+        denom += weight
+        active.append((field_name, weight, eff))
+    if denom == 0:
+        return {}
+    return {fn: weight * (1.0 - eff) / denom for fn, weight, eff in active}
+
+
 # ──────────────────────────────────────────────
 # 오케스트레이터
 # ──────────────────────────────────────────────
