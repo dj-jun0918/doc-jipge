@@ -2,7 +2,14 @@
 
 import os
 import json
+import sys
 from pathlib import Path
+
+# Add repository root to sys.path to allow importing from the evaluation module
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
 from fastapi import APIRouter
 from app.schemas.evaluation import (
     EvaluationMetricsResponse,
@@ -16,8 +23,8 @@ from evaluation.bootstrap import calculate_metrics_ci
 
 router = APIRouter()
 
-RESULTS_DIR = Path("/Users/limtae-kyu/doc-jipge/evaluation/results")
-GT_DIR = Path("/Users/limtae-kyu/doc-jipge/evaluation/ground_truth")
+RESULTS_DIR = REPO_ROOT / "evaluation" / "results"
+GT_DIR = REPO_ROOT / "evaluation" / "ground_truth"
 
 
 def _load_json_data(filename: str) -> dict:
@@ -178,8 +185,8 @@ def get_ablation_results() -> dict:
 def get_iaa_results() -> dict:
     """라벨러 합의도 (IAA - Cohen's κ) 조회 API."""
     # 방정우 님과 임태규 님의 라벨 디렉토리 설정
-    dir_a = Path("/Users/limtae-kyu/doc-jipge/evaluation/cross_labels/eisenberg")
-    dir_b = Path("/Users/limtae-kyu/doc-jipge/evaluation/cross_labels/bangjeongwoo")
+    dir_a = REPO_ROOT / "evaluation" / "cross_labels" / "eisenberg"
+    dir_b = REPO_ROOT / "evaluation" / "cross_labels" / "bangjeongwoo"
     
     if dir_a.exists() and dir_b.exists():
         labels_a = load_labels_from_dir(str(dir_a))
