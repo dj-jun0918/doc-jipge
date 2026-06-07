@@ -7,6 +7,7 @@ import MatchResultCard, { MatchField } from "@/components/MatchResultCard";
 import ConfirmRequiredTab from "@/components/ConfirmRequiredTab";
 import HwpxTableViewer from "@/components/HwpxTableViewer";
 import RawTextDisplay from "@/components/RawTextDisplay";
+import CounterfactualPanel from "@/components/CounterfactualPanel";
 
 // SSR 렌더링 시 브라우저 전용 객체(window, canvas 등) 사용으로 인한 ReferenceError를 원천 차단합니다.
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -143,7 +144,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [matchDetails, setMatchDetails] = useState<MatchField[]>([]);
   const [stats, setStats] = useState<MatchResultDetailResponse["stats"] | null>(null);
   
-  const [activeTab, setActiveTab] = useState<"all" | "confirm">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "confirm" | "counterfactual">("all");
   const [loadingCompany, setLoadingCompany] = useState<boolean>(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(true);
   const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
@@ -825,6 +826,16 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                       </span>
                     )}
                   </button>
+                  <button
+                    onClick={() => setActiveTab("counterfactual")}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                      activeTab === "counterfactual"
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                    }`}
+                  >
+                    🔮 자격 충족 대안 가이드
+                  </button>
                 </div>
 
                 <div className="text-xs text-gray-400 font-medium">
@@ -867,11 +878,13 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                         ))}
                       </div>
                     )
-                  ) : (
+                  ) : activeTab === "confirm" ? (
                     <ConfirmRequiredTab
                       fields={currentDetails}
                       onEvidenceClick={handleEvidenceClick}
                     />
+                  ) : (
+                    <CounterfactualPanel company_id={companyId} ann_id={selectedAnnId} />
                   )}
                 </div>
               )}
