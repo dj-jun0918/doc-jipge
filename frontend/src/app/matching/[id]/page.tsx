@@ -449,7 +449,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     return (
       <div className="rounded-2xl border border-blue-200 bg-white shadow-md mb-8 overflow-hidden transition-all duration-300">
         {/* Header Accordion Bar */}
-        <button
+        <div
           onClick={() => setIsWhatIfExpanded(!isWhatIfExpanded)}
           className="w-full text-left bg-gradient-to-r from-blue-50/50 via-indigo-50/10 to-white hover:from-blue-50 hover:via-indigo-50/20 px-6 py-4 flex items-center justify-between gap-4 border-b border-blue-100 transition-colors cursor-pointer"
         >
@@ -499,7 +499,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </div>
-        </button>
+        </div>
 
         {/* Simulated Sliders Grid */}
         {isWhatIfExpanded && (
