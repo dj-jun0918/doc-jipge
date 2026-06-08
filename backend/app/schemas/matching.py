@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.eligibility import Evidence
+
 MatchStatus = Literal["충족", "미충족", "확인필요", "해당없음"]
 
 
@@ -22,7 +24,7 @@ class MatchResultItem(BaseModel):
     constraint_type: Literal["hard", "soft"] | None = None
     company_value: str | None = None
     requirement_value: str | None = None
-    evidence: str | None = None
+    evidence: Evidence | None = None
     processing_path: str
 
 
@@ -95,3 +97,30 @@ class SimulateResponse(MatchResultDetailResponse):
     """시뮬레이션 응답 — 매칭 상세와 동일 형식 + simulated 플래그."""
 
     simulated: bool = True
+
+
+class CounterfactualItem(BaseModel):
+    """미충족 필드를 충족시키는 최소 프로필 변경 제안."""
+
+    field_name: str
+    current_value: str | None = None      # 현재 회사 값
+    requirement: str | None = None        # 요구 조건 (raw_text)
+    suggested_value: str                  # 충족시키는 제안 값(표시용)
+    explanation: str                      # "매출 5억원 이상 필요 (현재 3억원)"
+    changeable: bool = True               # 업종 제외/인증 미보유 등 현실적으로 바꾸기 어려우면 False
+
+
+class CounterfactualRequest(BaseModel):
+    """POST /api/matching/{company_id}/counterfactual 입력."""
+
+    announcement_id: uuid.UUID
+
+
+class CounterfactualResponse(BaseModel):
+    """반사실 분석 응답 — 미충족 필드별 최소 변경 제안 + 달성 가능 여부."""
+
+    company_id: uuid.UUID
+    announcement_id: uuid.UUID
+    unmet: list[CounterfactualItem]       # 미충족(hard) 필드별 반사실
+    achievable: bool                      # changeable 변경 모두 적용 시 충족 가능?
+    note: str | None = None               # 변경 불가 항목 안내 등

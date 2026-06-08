@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.schemas.eligibility import Evidence
+
 
 class MatchResultResponse(BaseModel):
     id: uuid.UUID
@@ -15,7 +17,7 @@ class MatchResultResponse(BaseModel):
     constraint_type: Literal["hard", "soft"] | None = None
     company_value: str | None = None
     requirement_value: str | None = None
-    evidence: str | None = None
+    evidence: Evidence | None = None
     processing_path: str
 
     model_config = {"from_attributes": True}

@@ -37,7 +37,7 @@ FIELDS = [
 
 # ── 엣지 프로필 8개 ───────────────────────────
 PROFILES = [
-    ("컴퍼니A", dict(id=uuid.uuid4(), founded_date=date(2023,5,11), revenue=500_000_000,  employee_count=8,  region="서울",  industry="소프트웨어 개발", ceo_birth_date=date(1990,3,15), certifications={"vc_certified":True})),
+    ("컴퍼니A", dict(id=uuid.uuid4(), founded_date=date(2023,5,11), revenue=500_000_000,  employee_count=8,  region="서울",  industry="소프트웨어 개발", ceo_birth_date=date(1990,3,15), certifications={"venture_company":True})),
     ("컴퍼니B", dict(id=uuid.uuid4(), founded_date=date(2023,4,11), revenue=500_000_000,  employee_count=8,  region="서울",  industry="소프트웨어 개발", ceo_birth_date=date(1990,3,15), certifications=None)),
     ("컴퍼니C", dict(id=uuid.uuid4(), founded_date=date(2021,1,1),  revenue=999_000_000,  employee_count=15, region="경기",  industry="제조업",           ceo_birth_date=date(1985,6,20), certifications=None)),
     ("컴퍼니D", dict(id=uuid.uuid4(), founded_date=date(2021,1,1),  revenue=1_000_000_000,employee_count=15, region="경기",  industry="제조업",           ceo_birth_date=date(1985,6,20), certifications=None)),
