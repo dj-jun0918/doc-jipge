@@ -1,0 +1,23 @@
+{
+  "announcement_id": "ann_027",
+  "title": "2026년 제6회 대구 여성창업스타전 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/T7J4snfhmL",
+  "fields": [
+    {
+      "field_name": "종업원 수",
+      "value": 10,
+      "operator": "미만",
+      "condition": "10인 미만",
+      "evidence": "공고문 7p",
+      "evidence_source": "자격",
+      "notes": ""
+    }
+  ],
+  "exclusions": [
+    "동일·유사 아이템으로 과거 타 창업경진대회에서 누적 상금 3천만원 이상을 받은 자",
+    "창업아이템이 타인의 지적재산권을 침해할 우려가 있는 경우",
+    "중소기업창업지원법 시행령 제4조에 따른 창업에서 제외되는 업종 등 반사회적 아이템",
+    "동대회 입상자"
+  ],
+  "notes": ""
+}

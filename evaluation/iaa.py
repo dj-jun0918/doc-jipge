@@ -67,12 +67,28 @@ def calculate_overall_iaa(labels_a: List[Dict[str, Any]], labels_b: List[Dict[st
     by_field_kappas = {}
     valid_kappas = []
     
+    sorted_a = sorted(labels_a, key=lambda x: x["announcement_id"])
+    sorted_b = sorted(labels_b, key=lambda x: x["announcement_id"])
+    
     for field in standard_fields:
         kappa = calculate_iaa_for_field(labels_a, labels_b, field)
         by_field_kappas[field] = kappa
-        valid_kappas.append(kappa)
         
-    overall_kappa = sum(valid_kappas) / len(valid_kappas) if valid_kappas else 0.0
+        # 단일 클래스 필드 여부 체크 (모든 라벨러 A와 B의 답변이 동일한 단일 상태인지)
+        y_a = []
+        y_b = []
+        for ga, gb in zip(sorted_a, sorted_b):
+            state_a = get_field_state(ga, field)
+            state_b = get_field_state(gb, field)
+            y_a.append(str(state_a))
+            y_b.append(str(state_b))
+            
+        is_single_class = (len(set(y_a)) <= 1 and len(set(y_b)) <= 1 and y_a[0] == y_b[0])
+        
+        if not is_single_class:
+            valid_kappas.append(kappa)
+        
+    overall_kappa = sum(valid_kappas) / len(valid_kappas) if valid_kappas else 1.0
     
     return {
         "overall_kappa": overall_kappa,
