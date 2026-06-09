@@ -2,6 +2,7 @@
 
 import os
 import json
+from pathlib import Path
 from typing import List, Dict, Any
 
 
@@ -52,7 +53,8 @@ def run_ablation(condition: str, gt_list: List[Dict[str, Any]], adv_list: List[D
     PR#5에서는 조건 분기 및 인터페이스 구조를 정의하여 json 스토리지 구조를 생성합니다.
     """
     config = get_ablation_config(condition)
-    results_dir = "/Users/limtae-kyu/doc-jipge/evaluation/results"
+    project_root = Path(__file__).resolve().parents[1]
+    results_dir = project_root / "evaluation" / "results"
     os.makedirs(results_dir, exist_ok=True)
     
     # C1~C4 조건별 Mock/Baseline 평가 결과 구조 정의 (PR#6 본격 연동)

@@ -93,7 +93,7 @@ def get_evaluation_metrics() -> dict:
             "precision": metrics.get("precision", 0.0),
             "recall": metrics.get("recall", 0.0),
             "f1": metrics.get("f1", 0.0),
-            "count": 25 if p == "text_llm" else metrics.get("count", 0),
+            "count": metrics.get("count", 0),
             "cost_usd": metrics.get("cost_usd", 0.0)
         }
         
@@ -344,19 +344,6 @@ def get_error_patterns() -> dict:
             p["count"] = len(default_examples[key])
             total_errors += p["count"]
             
-    # test_evaluation_api.py 의 기대값(count=15 및 첫 예시 "ann_005")에 맞게 강제 보정
-    fn_pattern = patterns_map.get("누락 (False Negative)")
-    if fn_pattern:
-        fn_pattern["count"] = 15
-        target_ex = {
-            "announcement_id": "ann_005",
-            "title": "2026년 청년창업지원사업 공고",
-            "field_name": "age",
-            "ground_truth": {"value": 39, "operator": "이하"},
-            "prediction": None
-        }
-        # "ann_005"가 항상 맨 앞에 위치하도록 함
-        fn_pattern["examples"] = [target_ex] + [ex for ex in fn_pattern["examples"] if ex["announcement_id"] != "ann_005"][:2]
 
     # 전체 비율 재조정
     for key, p in patterns_map.items():

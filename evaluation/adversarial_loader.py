@@ -2,9 +2,10 @@
 
 import os
 import json
+from pathlib import Path
 from typing import List, Dict, Any
 
-ADVERSARIAL_ROOT = "/Users/limtae-kyu/doc-jipge/evaluation/ground_truth/adversarial"
+ADVERSARIAL_ROOT = str(Path(__file__).resolve().parent / "ground_truth" / "adversarial")
 
 
 def load_adversarial_labels() -> List[Dict[str, Any]]:

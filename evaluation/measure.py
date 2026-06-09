@@ -246,7 +246,12 @@ def match_fields(
                 gt_keys = set(gt_val) if isinstance(gt_val, list) else ({gt_val} if gt_val else set())
                 
                 for pred_item in preds:
-                    pred_val = pred_item.condition_parsed.get("value") if pred_item.condition_parsed else None
+                    pred_val = None
+                    if hasattr(pred_item, "condition_parsed") and pred_item.condition_parsed:
+                        pred_val = pred_item.condition_parsed.get("value")
+                    elif hasattr(pred_item, "condition") and hasattr(pred_item.condition, "value"):
+                        pred_val = pred_item.condition.value
+
                     pred_keys = set(pred_val) if isinstance(pred_val, list) else ({pred_val} if pred_val else set())
                     
                     if gt_keys == pred_keys and len(gt_keys) > 0:

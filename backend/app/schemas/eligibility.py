@@ -47,7 +47,7 @@ class Evidence(BaseModel):
 
 
 class ParsedCondition(BaseModel):
-    value: float | str | dict | None = None
+    value: float | str | list | dict | None = None
     operator: str | None = None
     raw_text: str
 

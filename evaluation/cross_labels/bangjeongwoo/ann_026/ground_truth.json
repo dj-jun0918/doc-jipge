@@ -1,0 +1,20 @@
+{
+  "announcement_id": "ann_026",
+  "title": "2026년 서울-BMS 이노베이션 스퀘어 챌린지 참여기업 모집 공고",
+  "source_url": "https://www.k-startup.go.kr/web/s/ewOEsnfhmL",
+  "fields": [
+    {
+      "field_name": "업종",
+      "value": [
+        "제조업"
+      ],
+      "operator": "해당",
+      "condition": "제조업",
+      "evidence": "공고문 6p",
+      "evidence_source": "자격",
+      "notes": ""
+    }
+  ],
+  "exclusions": [],
+  "notes": ""
+}
