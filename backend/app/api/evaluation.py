@@ -210,19 +210,11 @@ def get_iaa_results() -> dict:
                 "by_field": by_field_scores,
                 "evaluated_count": res["evaluated_count"]
             }
-            
-    # Fallback Mock 데이터
+    # cross_labels 데이터가 존재하지 않을 경우 빈 값 반환
     return {
-        "overall_kappa": 0.765,
-        "by_field": [
-            {"field_name": "age", "kappa": 0.842, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "location", "kappa": 0.889, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "company_scale", "kappa": 0.723, "agreement_level": "상당한 합의 (Substantial)"},
-            {"field_name": "is_small_business", "kappa": 0.910, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "constraint", "kappa": 0.584, "agreement_level": "보통 수준의 합의 (Moderate)"},
-            {"field_name": "certification", "kappa": 0.645, "agreement_level": "상당한 합의 (Substantial)"}
-        ],
-        "evaluated_count": 10
+        "overall_kappa": 0.0,
+        "by_field": [],
+        "evaluated_count": 0
     }
 
 
