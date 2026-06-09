@@ -97,14 +97,14 @@ interface AnnouncementDetail {
   title: string;
   source: string;
   attachments: AttachmentInfo[];
-  structured_tables?: Array<{name: string; markdown: string}> | null;
+  structured_tables?: Array<{ name: string; markdown: string }> | null;
 }
 
 function pickMainAttachment(attachments: AttachmentInfo[]): AttachmentInfo | null {
   if (!attachments) return null;
   return attachments.find(a => a.has_pdf)
-      ?? attachments.find(a => a.file_type === "hwpx")
-      ?? null;
+    ?? attachments.find(a => a.file_type === "hwpx")
+    ?? null;
 }
 
 function EvidencePlaceholder({ text }: { text: string }) {
@@ -143,7 +143,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [selectedAnnDetail, setSelectedAnnDetail] = useState<AnnouncementDetail | null>(null);
   const [matchDetails, setMatchDetails] = useState<MatchField[]>([]);
   const [stats, setStats] = useState<MatchResultDetailResponse["stats"] | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState<"all" | "confirm" | "counterfactual">("all");
   const [loadingCompany, setLoadingCompany] = useState<boolean>(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState<boolean>(true);
@@ -154,7 +154,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [annError, setAnnError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailRetryNonce, setDetailRetryNonce] = useState<number>(0);
-  
+
   const [highlightPage, setHighlightPage] = useState<number | null>(null);
   const [evidenceText, setEvidenceText] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
@@ -239,7 +239,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         }
         const data = await res.json();
         let found = (data.items || []).find((c: Company) => c.id === companyId);
-        
+
         if (found) {
           setCompany(found);
           setCompanyNotFound(false);
@@ -474,7 +474,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {isSimulatedActive && (
               <button
@@ -489,9 +489,8 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               </button>
             )}
             <svg
-              className={`w-5 h-5 text-gray-400 transform transition-transform duration-300 ${
-                isWhatIfExpanded ? "rotate-180" : ""
-              }`}
+              className={`w-5 h-5 text-gray-400 transform transition-transform duration-300 ${isWhatIfExpanded ? "rotate-180" : ""
+                }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -711,7 +710,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 매칭률: {matchScorePercentage}%
               </span>
             </div>
-            
+
             <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
               {/* 요약 카운트 뱃지들 */}
               <div className="md:col-span-4 flex flex-wrap gap-4 items-center">
@@ -743,7 +742,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               <h3 className="text-base font-bold text-gray-900 mb-4 pb-2 border-b flex items-center gap-2">
                 📋 매칭 시도된 공고 목록
               </h3>
-              
+
               {loadingAnnouncements ? (
                 <div className="py-10 text-center flex flex-col items-center gap-2">
                   <div className="w-8 h-8 border-[3px] border-gray-200 border-t-blue-600 rounded-full animate-spin" />
@@ -765,18 +764,16 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                       <button
                         key={ann.announcement_id}
                         onClick={() => setSelectedAnnId(ann.announcement_id)}
-                        className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-2 cursor-pointer ${
-                          isSelected
+                        className={`w-full text-left p-4 rounded-xl border transition-all duration-200 flex flex-col gap-2 cursor-pointer ${isSelected
                             ? "border-blue-600 bg-blue-50/20 shadow-sm"
                             : "border-gray-200 bg-white hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
-                        <h4 className={`text-sm font-bold truncate leading-snug ${
-                          isSelected ? "text-blue-600" : "text-gray-800"
-                        }`}>
+                        <h4 className={`text-sm font-bold truncate leading-snug ${isSelected ? "text-blue-600" : "text-gray-800"
+                          }`}>
                           {ann.title}
                         </h4>
-                        
+
                         <div className="flex items-center justify-between mt-1 text-[11px]">
                           <span className="text-gray-400">
                             요건 필드: {ann.total_fields}개
@@ -801,38 +798,34 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setActiveTab("all")}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition cursor-pointer ${
-                      activeTab === "all"
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition cursor-pointer ${activeTab === "all"
                         ? "bg-blue-600 text-white shadow-sm"
                         : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                    }`}
+                      }`}
                   >
                     🔍 전체 요건 분석 ({totalFields}개)
                   </button>
                   <button
                     onClick={() => setActiveTab("confirm")}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                      activeTab === "confirm"
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${activeTab === "confirm"
                         ? "bg-amber-500 text-white shadow-sm"
                         : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                    }`}
+                      }`}
                   >
                     ⚠️ 수동 확인 필요
                     {currentDetails.filter((f) => f.status === "확인필요").length > 0 && (
-                      <span className={`text-[10px] font-black rounded-full px-1.5 py-0.5 ${
-                        activeTab === "confirm" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"
-                      }`}>
+                      <span className={`text-[10px] font-black rounded-full px-1.5 py-0.5 ${activeTab === "confirm" ? "bg-white text-amber-700" : "bg-amber-100 text-amber-800"
+                        }`}>
                         {currentDetails.filter((f) => f.status === "확인필요").length}
                       </span>
                     )}
                   </button>
                   <button
                     onClick={() => setActiveTab("counterfactual")}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                      activeTab === "counterfactual"
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer ${activeTab === "counterfactual"
                         ? "bg-indigo-600 text-white shadow-sm"
                         : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                    }`}
+                      }`}
                   >
                     🔮 자격 충족 대안 가이드
                   </button>
