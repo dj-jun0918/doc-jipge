@@ -17,6 +17,7 @@ from app.matcher.matcher import (
     calculate_biz_age,
     compute_aggregate_score,
     compute_field_score,
+    compute_field_sensitivities,
     compute_numeric_distance,
     match_announcement,
     match_certification,
@@ -287,6 +288,33 @@ class TestComputeAggregateScore:
         assert compute_aggregate_score(fields) == 0.5
 
 # ──────────────────────────────────────────────
+# compute_field_sensitivities (Counterfactual 우선순위용)
+# ──────────────────────────────────────────────
+
+class TestComputeFieldSensitivities:
+
+    def test_빈_입력(self):
+        assert compute_field_sensitivities([]) == {}
+
+    def test_충족_필드는_0_미충족만_양수(self):
+        # 충족은 더 올릴 여지 없어 0, 미충족은 (1-0)/denom
+        sens = compute_field_sensitivities([("업력", "충족", 1.0), ("매출", "미충족", 0.0)])
+        assert sens["업력"] == pytest.approx(0.0)
+        assert sens["매출"] == pytest.approx(0.5)
+
+    def test_미충족_심할수록_sensitivity_큼(self):
+        # eff 낮은(더 멀리 미충족) 필드가 충족 시 총점 상승폭 큼
+        sens = compute_field_sensitivities([("매출", "미충족", 0.0), ("종업원 수", "미충족", 0.4)])
+        assert sens["매출"] > sens["종업원 수"]
+        assert sens["매출"] == pytest.approx(0.5)
+        assert sens["종업원 수"] == pytest.approx(0.3)
+
+    def test_해당없음은_제외(self):
+        sens = compute_field_sensitivities([("업력", "충족", 1.0), ("인증", "해당없음", None)])
+        assert "인증" not in sens
+        assert sens == {"업력": pytest.approx(0.0)}
+
+# ──────────────────────────────────────────────
 # match_industry
 # ──────────────────────────────────────────────
 
@@ -333,46 +361,46 @@ class TestMatchIndustry:
 class TestMatchCertification:
 
     def test_벤처인증_보유_충족(self):
-        certs = {"vc_certified": True}
-        assert match_certification(certs, cond("보유", "vc_certified", "벤처인증 보유")) == "충족"
+        certs = {"venture_company": True}
+        assert match_certification(certs, cond("보유", "venture_company", "벤처인증 보유")) == "충족"
 
     def test_벤처인증_없음_보유_미충족(self):
-        certs = {"vc_certified": False}
-        assert match_certification(certs, cond("보유", "vc_certified", "벤처인증 보유")) == "미충족"
+        certs = {"venture_company": False}
+        assert match_certification(certs, cond("보유", "venture_company", "벤처인증 보유")) == "미충족"
 
     def test_인증_키_없음_보유_미충족(self):
-        certs = {"iso9001": True}
-        assert match_certification(certs, cond("보유", "vc_certified", "벤처인증 보유")) == "미충족"
+        certs = {"iso_9001": True}
+        assert match_certification(certs, cond("보유", "venture_company", "벤처인증 보유")) == "미충족"
 
     def test_미보유_조건_인증없음_충족(self):
-        certs = {"vc_certified": False}
-        assert match_certification(certs, cond("미보유", "vc_certified", "벤처인증 미보유")) == "충족"
+        certs = {"venture_company": False}
+        assert match_certification(certs, cond("미보유", "venture_company", "벤처인증 미보유")) == "충족"
 
     def test_미보유_조건_인증있음_미충족(self):
-        certs = {"vc_certified": True}
-        assert match_certification(certs, cond("미보유", "vc_certified", "벤처인증 미보유")) == "미충족"
+        certs = {"venture_company": True}
+        assert match_certification(certs, cond("미보유", "venture_company", "벤처인증 미보유")) == "미충족"
 
     def test_certifications_None_보유_확인필요(self):
-        assert match_certification(None, cond("보유", "vc_certified", "벤처인증")) == "확인필요"
+        assert match_certification(None, cond("보유", "venture_company", "벤처인증")) == "확인필요"
 
     def test_certifications_None_미보유_충족(self):
         # 인증 자체가 없으면 미보유 조건 충족
-        assert match_certification(None, cond("미보유", "vc_certified", "벤처인증 미보유")) == "충족"
+        assert match_certification(None, cond("미보유", "venture_company", "벤처인증 미보유")) == "충족"
 
     def test_다중_인증_모두_보유_충족(self):
         from app.schemas.eligibility import ParsedCondition
-        certs = {"vc_certified": True, "iso9001": True}
-        c = ParsedCondition.model_construct(operator="보유", value=["vc_certified", "iso9001"], raw_text="벤처+ISO")
+        certs = {"venture_company": True, "iso_9001": True}
+        c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처+ISO")
         assert match_certification(certs, c) == "충족"
 
     def test_다중_인증_하나_없음_미충족(self):
         from app.schemas.eligibility import ParsedCondition
-        certs = {"vc_certified": True, "iso9001": False}
-        c = ParsedCondition.model_construct(operator="보유", value=["vc_certified", "iso9001"], raw_text="벤처+ISO")
+        certs = {"venture_company": True, "iso_9001": False}
+        c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처+ISO")
         assert match_certification(certs, c) == "미충족"
 
     def test_operator_None_확인필요(self):
-        assert match_certification({"vc_certified": True}, cond(None, "vc_certified")) == "확인필요"
+        assert match_certification({"venture_company": True}, cond(None, "venture_company")) == "확인필요"
 
 
 # ──────────────────────────────────────────────
@@ -472,8 +500,8 @@ class TestMatchAnnouncement:
         assert results[0].status == "충족"
 
     def test_인증_필드_처리(self):
-        company = make_company(certifications={"vc_certified": True})
-        fields = [field("인증", "보유", "vc_certified", "벤처인증 보유")]
+        company = make_company(certifications={"venture_company": True})
+        fields = [field("인증", "보유", "venture_company", "벤처인증 보유")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "충족"
 
@@ -616,7 +644,7 @@ class TestMatchAnnouncementWithScoreDistance:
         fields = [
             field("업력", "미만", 3, "3년 미만"),
             field("지역", "소재", "서울", "서울"),
-            field("인증", "보유", "vc_certified", "벤처인증 보유"),
+            field("인증", "보유", "venture_company", "벤처인증 보유"),
         ]
         results = match_announcement(company, fields, uuid.uuid4())
         for r in results:

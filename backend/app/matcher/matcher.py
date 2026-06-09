@@ -213,7 +213,7 @@ def match_certification(
     """
     인증 보유 여부 비교.
     condition.value: 요구 인증 키 문자열 또는 키 목록.
-    예: "vc_certified" → company_certs["vc_certified"] == True 이면 충족.
+    예: "venture_company" → company_certs["venture_company"] == True 이면 충족.
 
     operator:
         - "보유"  → 해당 인증 True이면 충족
@@ -372,6 +372,35 @@ def compute_aggregate_score(
     return num / denom if denom > 0 else 0.0
 
 
+def compute_field_sensitivities(
+    fields: list[tuple[str, MatchStatus, float | None]],
+) -> dict[str, float]:
+    """필드별 sensitivity — 그 필드를 충족(1.0)시킬 때 공고 총점(aggregate) 상승폭.
+
+    Δaggregate = weight × (1.0 − eff) / Σweight (선형 aggregate의 단순 미분).
+    미충족이 심한(eff 낮은) 필드일수록 크다. Counterfactual에서 영향 큰 조건부터
+    변경 제안하기 위한 정렬 키로 쓰고, raw 값은 사용자에게 노출하지 않는다.
+
+    Args:
+        fields: (field_name, status, score) 튜플 리스트 — compute_aggregate_score와 동일 입력.
+
+    Returns:
+        {field_name: sensitivity(0~1)}. 해당없음 필드는 제외, 집계 대상 없으면 {}.
+    """
+    active: list[tuple[str, float, float]] = []
+    denom = 0.0
+    for field_name, status, score in fields:
+        eff = _effective_field_score(status, score)
+        if eff is None:
+            continue
+        weight = FIELD_WEIGHTS.get(field_name, 1.0)
+        denom += weight
+        active.append((field_name, weight, eff))
+    if denom == 0:
+        return {}
+    return {fn: weight * (1.0 - eff) / denom for fn, weight, eff in active}
+
+
 # ──────────────────────────────────────────────
 # 오케스트레이터
 # ──────────────────────────────────────────────
@@ -454,9 +483,151 @@ def match_announcement(
             constraint_type=constraint_type,
             company_value=company_value_str,
             requirement_value=cond.raw_text,
-            # EligibilityField.evidence (Evidence 객체)의 text만 추출
-            evidence=field.evidence.text if field.evidence else None,
+            # Evidence 객체(text + location) 전체 전달 — match_results에 location까지 저장
+            evidence=field.evidence if field.evidence else None,
             processing_path=field.processing_path,
         ))
 
     return results
+
+
+# ──────────────────────────────────────────────
+# Counterfactual — 미충족 필드를 충족시키는 최소 변경 역산
+# ──────────────────────────────────────────────
+
+def _fmt_revenue(won: int | float) -> str:
+    """매출 원 단위 → 억/만원 표시."""
+    won = int(won)
+    if won % 100_000_000 == 0:
+        return f"{won // 100_000_000}억원"
+    if won % 10_000 == 0:
+        return f"{won // 10_000}만원"
+    return f"{won:,}원"
+
+
+def _numeric_target(operator: str | None, value) -> int | float | None:
+    """수치 operator/value → 충족시키는 경계값."""
+    if operator == "이상":
+        return value
+    if operator == "초과":
+        return value + 1
+    if operator == "이하":
+        return value
+    if operator == "미만":
+        return value - 1
+    if operator == "범위":
+        if isinstance(value, dict) and "min" in value:
+            return value["min"]
+        if isinstance(value, (list, tuple)) and len(value) == 2:
+            return value[0]
+    return None
+
+
+def counterfactual_for_field(field: EligibilityField, company: Company) -> dict | None:
+    """미충족 필드 1개의 최소 변경 제안.
+
+    Returns dict {suggested_value, explanation, changeable, override_attr, override_value}
+    또는 None (역산 불가). override_attr/value는 SimulateOverrides 적용용.
+    """
+    fn = field.field_name
+    cond = field.condition
+    op, val, raw = cond.operator, cond.value, cond.raw_text
+
+    # 수치(매출/종업원 수) — operator 방향에 따라 현실성 분기
+    if fn in ("매출", "종업원 수"):
+        if op is None or val is None:
+            return None
+        attr = "revenue" if fn == "매출" else "employee_count"
+        cur = company.revenue if fn == "매출" else company.employee_count
+        fmt = _fmt_revenue if fn == "매출" else (lambda x: f"{x}명")
+        cur_s = fmt(cur) if cur is not None else "미상"
+
+        # 하한 미달(이상/초과) 또는 범위 아래 → 키우면 충족 (프로필 설정 가능)
+        grow_target = _numeric_target(op, val) if op in ("이상", "초과") else None
+        if op == "범위":
+            lo = _numeric_target(op, val)
+            if cur is not None and lo is not None and cur < lo:
+                grow_target = lo
+        if grow_target is not None:
+            return {
+                "suggested_value": fmt(grow_target),
+                "explanation": f"{fn} {raw or fmt(grow_target)} 필요 (현재 {cur_s})",
+                "changeable": True,
+                "override_attr": attr,
+                "override_value": int(grow_target),
+            }
+
+        # 상한 초과(이하/미만) 또는 범위 위 → 규모 축소는 비현실 (지원 대상 아님)
+        return {
+            "suggested_value": raw or "",
+            "explanation": f"{fn} 기준 초과 (현재 {cur_s}, 기준 {raw}) — 규모 축소는 비현실적",
+            "changeable": False,
+            "override_attr": None,
+            "override_value": None,
+        }
+
+    # 업력/나이 — 시간 기반이라 프로필 수정으로 못 바꿈
+    if fn in ("업력", "나이"):
+        return {
+            "suggested_value": raw or "",
+            "explanation": f"{fn} 조건({raw}) — 시간 기반이라 프로필 변경으로 충족 불가",
+            "changeable": False,
+            "override_attr": None,
+            "override_value": None,
+        }
+
+    # 지역 — 요구 지역으로 이전
+    if fn == "지역":
+        regions = val if isinstance(val, list) else ([val] if val else [])
+        if not regions:
+            return None
+        return {
+            "suggested_value": f"{regions[0]} 소재",
+            "explanation": f"지역을 {', '.join(regions)} 중 하나로 (현재 {company.region or '미상'})",
+            "changeable": True,
+            "override_attr": "region",
+            "override_value": regions[0],
+        }
+
+    # 업종 — 포함이면 허용 업종으로, 제외 등은 구체 제안 어려움
+    if fn == "업종":
+        allowed = val if isinstance(val, list) else ([val] if val else [])
+        if op == "포함" and allowed:
+            return {
+                "suggested_value": allowed[0],
+                "explanation": f"업종을 {', '.join(allowed)} 중 하나로 (현재 {company.industry or '미상'})",
+                "changeable": True,
+                "override_attr": "industry",
+                "override_value": allowed[0],
+            }
+        return {
+            "suggested_value": "업종 변경 필요",
+            "explanation": f"업종 조건({raw}) — 구체 변경 제안 어려움",
+            "changeable": False,
+            "override_attr": None,
+            "override_value": None,
+        }
+
+    # 인증 — 보유면 취득 제안
+    if fn == "인증":
+        keys = val if isinstance(val, list) else ([val] if val else [])
+        if op == "보유" and keys:
+            certs = dict(company.certifications or {})
+            for k in keys:
+                certs[k] = True
+            return {
+                "suggested_value": f"{', '.join(keys)} 인증 취득",
+                "explanation": f"{', '.join(keys)} 인증 취득 필요",
+                "changeable": True,
+                "override_attr": "certifications",
+                "override_value": certs,
+            }
+        return {
+            "suggested_value": "인증 조건 변경 필요",
+            "explanation": f"인증 조건({raw}) — 변경 어려움",
+            "changeable": False,
+            "override_attr": None,
+            "override_value": None,
+        }
+
+    return None

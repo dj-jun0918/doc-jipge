@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -21,7 +21,7 @@ class MatchResult(Base):
     constraint_type: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "hard" / "soft"
     company_value: Mapped[str | None] = mapped_column(Text)
     requirement_value: Mapped[str | None] = mapped_column(Text)
-    evidence: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # {text, location} — PDF 점프용
     processing_path: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("now()"))
 

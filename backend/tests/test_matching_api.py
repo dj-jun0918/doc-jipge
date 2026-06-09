@@ -63,7 +63,7 @@ def _make_match_result(
         status=status,
         company_value=company_value,
         requirement_value=requirement_value,
-        evidence="테스트 evidence",
+        evidence={"text": "테스트 evidence", "location": None},  # evidence는 JSONB
         processing_path=processing_path,
     )
     db.add(mr)
@@ -238,6 +238,28 @@ class TestGetMatchingDetail:
         names = {item["field_name"] for item in body["items"]}
         assert names == {"업력", "지역", "매출"}
 
+    def test_detail_returns_evidence_location(self, client, db_session):
+        """evidence JSONB의 location이 응답에 그대로 노출 (PDF 점프용)."""
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        mr = MatchResult(
+            announcement_id=ann.id,
+            company_id=company.id,
+            field_name="업력",
+            status="충족",
+            evidence={"text": "창업 3년 미만", "location": {"location_type": "pdf_page", "page": 2}},
+            processing_path="text_llm",
+        )
+        db_session.add(mr)
+        db_session.commit()
+
+        res = client.get(f"/api/matching/{company.id}/{ann.id}")
+        assert res.status_code == 200
+        item = res.json()["items"][0]
+        assert item["evidence"]["text"] == "창업 3년 미만"
+        assert item["evidence"]["location"]["location_type"] == "pdf_page"
+        assert item["evidence"]["location"]["page"] == 2
+
 
 # ---------------------------------------------------------------------------
 # POST /api/matching/{company_id}/run
@@ -337,3 +359,120 @@ class TestSimulateMatching:
             json={"announcement_id": str(ann.id), "overrides": {"unknown": 1}},
         )
         assert res.status_code == 422  # SimulateOverrides extra="forbid"
+
+
+# ---------------------------------------------------------------------------
+# POST /api/matching/{company_id}/counterfactual  (반사실 분석)
+# ---------------------------------------------------------------------------
+
+class TestCounterfactualMatching:
+
+    def test_company_not_found_404(self, client, db_session):
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{uuid.uuid4()}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 404
+
+    def test_no_eligibility_achievable(self, client, db_session):
+        company = _make_company(db_session)
+        ann = _make_announcement(db_session)
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["unmet"] == []
+        assert data["achievable"] is True
+
+    def test_unmet_revenue_below_suggests_grow(self, client, db_session):
+        # 회사 매출 5천만, 조건 "1억 이상"(하한) → 미충족. 반사실: 매출 키우면 충족
+        company = _make_company(db_session, revenue=50_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이상", value=100_000_000, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["unmet"]) == 1
+        item = data["unmet"][0]
+        assert item["field_name"] == "매출"
+        assert item["changeable"] is True
+        assert data["achievable"] is True
+
+    def test_revenue_over_cap_unchangeable(self, client, db_session):
+        # 회사 매출 5억, 조건 "1억 이하"(상한) → 미충족(초과). 축소 비현실 → changeable=False
+        company = _make_company(db_session, revenue=500_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이하", value=100_000_000, operator="이하")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert data["unmet"][0]["field_name"] == "매출"
+        assert data["unmet"][0]["changeable"] is False
+        assert data["achievable"] is False
+        assert data["note"] is not None
+
+    def test_already_met_no_unmet(self, client, db_session):
+        # 회사 매출 5천만, 조건 "1억 이하" → 이미 충족
+        company = _make_company(db_session, revenue=50_000_000)
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이하", value=100_000_000, operator="이하")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert data["unmet"] == []
+        assert data["achievable"] is True
+
+    def test_unchangeable_age_blocks_achievable(self, client, db_session):
+        # 업력 5년 이상 조건, 회사 업력 ~3년 → 미충족 + 시간 기반이라 changeable=False
+        company = _make_company(db_session, founded_date=date(2023, 1, 1))
+        ann = _make_announcement(db_session)
+        _make_eligibility(db_session, ann.id, field_name="업력",
+                          condition_value="5년 이상", value=5, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        data = res.json()
+        assert len(data["unmet"]) == 1
+        assert data["unmet"][0]["field_name"] == "업력"
+        assert data["unmet"][0]["changeable"] is False
+        assert data["achievable"] is False
+        assert data["note"] is not None
+
+    def test_unmet_sorted_by_sensitivity_changeable_first(self, client, db_session):
+        # 변경 가능(종업원 far > 매출 near)을 먼저, 변경 불가(업력)는 sensitivity 높아도 뒤로
+        company = _make_company(
+            db_session, revenue=90_000_000, employee_count=10,
+            founded_date=date(2023, 1, 1),
+        )
+        ann = _make_announcement(db_session)
+        # 종업원: 한참 미달(eff≈0) → changeable, sensitivity 최대
+        _make_eligibility(db_session, ann.id, field_name="종업원 수",
+                          condition_value="1000명 이상", value=1000, operator="이상")
+        # 매출: 9천만 vs 1억(근소 미달, eff>0) → changeable, sensitivity 더 낮음
+        _make_eligibility(db_session, ann.id, field_name="매출",
+                          condition_value="1억 이상", value=100_000_000, operator="이상")
+        # 업력: ~3년 vs 10년 → 미충족이지만 시간 기반 changeable=False
+        _make_eligibility(db_session, ann.id, field_name="업력",
+                          condition_value="10년 이상", value=10, operator="이상")
+        res = client.post(
+            f"/api/matching/{company.id}/counterfactual",
+            json={"announcement_id": str(ann.id)},
+        )
+        assert res.status_code == 200
+        order = [it["field_name"] for it in res.json()["unmet"]]
+        # changeable(종업원 > 매출) 먼저, changeable=False(업력) 마지막
+        assert order == ["종업원 수", "매출", "업력"]

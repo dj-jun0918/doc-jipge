@@ -52,9 +52,10 @@ def bootstrap_ci(
     n = len(items)
     indices = np.arange(n)
     
-    # 빠른 통계 처리를 위한 난수 리샘플링 인덱스 루프
+    # 빠른 통계 처리를 위한 난수 리샘플링 인덱스 루프 (재현성을 위해 시드 고정)
+    rng = np.random.default_rng(seed=42)
     for _ in range(n_iter):
-        resampled_indices = np.random.choice(indices, size=n, replace=True)
+        resampled_indices = rng.choice(indices, size=n, replace=True)
         resampled_items = [items[idx] for idx in resampled_indices]
         samples.append(metric_fn(resampled_items))
         

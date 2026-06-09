@@ -288,13 +288,50 @@ def match_fields(
 
         # 2-2. 일반 필드 조건 매칭
         for gt_item in gts:
-            gt_cond_norm = _normalize(gt_item["condition"])
+            gt_val = gt_item.get("value")
+            gt_op = gt_item.get("operator")
             matched_pred = None
 
             # 일치하는 예측 조건 탐색
             for pred_item in preds:
-                pred_cond_norm = _normalize(pred_item.condition.raw_text)
-                if gt_cond_norm == pred_cond_norm:
+                pred_val = None
+                pred_op = None
+                has_parsed = False
+
+                if hasattr(pred_item, "condition_parsed") and pred_item.condition_parsed:
+                    pred_val = pred_item.condition_parsed.get("value")
+                    pred_op = pred_item.condition_parsed.get("operator")
+                    has_parsed = True
+                elif hasattr(pred_item, "condition") and hasattr(pred_item.condition, "value"):
+                    pred_val = pred_item.condition.value
+                    pred_op = pred_item.condition.operator
+                    has_parsed = True
+
+                if has_parsed:
+                    # list 비교 (지역, 업종 등)
+                    if isinstance(gt_val, list) or isinstance(pred_val, list):
+                        gt_set = set(gt_val) if isinstance(gt_val, list) else ({gt_val} if gt_val else set())
+                        pred_set = set(pred_val) if isinstance(pred_val, list) else ({pred_val} if pred_val else set())
+                        val_match = (gt_set == pred_set)
+                    # dict 비교 (범위 등)
+                    elif isinstance(gt_val, dict) and isinstance(pred_val, dict):
+                        val_match = (gt_val == pred_val)
+                    # 단일 값 비교
+                    else:
+                        val_match = (gt_val == pred_val)
+
+                    op_match = (gt_op == pred_op)
+                    val_op_match = val_match and op_match
+                else:
+                    # condition_parsed 정보가 아예 없는 경우 문자열 일치로 fallback
+                    pred_raw = ""
+                    if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
+                        pred_raw = pred_item.condition.raw_text
+                    gt_cond_norm = _normalize(gt_item["condition"])
+                    pred_cond_norm = _normalize(pred_raw)
+                    val_op_match = (gt_cond_norm == pred_cond_norm)
+
+                if val_op_match:
                     matched_pred = pred_item
                     break
 
@@ -314,18 +351,30 @@ def match_fields(
                 })
                 if preds:
                     mismatched_pred = preds.pop(0)
+                    pred_raw = ""
+                    if hasattr(mismatched_pred, "condition") and hasattr(mismatched_pred.condition, "raw_text"):
+                        pred_raw = mismatched_pred.condition.raw_text
+                    elif hasattr(mismatched_pred, "condition_parsed") and mismatched_pred.condition_parsed:
+                        pred_raw = mismatched_pred.condition_parsed.get("raw_text", "")
+                    
                     fps.append({
                         "field_name": field,
-                        "condition": mismatched_pred.condition.raw_text,
+                        "condition": pred_raw,
                         "evidence": mismatched_pred.evidence,
                         "processing_path": mismatched_pred.processing_path,
                         "mismatch_target": gt_item["condition"]
                     })
 
         for left_pred in preds:
+            pred_raw = ""
+            if hasattr(left_pred, "condition") and hasattr(left_pred.condition, "raw_text"):
+                pred_raw = left_pred.condition.raw_text
+            elif hasattr(left_pred, "condition_parsed") and left_pred.condition_parsed:
+                pred_raw = left_pred.condition_parsed.get("raw_text", "")
+
             fps.append({
                 "field_name": field,
-                "condition": left_pred.condition.raw_text,
+                "condition": pred_raw,
                 "evidence": left_pred.evidence,
                 "processing_path": left_pred.processing_path
             })
@@ -363,10 +412,19 @@ def aggregate_metrics(
     mismatches = []
     sparse_announcements = []
 
+    non_standard_ann_count = 0
+    total_evaluated_count = 0
+
     for gt in gt_list:
         ann_id = gt["announcement_id"]
         if ann_id not in predictions:
             continue
+        total_evaluated_count += 1
+
+        # 표준 7종 외의 비표준 필드가 1개라도 있는 공고인지 체크
+        has_non_standard = any(f.get("field_name") not in STANDARD_FIELDS for f in gt.get("fields", []))
+        if has_non_standard:
+            non_standard_ann_count += 1
 
         pred = predictions[ann_id]
         tps, fps, fns = match_fields(ann_id, gt["fields"], pred.fields)
@@ -491,7 +549,12 @@ def aggregate_metrics(
         "processing_paths": path_final,
         "mismatches": mismatches,
         "sparse_announcements": sparse_announcements,
-        "total_cost_usd": total_cost_usd
+        "total_cost_usd": total_cost_usd,
+        "coverage": {
+            "non_standard_announcement_count": non_standard_ann_count,
+            "total_announcement_count": total_evaluated_count,
+            "non_standard_ratio": non_standard_ann_count / total_evaluated_count if total_evaluated_count > 0 else 0.0
+        }
     }
 
 
@@ -500,17 +563,25 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     overall_gen = results_general["overall"]
     overall_adv = results_adv["overall"]
     
+    # 커버리지 계산
+    cov_gen = results_general.get("coverage", {})
+    cov_adv = results_adv.get("coverage", {})
+    gen_ratio = cov_gen.get("non_standard_ratio", 0.0) * 100
+    adv_ratio = cov_adv.get("non_standard_ratio", 0.0) * 100
+
     md = [
         "# [PR#5] 자격요건 추출기 E2E 평가 & 적대적(Adversarial) 강건성 종합 보고서",
         "",
         "본 보고서는 Ground Truth(50건)와 적대적(Adversarial) 케이스(10건)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다.",
         "",
-        "## 1. 종합 성능 비교 (General vs Adversarial)",
+        "## 1. 표준 7종 추출 P/R 종합 성능 비교 (General vs Adversarial)",
         "",
         "| 구분 (Dataset) | 평가 건수 | TP | FP | FN | Precision | Recall | F1-Score | 누적 비용 |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         f"| **일반 GT (50건)** | {len(results_general['announcements'])}건 | {overall_gen['tp']} | {overall_gen['fp']} | {overall_gen['fn']} | `{overall_gen['precision']:.4f}` | `{overall_gen['recall']:.4f}` | **`{overall_gen['f1']:.4f}`** | ${results_general['total_cost_usd']:.2f} |",
         f"| **적대적 케이스 (10건)** | {len(results_adv['announcements'])}건 | {overall_adv['tp']} | {overall_adv['fp']} | {overall_adv['fn']} | `{overall_adv['precision']:.4f}` | `{overall_adv['recall']:.4f}` | **`{overall_adv['f1']:.4f}`** | ${results_adv['total_cost_usd']:.2f} |",
+        "",
+        f"- **표준 7종 외 조건 보유 공고 비율 (미지원)**: 일반 GT `{gen_ratio:.1f}%`, 적대적 케이스 `{adv_ratio:.1f}%`",
         "",
         "---",
         "",
