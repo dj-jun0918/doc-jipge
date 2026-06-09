@@ -2,7 +2,14 @@
 
 import os
 import json
+import sys
 from pathlib import Path
+
+# Add repository root to sys.path to allow importing from the evaluation module
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.append(str(REPO_ROOT))
+
 from fastapi import APIRouter
 from app.schemas.evaluation import (
     EvaluationMetricsResponse,
@@ -16,8 +23,8 @@ from evaluation.bootstrap import calculate_metrics_ci
 
 router = APIRouter()
 
-RESULTS_DIR = Path("/Users/limtae-kyu/doc-jipge/evaluation/results")
-GT_DIR = Path("/Users/limtae-kyu/doc-jipge/evaluation/ground_truth")
+RESULTS_DIR = REPO_ROOT / "evaluation" / "results"
+GT_DIR = REPO_ROOT / "evaluation" / "ground_truth"
 
 
 def _load_json_data(filename: str) -> dict:
@@ -178,8 +185,8 @@ def get_ablation_results() -> dict:
 def get_iaa_results() -> dict:
     """라벨러 합의도 (IAA - Cohen's κ) 조회 API."""
     # 방정우 님과 임태규 님의 라벨 디렉토리 설정
-    dir_a = Path("/Users/limtae-kyu/doc-jipge/evaluation/cross_labels/eisenberg")
-    dir_b = Path("/Users/limtae-kyu/doc-jipge/evaluation/cross_labels/bangjeongwoo")
+    dir_a = REPO_ROOT / "evaluation" / "cross_labels" / "eisenberg"
+    dir_b = REPO_ROOT / "evaluation" / "cross_labels" / "bangjeongwoo"
     
     if dir_a.exists() and dir_b.exists():
         labels_a = load_labels_from_dir(str(dir_a))
@@ -203,19 +210,11 @@ def get_iaa_results() -> dict:
                 "by_field": by_field_scores,
                 "evaluated_count": res["evaluated_count"]
             }
-            
-    # Fallback Mock 데이터
+    # cross_labels 데이터가 존재하지 않을 경우 빈 값 반환
     return {
-        "overall_kappa": 0.765,
-        "by_field": [
-            {"field_name": "age", "kappa": 0.842, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "location", "kappa": 0.889, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "company_scale", "kappa": 0.723, "agreement_level": "상당한 합의 (Substantial)"},
-            {"field_name": "is_small_business", "kappa": 0.910, "agreement_level": "거의 완전한 합의 (Almost Perfect)"},
-            {"field_name": "constraint", "kappa": 0.584, "agreement_level": "보통 수준의 합의 (Moderate)"},
-            {"field_name": "certification", "kappa": 0.645, "agreement_level": "상당한 합의 (Substantial)"}
-        ],
-        "evaluated_count": 10
+        "overall_kappa": 0.0,
+        "by_field": [],
+        "evaluated_count": 0
     }
 
 

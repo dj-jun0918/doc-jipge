@@ -1,8 +1,17 @@
 "use client";
 
+interface EvidenceLocation {
+  location_type: "pdf_page" | "hwpx_table" | "hwpx_paragraph" | "raw_text";
+  page?: number;
+  bbox?: [number, number, number, number];
+  table_index?: number;
+  row?: number;
+}
+
 interface EvidenceSource {
   page?: number;
   text?: string;
+  location?: EvidenceLocation | null;
 }
 
 export interface MatchField {
@@ -12,15 +21,18 @@ export interface MatchField {
   current_value: string;
   reason: string;
   evidence_source?: EvidenceSource | null;
+  score?: number | null;
+  distance?: number | null;
+  constraint_type?: "hard" | "soft" | null;
 }
 
 interface MatchResultCardProps {
   field: MatchField;
-  onEvidenceClick: (page: number, text: string) => void;
+  onEvidenceClick: (page: number, text: string, location?: EvidenceLocation | null) => void;
 }
 
 export default function MatchResultCard({ field, onEvidenceClick }: MatchResultCardProps) {
-  const { field_name, status, criterion, current_value, reason, evidence_source } = field;
+  const { field_name, status, criterion, current_value, reason, evidence_source, score, distance, constraint_type } = field;
 
   // 상태별 다이내믹 컬러/뱃지 스타일 맵
   const statusStyles = {
@@ -47,8 +59,12 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
   const currentStyle = statusStyles[status] || statusStyles["확인필요"];
 
   const handleEvidenceClick = () => {
-    if (evidence_source && evidence_source.page) {
-      onEvidenceClick(evidence_source.page, evidence_source.text || "");
+    if (evidence_source) {
+      onEvidenceClick(
+        evidence_source.page || 1,
+        evidence_source.text || "",
+        evidence_source.location || null
+      );
     }
   };
 
@@ -66,10 +82,23 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
           <p className="text-xs text-gray-400 mt-0.5">자격 평가 기준 항목</p>
         </div>
 
-        {/* 상태 뱃지 */}
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${currentStyle.badge}`}>
-          {status}
-        </span>
+        {/* 상태 뱃지 및 점수/우대조건 */}
+        <div className="flex items-center flex-wrap gap-2 flex-shrink-0">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${currentStyle.badge}`}>
+            {status}
+          </span>
+          {score !== undefined && score !== null && (
+            <span className="text-xs text-gray-500 ml-2">
+              score: {score.toFixed(2)}
+              {distance !== undefined && distance !== null && ` (-${distance.toFixed(2)})`}
+            </span>
+          )}
+          {constraint_type === "soft" && (
+            <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-medium">
+              soft
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 요건 정보 스펙 */}
@@ -93,7 +122,7 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
       {/* 하단 제어부 (원문 근거 및 수동 판정 액션) */}
       <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
         {/* 원문 근거 점프 버튼 */}
-        {evidence_source && evidence_source.page ? (
+        {evidence_source ? (
           <button
             onClick={handleEvidenceClick}
             className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg transition font-semibold cursor-pointer"
@@ -101,7 +130,16 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            PDF 원문 근거 보기 (p. {evidence_source.page})
+            {(() => {
+              const loc = evidence_source.location;
+              if (loc?.location_type === "hwpx_table") {
+                return `HWPX 테이블 근거 보기 (Table ${(loc.table_index !== undefined ? loc.table_index : 0) + 1}${loc.row ? `, ${loc.row}행` : ""})`;
+              }
+              if (loc?.location_type === "pdf_page" || evidence_source.page) {
+                return `PDF 원문 근거 보기 (p. ${evidence_source.page || loc?.page || 1})`;
+              }
+              return "원문 근거 텍스트 보기";
+            })()}
           </button>
         ) : (
           <span className="text-[11px] text-gray-400">원문 근거 정보가 존재하지 않습니다.</span>
