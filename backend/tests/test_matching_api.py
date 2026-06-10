@@ -255,10 +255,13 @@ class TestGetMatchingDetail:
 
         res = client.get(f"/api/matching/{company.id}/{ann.id}")
         assert res.status_code == 200
-        item = res.json()["items"][0]
+        body = res.json()
+        item = body["items"][0]
         assert item["evidence"]["text"] == "창업 3년 미만"
         assert item["evidence"]["location"]["location_type"] == "pdf_page"
         assert item["evidence"]["location"]["page"] == 2
+        # 공고 단위 총점 — 충족 1건뿐이므로 1.0 (매칭 목록과 동일 공식)
+        assert body["match_score"] == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +321,7 @@ class TestSimulateMatching:
         data = res.json()
         assert data["items"] == []
         assert data["simulated"] is True
+        assert data["match_score"] is None  # 추출 조건 없으면 총점도 없음
 
     def test_override_changes_status(self, client, db_session):
         # 회사 매출 5억, 조건 "1억 이하" → 미충족. override 5천만 → 충족
@@ -338,6 +342,9 @@ class TestSimulateMatching:
         ).json()
         assert sim["items"][0]["status"] == "충족"
         assert sim["simulated"] is True
+        # What-if 종합 점수 — override로 충족 전환 시 총점 상승 (충족 1건뿐이므로 1.0)
+        assert sim["match_score"] == 1.0
+        assert base["match_score"] < sim["match_score"]
 
     def test_simulate_does_not_persist(self, client, db_session):
         company = _make_company(db_session, revenue=500_000_000)

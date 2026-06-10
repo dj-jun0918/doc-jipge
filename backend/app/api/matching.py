@@ -195,6 +195,9 @@ def get_matching_detail(
         announcement_id=ann_uuid,
         items=items,
         stats=stats,
+        match_score=round(
+            compute_aggregate_score([(r.field_name, r.status, r.score) for r in rows]), 3
+        ),
         matched_at=rows[-1].created_at,
     )
 
@@ -299,6 +302,9 @@ def simulate_matching(
         announcement_id=req.announcement_id,
         items=items,
         stats=stats,
+        match_score=round(
+            compute_aggregate_score([(r.field_name, r.status, r.score) for r in results]), 3
+        ),
         matched_at=None,  # 시뮬레이션은 저장 X
     )
 
