@@ -44,6 +44,7 @@ class MatchResultDetailResponse(BaseModel):
     announcement_id: uuid.UUID
     items: list[MatchResultItem]
     stats: MatchResultStats
+    match_score: float | None = None  # 공고 단위 총점 (0~1) — 매칭 목록과 동일 공식
     matched_at: datetime | None = None
 
 

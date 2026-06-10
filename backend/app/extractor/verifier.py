@@ -1,6 +1,6 @@
 """LLM 응답 검증 레이어.
 
-LLM 출력의 필드 완전성/일관성 검사 + 중복 필드 병합.
+LLM 출력의 필드 완전성/일관성 검사 + 중복 필드 병합 + 인증 표준 키 정규화.
 """
 
 import logging
@@ -10,9 +10,43 @@ from app.extractor.llm_response_parser import (
     ExtractionResult,
     parse_condition_string,
 )
+# 인증 매핑표의 단일 소스 — matcher와 동일 표 사용 (가이드라인 매핑표와 동기화)
+from app.matcher.cert_mapping import CERT_MAPPING, extract_cert_keys
 from app.schemas.eligibility import EligibilityField
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_cert_value(field: EligibilityField) -> None:
+    """인증 field의 value를 표준 키로 정규화 (in-place).
+
+    LLM이 value에 원문 표현('벤처기업 보유')을 그대로 내면 회사 certifications의
+    표준 키(venture_company 등)와 영원히 불일치한다 → 원문 키워드에서 표준 키 추출.
+    이미 표준 키(또는 키 목록)면 그대로 둔다. 매핑에 없는 인증은 원문 유지.
+    """
+    cond = field.condition
+    val = cond.value
+
+    if isinstance(val, str) and val in CERT_MAPPING:
+        return
+    if isinstance(val, list) and val and all(
+        isinstance(v, str) and v in CERT_MAPPING for v in val
+    ):
+        return
+
+    parts: list[str] = []
+    if isinstance(val, str):
+        parts.append(val)
+    elif isinstance(val, list):
+        parts.extend(str(v) for v in val)
+    parts.append(cond.raw_text or "")
+    evidence = field.evidence
+    evidence_text = evidence if isinstance(evidence, str) else getattr(evidence, "text", "") or ""
+    parts.append(evidence_text)
+
+    keys = extract_cert_keys(" ".join(parts))
+    if keys:
+        cond.value = keys[0] if len(keys) == 1 else keys
 
 
 def verify(result: ExtractionResult) -> ExtractionResult:
@@ -20,6 +54,7 @@ def verify(result: ExtractionResult) -> ExtractionResult:
 
     - operator/value 누락 시 raw_text로 폴백 파싱 시도
     - VALID_FIELD_NAMES에 없는 필드 제거
+    - 인증 field value를 표준 키로 정규화
     - 중복 필드 병합
     """
     verified_fields: list[EligibilityField] = []
@@ -33,6 +68,9 @@ def verify(result: ExtractionResult) -> ExtractionResult:
             parsed = parse_condition_string(cond.raw_text)
             if parsed.operator is not None and parsed.value is not None:
                 field.condition = parsed
+
+        if field.field_name == "인증":
+            normalize_cert_value(field)
 
         verified_fields.append(field)
 
