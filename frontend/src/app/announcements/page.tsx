@@ -13,9 +13,16 @@ interface Announcement {
   source?: string;
   region?: string;
   organization?: string;
-  start_date?: string;
-  end_date?: string;
+  period_start?: string;
+  period_end?: string;
 }
+
+// source 코드 → 화면 표시명 (SearchFilter 드롭다운과 동일 표기)
+const SOURCE_LABELS: Record<string, string> = {
+  bizinfo: "기업마당",
+  kstartup: "K-Startup",
+  mss: "중소벤처기업부",
+};
 
 interface AnnouncementResponse {
   items: Announcement[];
@@ -66,7 +73,6 @@ export default function AnnouncementsPage() {
       setData({
         ...result,
         items: filteredItems,
-        total: filteredItems.length,
       });
     } catch (err) {
       console.error("Error fetching announcements:", err);
@@ -139,20 +145,6 @@ export default function AnnouncementsPage() {
           onReset={handleReset}
         />
 
-        {/* D-day 배지 테스트용 코드 */}
-        <div className="mb-6 rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          D-day 배지 테스트
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          <DdayBadge endDate="2026-05-05" />
-          <DdayBadge endDate="2026-04-30" />
-          <DdayBadge endDate="2026-04-28" />
-          <DdayBadge endDate="2026-04-27" />
-          <DdayBadge endDate="2026-04-25" />
-        </div>
-      </div>
-
         {(!data || data.items.length === 0) ? (
           <div className="rounded-xl border bg-white p-6 text-gray-600 shadow-sm">
             현재 등록된 공고가 없습니다.
@@ -185,17 +177,17 @@ export default function AnnouncementsPage() {
                     </h2>
                     <div className="flex items-center gap-2">
                       <BookmarkButton id={item.id} size={20} />
-                      <DdayBadge endDate={item.end_date} />
+                      <DdayBadge endDate={item.period_end} />
                     </div>
                   </div>
 
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p>출처: {item.source ?? "-"}</p>
+                    <p>출처: {item.source ? (SOURCE_LABELS[item.source] ?? item.source) : "-"}</p>
                     <p>지역: {item.region ?? "-"}</p>
                     {item.organization && <p>기관: {item.organization}</p>}
-                    {item.start_date && item.end_date && (
+                    {item.period_start && item.period_end && (
                       <p>
-                        접수기간: {item.start_date} ~ {item.end_date}
+                        접수기간: {item.period_start} ~ {item.period_end}
                       </p>
                     )}
                   </div>
