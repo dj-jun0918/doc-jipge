@@ -172,12 +172,25 @@ async def run_predictions(gt_list: List[Dict[str, Any]]) -> Dict[str, Announceme
             pdf_files = list(ann_dir.glob("*.pdf"))
             if pdf_files:
                 pdf_path = str(pdf_files[0])
-                logger.info(f"[{ann_id}] DB 미검색 -> 로컬 PDF Fallback 활성화: {pdf_path}")
+                # PDF 본문 텍스트 추출 (운영 파이프라인의 target_text에 해당).
+                # 텍스트가 있으면 규칙/텍스트 LLM 경로 동작, 없으면(스캔본) 기존처럼 Vision 경로.
+                pdf_text = ""
+                try:
+                    import fitz
+                    _doc = fitz.open(pdf_path)
+                    pdf_text = "\n".join(pg.get_text() for pg in _doc)
+                    _doc.close()
+                except Exception as _e:
+                    logger.warning(f"[{ann_id}] PDF 텍스트 추출 실패: {_e}")
+                logger.info(
+                    f"[{ann_id}] DB 미검색 -> 로컬 PDF Fallback 활성화: {pdf_path} "
+                    f"(text_len={len(pdf_text)})"
+                )
                 ann_dict = {
                     "id": ann_id,
                     "source_id": ann_id,
                     "title": title,
-                    "target_text": "",
+                    "target_text": pdf_text,
                     "exclusion_text": "",
                     "attachments": [
                         {
@@ -203,6 +216,19 @@ async def run_predictions(gt_list: List[Dict[str, Any]]) -> Dict[str, Announceme
         db.close()
 
     return predictions
+
+
+def _norm_value(v: Any) -> Any:
+    """값 비교용 정규화: 한글 NFC + 앞뒤 공백 제거 + 소문자. dict/list는 해시 가능한 문자열로.
+
+    '대구'(NFC) vs '대구'(NFD)처럼 눈엔 같아도 바이트가 다른 경우의 오매칭 방지.
+    dict(범위값 등)를 set에 넣을 때의 unhashable 오류도 방지.
+    """
+    if isinstance(v, str):
+        return unicodedata.normalize("NFC", v).strip().lower()
+    if isinstance(v, (dict, list)):
+        return json.dumps(v, ensure_ascii=False, sort_keys=True)
+    return v
 
 
 def match_fields(
@@ -243,7 +269,7 @@ def match_fields(
                 matched_pred = None
                 
                 # 리스트 또는 단일 문자열 집합으로 비교
-                gt_keys = set(gt_val) if isinstance(gt_val, list) else ({gt_val} if gt_val else set())
+                gt_keys = {_norm_value(x) for x in gt_val} if isinstance(gt_val, list) else ({_norm_value(gt_val)} if gt_val else set())
                 
                 for pred_item in preds:
                     pred_val = None
@@ -252,7 +278,7 @@ def match_fields(
                     elif hasattr(pred_item, "condition") and hasattr(pred_item.condition, "value"):
                         pred_val = pred_item.condition.value
 
-                    pred_keys = set(pred_val) if isinstance(pred_val, list) else ({pred_val} if pred_val else set())
+                    pred_keys = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
                     
                     if gt_keys == pred_keys and len(gt_keys) > 0:
                         matched_pred = pred_item
@@ -313,20 +339,24 @@ def match_fields(
                     has_parsed = True
 
                 if has_parsed:
-                    # list 비교 (지역, 업종 등)
+                    # list 비교 (지역, 업종 등) — NFC 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
-                        gt_set = set(gt_val) if isinstance(gt_val, list) else ({gt_val} if gt_val else set())
-                        pred_set = set(pred_val) if isinstance(pred_val, list) else ({pred_val} if pred_val else set())
-                        val_match = (gt_set == pred_set)
+                        gt_set = {_norm_value(x) for x in gt_val} if isinstance(gt_val, list) else ({_norm_value(gt_val)} if gt_val else set())
+                        pred_set = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
+                        val_match = bool(gt_set) and (gt_set == pred_set)
                     # dict 비교 (범위 등)
                     elif isinstance(gt_val, dict) and isinstance(pred_val, dict):
                         val_match = (gt_val == pred_val)
-                    # 단일 값 비교
+                    # 단일 값 비교 (NFC 정규화)
                     else:
-                        val_match = (gt_val == pred_val)
+                        val_match = (_norm_value(gt_val) == _norm_value(pred_val))
 
-                    op_match = (gt_op == pred_op)
-                    val_op_match = val_match and op_match
+                    # 범주형 필드(지역/업종)는 operator가 필드 종류로 고정(소재/포함)이라 변별력이 없음
+                    # → value만으로 매칭. 수치형(업력/매출/나이/종업원 수)은 operator(미만/이상 등)도 일치해야 함.
+                    if field in ("지역", "업종"):
+                        val_op_match = val_match
+                    else:
+                        val_op_match = val_match and (gt_op == pred_op)
                 else:
                     # condition_parsed 정보가 아예 없는 경우 문자열 일치로 fallback
                     pred_raw = ""
@@ -646,9 +676,25 @@ async def main():
     adv_list = load_adversarial_labels()
     logger.info(f"적대적 케이스 로드 완료: {len(adv_list)}건")
 
-    # 3. 예측 실행
-    predictions_gt = await run_predictions(gt_list)
-    predictions_adv = await run_predictions(adv_list)
+    # 3. 예측 실행 (예측 캐시가 있으면 재추출 생략 — 채점 로직만 반복 검증할 때 LLM 비용 0)
+    import pickle
+    cache_dir = Path(project_root) / "evaluation" / "results"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    gt_cache = cache_dir / "_pred_gt.pkl"
+    adv_cache = cache_dir / "_pred_adv.pkl"
+    if gt_cache.exists() and adv_cache.exists():
+        logger.info("예측 캐시 로드 (재추출/LLM 호출 생략)")
+        with open(gt_cache, "rb") as f:
+            predictions_gt = pickle.load(f)
+        with open(adv_cache, "rb") as f:
+            predictions_adv = pickle.load(f)
+    else:
+        predictions_gt = await run_predictions(gt_list)
+        predictions_adv = await run_predictions(adv_list)
+        with open(gt_cache, "wb") as f:
+            pickle.dump(predictions_gt, f)
+        with open(adv_cache, "wb") as f:
+            pickle.dump(predictions_adv, f)
 
     # 4. 메트릭 계산 및 집계
     results_gt = aggregate_metrics(gt_list, predictions_gt)
@@ -666,6 +712,9 @@ async def main():
         def default(self, obj):
             if isinstance(obj, set):
                 return list(obj)
+            # Evidence 등 pydantic 객체 직렬화 (PR#36 evidence 객체화 대응)
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
             return super().default(obj)
 
     with open(gt_json_path, "w", encoding="utf-8") as f:
