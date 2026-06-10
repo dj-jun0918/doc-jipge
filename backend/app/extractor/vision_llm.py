@@ -57,7 +57,9 @@ VISION_PROMPT = """이 이미지는 정부지원사업 공고문의 일부입니
 2. "3년 미만"과 "3년 이하"는 다릅니다 — 원문 그대로
 3. evidence는 원문 그대로 복사 (요약/패러프레이징 금지)
 4. operator: 미만 | 이하 | 이상 | 초과 | 범위 | 소재 | 무관 | 포함 | 제외 | 보유 | 미보유
-5. 반드시 유효한 JSON만 응답하세요"""
+5. **신청 자격요건만** 추출하세요. 지원내용, 지원금액, 지원규모, 보조율, 자부담률, 심사기준, 가점, 우대사항, 추진일정은 자격요건이 아니므로 추출 금지
+6. 이미지에 해당 필드의 명시적 제한이 없으면 그 필드를 출력하지 마세요. 제한이 없다는 이유로 operator "무관"을 만들어내지 마세요
+7. 반드시 유효한 JSON만 응답하세요"""
 
 
 def pdf_to_images(pdf_path: str | Path, dpi: int = 150) -> list[bytes]:
@@ -209,7 +211,17 @@ async def extract_from_pdf(
             error=f"JSON 파싱 실패: {e}",
         )
 
-    return build_extraction_result(llm_json, processing_path="vision_llm")
+    # PDF 텍스트 레이어가 충분하면 evidence 원문 검증에 사용 (스캔본은 검증 기준이 없어 생략)
+    source_text = None
+    try:
+        with pymupdf.open(pdf_path) as doc:
+            text_layer = "\n".join(page.get_text() for page in doc)
+        if len(text_layer.strip()) >= 200:
+            source_text = text_layer
+    except Exception as e:
+        logger.warning(f"vision_llm 텍스트 레이어 추출 실패 — evidence 검증 생략: {e}")
+
+    return build_extraction_result(llm_json, processing_path="vision_llm", source_text=source_text)
 
 
 if __name__ == "__main__":

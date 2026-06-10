@@ -5,6 +5,7 @@ LLM이 반환한 JSON을 내부 Pydantic 모델로 변환 + 조건 문자열 폴
 
 import logging
 import re
+import unicodedata
 from typing import Literal
 
 from pydantic import BaseModel
@@ -26,8 +27,21 @@ class ExtractionResult(BaseModel):
 VALID_FIELD_NAMES = {"업력", "매출", "지역", "나이", "종업원 수", "업종", "인증"}
 
 
+# PDF 텍스트 추출/LLM 응답 간 문장부호 변형 통일 (curly quote, 가운뎃점, 대시)
+_PUNCT_VARIANTS = str.maketrans({
+    "“": '"', "”": '"', "‘": "'", "’": "'",
+    "·": ",", "ㆍ": ",", "∙": ",", "•": ",",
+    "–": "-", "—": "-", "―": "-",
+})
+
+
 def _normalize_for_match(s: str) -> str:
-    """모든 공백(스페이스/탭/줄바꿈) 제거. 표 셀 파이프 주변 공백 차이까지 흡수."""
+    """NFKC 정규화 + 문장부호 변형 통일 + 모든 공백 제거.
+
+    표 셀 파이프 주변 공백, PDF 추출 시 문자 변형(전각/curly quote/가운뎃점) 차이까지 흡수.
+    """
+    s = unicodedata.normalize("NFKC", s)
+    s = s.translate(_PUNCT_VARIANTS)
     return re.sub(r"\s+", "", s)
 
 
