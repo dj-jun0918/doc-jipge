@@ -50,7 +50,7 @@ def build_extraction_result(
     """LLM JSON 응답을 ExtractionResult로 변환.
 
     source_text가 주어지면 각 evidence가 원문에 그대로 있는지 검증 (text_llm 경로).
-    환각 evidence는 필드를 유지하되 경고 로그만 남김 (condition/value가 매칭의 핵심).
+    근거를 원문에서 검증하지 못한 필드(환각)는 제외한다 — 검증 가능한 추출만 신뢰.
     """
     fields: list[EligibilityField] = []
 
@@ -69,10 +69,12 @@ def build_extraction_result(
                 raw_text=f.get("condition") or "",
             )
             evidence_text = f.get("evidence") or ""
+            # 근거를 원문에서 검증 못 하면 단언하지 않고 제외 (환각 방어 — 검증 가능한 추출만 신뢰).
             if source_text is not None and not is_evidence_verbatim(evidence_text, source_text):
                 logger.warning(
-                    f"evidence가 원문에 없음 (환각 가능): field={field_name}, evidence={evidence_text[:80]!r}"
+                    f"evidence가 원문에 없음 (환각으로 판단해 필드 제외): field={field_name}, evidence={evidence_text[:80]!r}"
                 )
+                continue
             fields.append(EligibilityField(
                 field_name=field_name,
                 condition=condition,

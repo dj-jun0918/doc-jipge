@@ -96,8 +96,8 @@ class TestBuildExtractionResult:
         result = build_extraction_result(llm_json)
         assert result.fields[0].condition.raw_text == "3년 미만"
 
-    def test_source_text_검증_환각_evidence도_필드_유지(self):
-        """evidence가 원문에 없어도 필드는 유지 (condition/value가 매칭의 핵심)."""
+    def test_source_text_검증_환각_evidence는_필드_제외(self):
+        """evidence가 원문에 없으면(환각) 해당 필드를 제외 — 검증 가능한 추출만 신뢰."""
         llm_json = {
             "fields": [
                 {"field_name": "업력", "condition": "3년 미만", "operator": "미만", "value": 3,
@@ -106,8 +106,7 @@ class TestBuildExtractionResult:
             "exclusions": [],
         }
         result = build_extraction_result(llm_json, source_text="창업 후 3년 미만 중소기업")
-        assert len(result.fields) == 1
-        assert result.fields[0].condition.value == 3
+        assert len(result.fields) == 0
 
     def test_source_text_없으면_검증_스킵(self):
         """source_text=None이면 evidence 검증 안 함 (기존 동작)."""
@@ -133,7 +132,7 @@ class TestBuildExtractionResult:
         }
         with caplog.at_level(logging.WARNING):
             build_extraction_result(llm_json, source_text="창업 후 3년 미만 중소기업")
-        assert any("환각 가능" in r.message for r in caplog.records)
+        assert any("환각" in r.message for r in caplog.records)
 
     def test_정상_evidence_경고_로그_없음(self, caplog):
         """evidence가 원문에 있으면 warning 로그 없음."""
