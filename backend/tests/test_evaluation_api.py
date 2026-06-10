@@ -119,14 +119,14 @@ class TestEvaluationAPI:
         assert isinstance(pattern1["ratio"], float)
         assert "description" in pattern1
         
-        # 예시 검증
+        # 예시 검증 — 실측 결과 파일이 없으면 빈 리스트가 정상 (가짜 예시 주입 없음)
         assert "examples" in pattern1
         assert isinstance(pattern1["examples"], list)
-        assert len(pattern1["examples"]) > 0
-        
-        example = pattern1["examples"][0]
-        assert "announcement_id" in example
-        assert "title" in example
-        assert "field_name" in example
-        assert "ground_truth" in example
-        assert "prediction" in example
+
+        if pattern1["examples"]:
+            example = pattern1["examples"][0]
+            assert "announcement_id" in example
+            assert "title" in example
+            assert "field_name" in example
+            assert "ground_truth" in example
+            assert "prediction" in example

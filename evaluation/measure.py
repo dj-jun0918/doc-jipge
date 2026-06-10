@@ -231,6 +231,17 @@ def _norm_value(v: Any) -> Any:
     return v
 
 
+_OP_SYNONYM = {"이내": "이하"}
+
+
+def _norm_operator(op: Any) -> Any:
+    """operator 동의어 정규화 — '이내'와 '이하'는 의미상 동일 (예: '7년 이내' = '7년 이하')."""
+    if isinstance(op, str):
+        op = unicodedata.normalize("NFC", op).strip()
+        return _OP_SYNONYM.get(op, op)
+    return op
+
+
 def match_fields(
     ann_id: str,
     gt_fields: List[Dict[str, Any]],
@@ -338,7 +349,23 @@ def match_fields(
                     pred_op = pred_item.condition.operator
                     has_parsed = True
 
-                if has_parsed:
+                if has_parsed and pred_val is None and gt_val is not None:
+                    # value 미산출 추출은 조건 문자열로 동치 판정 (예: raw_text "대구" vs GT condition "대구")
+                    pred_raw = ""
+                    if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
+                        pred_raw = pred_item.condition.raw_text or ""
+                    gt_cond_norm = _normalize(gt_item["condition"])
+                    pred_cond_norm = _normalize(pred_raw)
+                    val_match = bool(gt_cond_norm) and bool(pred_cond_norm) and (
+                        gt_cond_norm == pred_cond_norm
+                        or gt_cond_norm in pred_cond_norm
+                        or pred_cond_norm in gt_cond_norm
+                    )
+                    if field in ("지역", "업종"):
+                        val_op_match = val_match
+                    else:
+                        val_op_match = val_match and (_norm_operator(gt_op) == _norm_operator(pred_op))
+                elif has_parsed:
                     # list 비교 (지역, 업종 등) — NFC 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
                         gt_set = {_norm_value(x) for x in gt_val} if isinstance(gt_val, list) else ({_norm_value(gt_val)} if gt_val else set())
@@ -356,7 +383,7 @@ def match_fields(
                     if field in ("지역", "업종"):
                         val_op_match = val_match
                     else:
-                        val_op_match = val_match and (gt_op == pred_op)
+                        val_op_match = val_match and (_norm_operator(gt_op) == _norm_operator(pred_op))
                 else:
                     # condition_parsed 정보가 아예 없는 경우 문자열 일치로 fallback
                     pred_raw = ""

@@ -307,49 +307,7 @@ def get_error_patterns() -> dict:
             if total_errors > 0:
                 patterns_map[key]["ratio"] = patterns_map[key]["count"] / total_errors
 
-    # 만약 실데이터 분석 결과 예시가 하나도 없으면 테스트 통과를 위해 고품질 고정 예시 1건씩 주입
-    default_examples = {
-        "누락 (False Negative)": [
-            {
-                "announcement_id": "ann_005",
-                "title": "2026년 청년창업지원사업 공고",
-                "field_name": "age",
-                "ground_truth": {"value": 39, "operator": "이하"},
-                "prediction": None
-            }
-        ],
-        "과탐지 (False Positive)": [
-            {
-                "announcement_id": "ann_008",
-                "title": "플랫폼 도약·확장 지원 사업 공고",
-                "field_name": "constraint",
-                "ground_truth": None,
-                "prediction": {"value": "폐업 이력이 없는 자", "operator": "equal"}
-            }
-        ],
-        "값 매칭 오류 (Value Mismatch)": [
-            {
-                "announcement_id": "ann_012",
-                "title": "중소기업 지원 사업 공고",
-                "field_name": "company_scale",
-                "ground_truth": {"value": 7, "operator": "이하"},
-                "prediction": {"value": 7, "operator": "미만"}
-            }
-        ]
-    }
-    
-    for key, p in patterns_map.items():
-        if not p["examples"]:
-            p["examples"] = default_examples[key]
-            p["count"] = len(default_examples[key])
-            total_errors += p["count"]
-            
-
-    # 전체 비율 재조정
-    for key, p in patterns_map.items():
-        if total_errors > 0:
-            p["ratio"] = p["count"] / total_errors
-            
+    # 실측 데이터만 반환한다 — 결과 파일이 없거나 해당 패턴 사례가 없으면 빈 값이 정상.
     return {
         "total_errors": total_errors,
         "patterns": list(patterns_map.values())
