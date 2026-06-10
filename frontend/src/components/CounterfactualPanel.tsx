@@ -101,9 +101,9 @@ export default function CounterfactualPanel({ company_id, ann_id }: Props) {
     return (
       <div className="rounded-2xl border border-green-200 bg-green-50/30 p-8 text-center flex flex-col items-center justify-center gap-3">
         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">🎉</div>
-        <h3 className="text-base font-bold text-green-900">모든 요건을 충족합니다</h3>
+        <h3 className="text-base font-bold text-green-900">미충족 요건이 없습니다</h3>
         <p className="text-xs text-green-600">
-          현재 기업 프로필 상태로 이 공고의 모든 자격 조건을 충족하고 있습니다. 별도의 추가 준비 조치가 필요하지 않습니다.
+          현재 기업 프로필 기준으로 이 공고에 미충족 자격 조건이 없습니다. 확인필요 항목이 있다면 원문 근거를 직접 확인해 주세요.
         </p>
       </div>
     );
@@ -125,13 +125,13 @@ export default function CounterfactualPanel({ company_id, ann_id }: Props) {
         <div className="flex-1 space-y-1">
           <h4 className="font-bold text-sm">
             {data.achievable
-              ? "프로필 보완 시 모든 자격요건 충족이 가능합니다!"
+              ? "프로필 보완 시 미충족 요건 해소가 가능한 것으로 계산됩니다"
               : "지원 조건의 일부 조율 또는 보완이 필요한 상태입니다."}
           </h4>
           <p className="text-xs leading-relaxed opacity-90">
             {data.achievable
-              ? "제시된 변경 가능 조건을 충족할 경우 정상적으로 사업 지원 자격을 획득하실 수 있습니다."
-              : data.note || "시간 경과 대기, 소재지 원천 이전 등 단기 조치로 해결하기 어려운 조건이 포함되어 있습니다."}
+              ? "제시된 변경을 적용하면 미충족 요건이 해소되는 것으로 계산됩니다. 확인필요 항목은 별도 검토가 필요할 수 있습니다."
+              : data.note || "업력·나이 등 시간 기반 조건이나 매출 규모 축소처럼 프로필 변경으로 충족하기 어려운 조건이 포함되어 있습니다."}
           </p>
         </div>
       </div>

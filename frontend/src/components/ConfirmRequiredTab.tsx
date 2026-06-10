@@ -41,7 +41,7 @@ export default function ConfirmRequiredTab({ fields, onEvidenceClick }: ConfirmR
           <h4 className="text-lg font-bold text-green-900">모든 요건 검토 완료!</h4>
           <p className="text-sm text-green-700 mt-2 leading-relaxed font-medium">
             현재 확인이 필요한 모호한 요건 항목이 존재하지 않습니다.<br />
-            수동으로 판정했거나 자동으로 매칭된 결과를 통해 최종 보고서를 확정할 수 있습니다.
+            모든 요건이 자동 판정되어 매칭 결과를 그대로 활용하실 수 있습니다.
           </p>
         </div>
       ) : (

@@ -103,7 +103,7 @@ export default function MatchingDashboardPage() {
         const avg = items.length > 0 ? Math.round(totalScore / items.length) : 0;
 
         setStats({
-          totalMatches: items.length,
+          totalMatches: data.total ?? items.length,
           averageScore: avg,
           highestScore: Math.round(highest),
           perfectMatches: perfect,
@@ -133,7 +133,7 @@ export default function MatchingDashboardPage() {
               매칭 결과 대시보드
             </h1>
             <p className="text-gray-600 mt-2 text-sm">
-              기업의 프로필과 정부지원사업 공고 자격요건을 정밀 매칭한 실시간 시각화 보드입니다.
+              기업 프로필과 정부지원사업 공고 자격요건의 매칭 결과를 시각화한 대시보드입니다.
             </p>
           </div>
 
@@ -206,16 +206,16 @@ export default function MatchingDashboardPage() {
 
               <div className="relative overflow-hidden group rounded-2xl border border-indigo-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">📊 평균 매칭률</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">📊 평균 매칭 점수</p>
                 <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.averageScore}%</h3>
-                <p className="text-xs text-gray-500 mt-2">비교 분석된 공고들의 평균 충족 비율</p>
+                <p className="text-xs text-gray-500 mt-2">비교 분석된 공고들의 매칭 점수 평균</p>
               </div>
 
               <div className="relative overflow-hidden group rounded-2xl border border-purple-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-purple-700">✨ 최고 매칭률</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-purple-700">✨ 최고 매칭 점수</p>
                 <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.highestScore}%</h3>
-                <p className="text-xs text-gray-500 mt-2">가장 높은 충족 결과를 보인 비율</p>
+                <p className="text-xs text-gray-500 mt-2">공고 중 가장 높은 매칭 점수</p>
               </div>
 
               <div className="relative overflow-hidden group rounded-2xl border border-green-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
@@ -234,7 +234,7 @@ export default function MatchingDashboardPage() {
                     🔥 추천 공고 TOP 10
                   </h2>
                   <p className="text-gray-500 text-xs sm:text-sm mt-1">
-                    충족률(매칭 점수) 기준 상위 10개 추천 정부지원사업입니다.
+                    매칭 점수 기준 상위 10개 추천 정부지원사업입니다.
                   </p>
                 </div>
                 
