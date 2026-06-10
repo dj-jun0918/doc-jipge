@@ -83,6 +83,55 @@ class TestVerify:
         verified = verify(result)
         assert verified.processing_path == "vision_llm"
 
+
+# ──────────────────────────────────────────────
+# 인증 표준 키 정규화
+# ──────────────────────────────────────────────
+
+class TestCertNormalization:
+
+    def test_원문_표현_value를_표준_키로_정규화(self):
+        result = make_result([
+            make_field("인증", "보유", "벤처기업 보유", "벤처기업 보유"),
+        ])
+        verified = verify(result)
+        assert verified.fields[0].condition.value == "venture_company"
+
+    def test_value_없으면_raw_text에서_표준_키_추출(self):
+        result = make_result([
+            make_field("인증", "보유", None, "이노비즈 인증 보유"),
+        ])
+        verified = verify(result)
+        assert verified.fields[0].condition.value == "inno_biz"
+
+    def test_이미_표준_키면_유지(self):
+        result = make_result([
+            make_field("인증", "보유", "venture_company", "벤처기업 보유"),
+        ])
+        verified = verify(result)
+        assert verified.fields[0].condition.value == "venture_company"
+
+    def test_복수_인증은_키_리스트(self):
+        result = make_result([
+            make_field("인증", "보유", "이노비즈 또는 메인비즈", "이노비즈 또는 메인비즈 보유"),
+        ])
+        verified = verify(result)
+        assert set(verified.fields[0].condition.value) == {"inno_biz", "main_biz"}
+
+    def test_매핑에_없는_인증은_원문_유지(self):
+        result = make_result([
+            make_field("인증", "보유", "성능인증(EPC)", "성능인증(EPC) 보유"),
+        ])
+        verified = verify(result)
+        assert verified.fields[0].condition.value == "성능인증(EPC)"
+
+    def test_인증_외_필드는_정규화_안_함(self):
+        result = make_result([
+            make_field("지역", "소재", "벤처밸리", "벤처밸리 소재"),
+        ])
+        verified = verify(result)
+        assert verified.fields[0].condition.value == "벤처밸리"
+
     def test_중복_필드_병합(self):
         result = make_result([
             make_field("업력", "미만", 3, "3년 미만"),

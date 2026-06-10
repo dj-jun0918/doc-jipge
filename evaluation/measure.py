@@ -290,8 +290,23 @@ def match_fields(
                         pred_val = pred_item.condition.value
 
                     pred_keys = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
-                    
-                    if gt_keys == pred_keys and len(gt_keys) > 0:
+
+                    val_match = gt_keys == pred_keys and len(gt_keys) > 0
+                    if not val_match and not gt_keys and not pred_keys:
+                        # 양쪽 모두 표준 키 미부여(value None) → 조건 문자열로 동치 판정
+                        # (일반 필드 branch의 value 미산출 fallback과 동일 기준)
+                        pred_raw = ""
+                        if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
+                            pred_raw = pred_item.condition.raw_text or ""
+                        gt_cond_norm = _normalize(gt_item["condition"])
+                        pred_cond_norm = _normalize(pred_raw)
+                        val_match = bool(gt_cond_norm) and bool(pred_cond_norm) and (
+                            gt_cond_norm == pred_cond_norm
+                            or gt_cond_norm in pred_cond_norm
+                            or pred_cond_norm in gt_cond_norm
+                        )
+
+                    if val_match:
                         matched_pred = pred_item
                         break
 
