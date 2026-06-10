@@ -921,7 +921,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     return (
                       <div className="h-[600px]">
                         <PdfViewer
-                          pdfUrl={`/api/attachments/${mainAttachment.id}/file`}
+                          pdfUrl={`/backend-api/attachments/${mainAttachment.id}/file`}
                           highlightPage={highlightPage}
                           evidenceText={evidenceText}
                           location={selectedLocation}
