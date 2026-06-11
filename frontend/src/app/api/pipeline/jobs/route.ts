@@ -17,7 +17,8 @@ export async function GET(request: Request) {
       cache: "no-store",
     });
 
-    const data = await response.json();
+    // 비JSON 응답(프록시 에러 페이지 등)이 와도 백엔드 상태코드를 보존
+    const data = await response.json().catch(() => ({}));
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
