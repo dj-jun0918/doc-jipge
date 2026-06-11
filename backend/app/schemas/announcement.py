@@ -1,6 +1,5 @@
 import uuid
 from datetime import date, datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field, computed_field
 
@@ -33,7 +32,9 @@ class AttachmentInfo(BaseModel):
     """announcement detail 응답에 평탄화된 첨부파일 정보."""
     id: uuid.UUID
     file_name: str
-    file_type: Literal["pdf", "hwp", "hwpx", "docx", "zip"]
+    # 주요 값: pdf / hwp / hwpx / docx / zip — 수집기가 임의 확장자를 저장할 수 있어
+    # Literal로 제한하면 첨부 1건 때문에 공고 상세 전체가 500이 된다
+    file_type: str
     # has_pdf 계산용 — 응답에선 exclude (내부 경로 노출 방지)
     converted_pdf_path: str | None = Field(default=None, exclude=True)
 

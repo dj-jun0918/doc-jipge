@@ -40,11 +40,14 @@ def normalize_cert_value(field: EligibilityField) -> None:
     elif isinstance(val, list):
         parts.extend(str(v) for v in val)
     parts.append(cond.raw_text or "")
-    evidence = field.evidence
-    evidence_text = evidence if isinstance(evidence, str) else getattr(evidence, "text", "") or ""
-    parts.append(evidence_text)
 
     keys = extract_cert_keys(" ".join(parts))
+    if not keys:
+        # value·조건문에서 못 찾았을 때만 evidence를 최후 수단으로 사용
+        # (근거 문장에는 우대·병기 인증이 섞여 있어 직접 쓰면 요구 키가 오염될 수 있음)
+        evidence = field.evidence
+        evidence_text = evidence if isinstance(evidence, str) else getattr(evidence, "text", "") or ""
+        keys = extract_cert_keys(evidence_text)
     if keys:
         cond.value = keys[0] if len(keys) == 1 else keys
 
@@ -102,6 +105,7 @@ def deduplicate_fields(fields: list[EligibilityField]) -> list[EligibilityField]
 _OP_PRIORITY = {
     "미만": 0,
     "이하": 1,
+    "이내": 1,  # '이하'와 동일 의미
     "이상": 2,
     "초과": 3,
     "범위": 4,

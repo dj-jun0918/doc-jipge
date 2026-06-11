@@ -195,6 +195,15 @@ class TestMatchNumeric:
     def test_알수없는_operator_확인필요(self):
         assert match_numeric(5, cond("같음", 5)) == "확인필요"
 
+    def test_이내_이하와_동일_충족(self):
+        # "창업 3년 이내" — LLM이 실제로 내는 operator
+        assert match_numeric(1.4, cond("이내", 3, "3년 이내")) == "충족"
+        assert match_numeric(3, cond("이내", 3, "3년 이내")) == "충족"
+
+    def test_이내_초과시_미충족(self):
+        assert match_numeric(3.08, cond("이내", 3, "3년 이내")) == "미충족"
+        assert match_numeric(5.9, cond("이내", 3, "3년 이내")) == "미충족"
+
 
 # ──────────────────────────────────────────────
 # match_region
@@ -204,6 +213,16 @@ class TestMatchRegion:
 
     def test_서울_서울특별시_충족(self):
         assert match_region("서울특별시", cond("소재", "서울", "서울특별시 소재")) == "충족"
+
+    def test_시군구_조건은_도단위_회사로_단정불가_확인필요(self):
+        # 조건 "광명"(시 단위) vs 회사 "경기"(도 단위) — 광명시 소재 여부 알 수 없음
+        assert match_region("경기", cond("소재", "광명", "광명시 소재")) == "확인필요"
+
+    def test_시군구_조건_정확_일치는_충족(self):
+        assert match_region("광명", cond("소재", "광명", "광명시 소재")) == "충족"
+
+    def test_해외_지역_목록은_확인필요(self):
+        assert match_region("서울", cond("소재", ["아랍에미리트", "카타르"], "중동 수출이력")) == "확인필요"
 
     def test_서울_경기_미충족(self):
         assert match_region("경기도", cond("소재", "서울", "서울특별시 소재")) == "미충족"
@@ -326,6 +345,17 @@ class TestMatchIndustry:
     def test_IT서비스_제조업_포함_미충족(self):
         assert match_industry("IT 서비스", cond("포함", "제조업", "제조업 한정")) == "미충족"
 
+    def test_회사_업종이_더_일반적이면_확인필요(self):
+        # 회사 "제조업" vs 조건 "의약품 제조업" — 의약품 제조 여부를 알 수 없음
+        assert match_industry("제조업", cond("포함", "의약품 제조업", "의약품 제조업 한정")) == "확인필요"
+
+    def test_제외_조건도_회사가_더_일반적이면_확인필요(self):
+        # 회사 "제조업"이 "도박기계 제조업" 제외에 빨려 들어가 미충족 오판되던 케이스
+        assert match_industry("제조업", cond("제외", "도박기계 및 사행성, 불건전 오락기구 제조업", "")) == "확인필요"
+
+    def test_제외_조건_무관_업종은_충족(self):
+        assert match_industry("소프트웨어 개발", cond("제외", "도박기계 제조업", "")) == "충족"
+
     def test_다중_허용_업종_충족(self):
         from app.schemas.eligibility import ParsedCondition
         c = ParsedCondition.model_construct(operator="포함", value=["IT 서비스", "소프트웨어 개발"], raw_text="IT/SW")
@@ -393,11 +423,28 @@ class TestMatchCertification:
         c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처+ISO")
         assert match_certification(certs, c) == "충족"
 
-    def test_다중_인증_하나_없음_미충족(self):
+    def test_다중_인증_하나만_보유해도_충족(self):
+        # 복수 요구 키는 "다음 인증 중 하나 보유" 요건이 일반적 — OR 해석
         from app.schemas.eligibility import ParsedCondition
         certs = {"venture_company": True, "iso_9001": False}
-        c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처+ISO")
+        c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처 또는 ISO")
+        assert match_certification(certs, c) == "충족"
+
+    def test_다중_인증_모두_없으면_미충족(self):
+        from app.schemas.eligibility import ParsedCondition
+        certs = {"haccp": True}
+        c = ParsedCondition.model_construct(operator="보유", value=["venture_company", "iso_9001"], raw_text="벤처 또는 ISO")
         assert match_certification(certs, c) == "미충족"
+
+    def test_자유입력_note_키워드_매칭_충족(self):
+        # UI 등록 회사: certifications = {note: 자유 텍스트} → 키워드 매칭으로 인정
+        certs = {"note": "벤처기업 인증 보유"}
+        assert match_certification(certs, cond("보유", "venture_company", "벤처기업 보유")) == "충족"
+
+    def test_자유입력_note_미매칭은_확인필요(self):
+        # 자유 텍스트가 있는데 키워드로 못 찾으면 미충족 단정 대신 확인필요
+        certs = {"note": "OO시 우수기업 표창"}
+        assert match_certification(certs, cond("보유", "venture_company", "벤처기업 보유")) == "확인필요"
 
     def test_operator_None_확인필요(self):
         assert match_certification({"venture_company": True}, cond(None, "venture_company")) == "확인필요"
