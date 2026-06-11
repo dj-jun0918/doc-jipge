@@ -28,6 +28,11 @@ class BizinfoCollector(BaseCollector):
         resp.raise_for_status()
         raw = resp.json()
 
+        if isinstance(raw, dict) and "jsonArray" not in raw:
+            result_code = raw.get("resultCode", "Unknown Code")
+            result_msg = raw.get("resultMsg", "Unknown error in Bizinfo API response")
+            raise ValueError(f"Bizinfo API Error: resultCode={result_code}, msg={result_msg}")
+
         items = raw.get("jsonArray", []) if isinstance(raw, dict) else raw
         return [self.normalize(item) for item in items]
 
