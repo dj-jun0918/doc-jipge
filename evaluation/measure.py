@@ -679,7 +679,7 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     adv_ratio = cov_adv.get("non_standard_ratio", 0.0) * 100
 
     md = [
-        "# [PR#5] 자격요건 추출기 E2E 평가 & 적대적(Adversarial) 강건성 종합 보고서",
+        "# [PR#6] 자격요건 추출기 E2E 평가 & 적대적(Adversarial) 강건성 종합 보고서",
         "",
         "본 보고서는 Ground Truth(50건)와 적대적(Adversarial) 케이스(10건)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다.",
         "",
@@ -738,7 +738,7 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
 
 
 async def main():
-    logger.info("=== PR#5 Precision/Recall 측정 및 적대적 평가 도구 실행 ===")
+    logger.info("=== PR#6 Precision/Recall 측정 및 적대적 평가 도구 실행 ===")
     
     # 1. 일반 GT 데이터 로드
     gt_list = load_ground_truth()
@@ -779,8 +779,8 @@ async def main():
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # 6. JSON 저장
-    gt_json_path = results_dir / "pr5_measurement_general.json"
-    adv_json_path = results_dir / "pr5_measurement_adversarial.json"
+    gt_json_path = results_dir / "pr6_measurement_general.json"
+    adv_json_path = results_dir / "pr6_measurement_adversarial.json"
     
     class MetricsEncoder(json.JSONEncoder):
         def default(self, obj):
@@ -802,7 +802,7 @@ async def main():
     report_path = results_dir / "report.md"
     render_report(results_gt, results_adv, report_path)
 
-    logger.info("=== PR#5 평가 프로세스 정상 종료 ===")
+    logger.info("=== PR#6 평가 프로세스 정상 종료 ===")
 
 
 if __name__ == "__main__":
