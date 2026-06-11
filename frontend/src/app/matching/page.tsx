@@ -72,6 +72,9 @@ export default function MatchingDashboardPage() {
   useEffect(() => {
     if (!selectedCompanyId) return;
 
+    // 기업을 빠르게 전환하면 이전 기업 응답이 늦게 도착해 화면을 덮어쓸 수 있음 — 응답 적용 전 가드
+    let cancelled = false;
+
     async function fetchMatchingResults() {
       setLoading(true);
       setMatchError(null);
@@ -81,6 +84,7 @@ export default function MatchingDashboardPage() {
           throw new Error(`HTTP ${res.status}`);
         }
         const data: CompanyMatchListResponse = await res.json();
+        if (cancelled) return;
         const items = data.items || [];
         setMatchResults(items);
 
@@ -109,16 +113,20 @@ export default function MatchingDashboardPage() {
           perfectMatches: perfect,
         });
       } catch (err) {
+        if (cancelled) return;
         console.error("매칭 결과 로드 실패:", err);
         setMatchError("매칭 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         setMatchResults([]);
         setStats({ totalMatches: 0, averageScore: 0, highestScore: 0, perfectMatches: 0 });
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     fetchMatchingResults();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCompanyId, retryNonce]);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId);

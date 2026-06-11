@@ -2,9 +2,18 @@ import { NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/companies/`, {
+    // 백엔드 기본 limit=20이라 쿼리를 전달하지 않으면 21번째 이후 기업이 조용히 누락됨
+    const backendUrl = new URL(`${BACKEND_URL}/api/companies/`);
+    new URL(request.url).searchParams.forEach((value, key) => {
+      backendUrl.searchParams.append(key, value);
+    });
+    if (!backendUrl.searchParams.has("limit")) {
+      backendUrl.searchParams.set("limit", "100");
+    }
+
+    const response = await fetch(backendUrl.toString(), {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

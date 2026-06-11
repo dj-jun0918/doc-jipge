@@ -7,9 +7,11 @@ interface BookmarkButtonProps {
   id: string | number;
   className?: string;
   size?: number;
+  // 북마크 목록을 보여주는 부모가 토글에 반응해야 할 때 (예: "북마크만 보기" 필터 갱신)
+  onToggle?: (id: string | number, bookmarked: boolean) => void;
 }
 
-export default function BookmarkButton({ id, className = "", size = 24 }: BookmarkButtonProps) {
+export default function BookmarkButton({ id, className = "", size = 24, onToggle }: BookmarkButtonProps) {
   const [bookmarked, setBookmarked] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -24,6 +26,7 @@ export default function BookmarkButton({ id, className = "", size = 24 }: Bookma
     
     const newState = toggleBookmark(id);
     setBookmarked(newState);
+    onToggle?.(id, newState);
   };
 
   if (!mounted) {
