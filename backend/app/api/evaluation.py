@@ -39,7 +39,7 @@ def _load_json_data(filename: str) -> dict:
 @router.get("/metrics", response_model=EvaluationMetricsResponse)
 def get_evaluation_metrics() -> dict:
     """종합 평가 메트릭 조회 API."""
-    data = _load_json_data("pr5_measurement_general.json")
+    data = _load_json_data("pr6_measurement_general.json")
     if not data:
         # Fallback Mock 데이터
         return {
@@ -221,7 +221,7 @@ def get_iaa_results() -> dict:
 @router.get("/bootstrap", response_model=BootstrapResponse)
 def get_bootstrap_ci() -> dict:
     """Bootstrap 95% 신뢰구간 조회 API."""
-    data = _load_json_data("pr5_measurement_general.json")
+    data = _load_json_data("pr6_measurement_general.json")
     if data and "announcements" in data:
         items = []
         for ann_id, res in data["announcements"].items():
@@ -253,7 +253,7 @@ def get_bootstrap_ci() -> dict:
 @router.get("/errors", response_model=ErrorAnalysisResponse)
 def get_error_patterns() -> dict:
     """주요 오답 패턴(Error Taxonomy) 분석 데이터 조회 API."""
-    data = _load_json_data("pr5_measurement_general.json")
+    data = _load_json_data("pr6_measurement_general.json")
     
     # 기본 3개 오답 패턴 초기 정의
     patterns_map = {
