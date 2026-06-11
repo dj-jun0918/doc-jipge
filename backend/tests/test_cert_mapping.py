@@ -3,9 +3,9 @@
 from app.matcher.cert_mapping import CERT_MAPPING, extract_cert_keys, match_cert
 
 
-def test_cert_mapping_has_15_keys():
-    """인증 매핑표 15종 일치."""
-    assert len(CERT_MAPPING) == 15
+def test_cert_mapping_has_18_keys():
+    """인증 매핑표 18종 일치."""
+    assert len(CERT_MAPPING) == 18
 
 
 def test_match_cert_exact_match():
@@ -68,11 +68,12 @@ def test_extract_cert_keys_iso_variants():
 
 
 def test_cert_mapping_keys_match_specification():
-    """표준 키 15종 정확 일치 (가이드라인과 sync 필수)."""
+    """표준 키 18종 정확 일치 (가이드라인과 sync 필수)."""
     expected = {
         "venture_company", "inno_biz", "main_biz",
         "iso_9001", "iso_14001", "iso_27001", "iso_22000",
         "gmp", "haccp", "ce_marking", "kc_certification",
         "women_owned", "social_enterprise", "rd_lab", "ip_protection",
+        "nep", "net", "gs",
     }
     assert set(CERT_MAPPING.keys()) == expected

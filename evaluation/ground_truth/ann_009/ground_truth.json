@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "3년 이내",
       "value": 3,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업 (공고일 기준, '23. 4. 15. 이후 창업)",
       "evidence_source": "본문 2. 제1회 S.challenge IR 신청·접수 지원대상"
     },

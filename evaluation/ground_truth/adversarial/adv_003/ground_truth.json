@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "창업 7년 이내",
       "value": 7,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "창업 7년 이내 기업 (신산업 분야 기업은 10년 이내까지 인정)",
       "evidence_source": "첨부파일 2p 신청자격",
       "notes": "기본 업력 제한은 7년 이하이며, 신산업 분야는 최대 10년 이내까지 허용됨"
