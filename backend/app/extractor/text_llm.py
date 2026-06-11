@@ -190,7 +190,9 @@ async def extract(
             error=f"JSON 파싱 실패: {e}",
         )
 
-    return build_extraction_result(llm_json, processing_path="text_llm", source_text=text)
+    # 환각 검증 기준 원문에 <제외대상>도 포함 — 제외 조건에서 추출된 정상 필드가 잘리지 않도록
+    source_text = f"{text}\n{exclusion_text}" if exclusion_text else text
+    return build_extraction_result(llm_json, processing_path="text_llm", source_text=source_text)
 
 
 if __name__ == "__main__":

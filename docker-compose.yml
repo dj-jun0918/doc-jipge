@@ -8,6 +8,8 @@ services:
       redis:
         condition: service_started
     env_file: .env
+    environment:
+      TZ: Asia/Seoul  # 업력·나이 계산 기준일을 KST로 (기본 UTC면 경계 판정이 하루 늦음)
     restart: unless-stopped
     volumes:
       - ./backend:/app
@@ -24,6 +26,8 @@ services:
       redis:
         condition: service_started
     env_file: .env
+    environment:
+      TZ: Asia/Seoul
     restart: unless-stopped
     volumes:
       - ./backend:/app
@@ -33,6 +37,9 @@ services:
   beat:
     build: ./backend
     command: celery -A app.worker.celery_app beat --loglevel=info
+    # 매일 자동 수집 스케줄러 — 기본 `docker compose up`에서는 제외.
+    # 자동 수집까지 켜려면: docker compose --profile scheduler up -d
+    profiles: ["scheduler"]
     depends_on:
       db:
         condition: service_healthy
