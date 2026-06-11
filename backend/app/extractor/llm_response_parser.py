@@ -36,12 +36,14 @@ _PUNCT_VARIANTS = str.maketrans({
 
 
 def _normalize_for_match(s: str) -> str:
-    """NFKC 정규화 + 문장부호 변형 통일 + 모든 공백 제거.
+    """NFKC 정규화 + 문장부호 변형 통일 + 표 파이프(|) 제거 + 모든 공백 제거.
 
-    표 셀 파이프 주변 공백, PDF 추출 시 문자 변형(전각/curly quote/가운뎃점) 차이까지 흡수.
+    표 셀 파이프 주변 공백, markdown 표 형태 evidence(셀 구분자 |), PDF 추출 시
+    문자 변형(전각/curly quote/가운뎃점) 차이까지 흡수.
     """
     s = unicodedata.normalize("NFKC", s)
     s = s.translate(_PUNCT_VARIANTS)
+    s = s.replace("|", "")
     return re.sub(r"\s+", "", s)
 
 
@@ -119,7 +121,7 @@ def parse_condition_string(text: str) -> ParsedCondition:
     if not text:
         return ParsedCondition(value=None, operator=None, raw_text="")
 
-    operators = r"(미만|이하|이상|초과)"
+    operators = r"(미만|이하|이내|이상|초과)"
 
     # N년 + operator
     match = re.search(rf"(\d+)\s*년\s*{operators}", text)

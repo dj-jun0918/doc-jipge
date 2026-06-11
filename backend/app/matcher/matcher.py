@@ -11,6 +11,7 @@ from typing import Literal
 
 from dateutil.relativedelta import relativedelta
 
+from app.matcher.cert_mapping import match_cert
 from app.models.company import Company
 from app.schemas.eligibility import EligibilityField, ParsedCondition
 from app.schemas.match_result import MatchResultResponse
@@ -68,6 +69,9 @@ def calculate_biz_age(founded_date: date | None) -> float | None:
     if founded_date is None:
         return None
     today = date.today()
+    if founded_date > today:
+        # 미래 창업일은 판단 불가 (음수 업력이 미만/이하 조건을 충족해버리는 것 방지)
+        return None
     delta = relativedelta(today, founded_date)
     return delta.years + delta.months / 12 + delta.days / 365.25
 
@@ -79,6 +83,8 @@ def calculate_age(birth_date: date | None) -> int | None:
     if birth_date is None:
         return None
     today = date.today()
+    if birth_date > today:
+        return None
     age = today.year - birth_date.year
     # 생일 안 지났으면 1 빼기
     if (today.month, today.day) < (birth_date.month, birth_date.day):
@@ -97,7 +103,7 @@ def match_numeric(
     """
     수치 비교 — 업력 / 매출 / 나이 / 종업원 수에 공통 적용.
 
-    operator: "미만" | "이하" | "이상" | "초과" | "범위"
+    operator: "미만" | "이하" | "이내" | "이상" | "초과" | "범위"
     """
     if company_value is None:
         return "확인필요"
@@ -111,7 +117,8 @@ def match_numeric(
     try:
         if op == "미만":
             return "충족" if company_value < val else "미충족"
-        elif op == "이하":
+        elif op in ("이하", "이내"):
+            # '이내'는 '이하'와 동일 의미 (예: "창업 3년 이내" = 3년 이하)
             return "충족" if company_value <= val else "미충족"
         elif op == "이상":
             return "충족" if company_value >= val else "미충족"
@@ -158,9 +165,18 @@ def match_region(
         condition.value if isinstance(condition.value, list)
         else [condition.value]
     )
-    required_norms = [_normalize_region(r) for r in required_regions]
+    required_norms = [_normalize_region(str(r)) for r in required_regions]
 
-    return "충족" if company_norm in required_norms else "미충족"
+    if company_norm in required_norms:
+        return "충족"
+    # 조건이 광역(시/도) 그룹으로 정규화되지 않으면(시군구 단위·해외 등)
+    # 도 단위 회사 주소로는 소재 여부를 단정할 수 없다 → 확인필요
+    if any(rn not in REGION_GROUPS for rn in required_norms):
+        return "확인필요"
+    # 회사 주소가 광역 그룹으로 해석 불가한 경우도 판단 불가
+    if company_norm not in REGION_GROUPS:
+        return "확인필요"
+    return "미충족"
 
 
 # ──────────────────────────────────────────────
@@ -191,13 +207,20 @@ def match_industry(
         return "확인필요"
 
     allowed: list[str] = val if isinstance(val, list) else [val]
-    # 부분 문자열 매칭 (예: "제조" in "식품 제조업")
-    matched = any(a in company_industry or company_industry in a for a in allowed)
+    # 조건 업종이 회사 업종에 포함될 때만 매칭 (예: "제조" ⊂ "식품 제조업").
+    # 반대 방향(회사 업종 ⊂ 조건 업종)은 회사 업종이 더 일반적이라 단정 불가
+    # (예: 회사 "제조업" vs 제외 조건 "도박기계 제조업" — 도박기계 여부를 알 수 없음)
+    matched = any(a in company_industry for a in allowed)
+    company_broader = not matched and any(company_industry in a for a in allowed)
 
     if op == "포함":
-        return "충족" if matched else "미충족"
+        if matched:
+            return "충족"
+        return "확인필요" if company_broader else "미충족"
     elif op == "제외":
-        return "미충족" if matched else "충족"
+        if matched:
+            return "미충족"
+        return "확인필요" if company_broader else "충족"
     else:
         return "확인필요"
 
@@ -233,13 +256,28 @@ def match_certification(
         return "확인필요"
 
     keys: list[str] = val if isinstance(val, list) else [val]
+    if not keys:
+        # 빈 리스트가 공허하게 '충족' 판정되는 것 방지 — 판정 근거 없음
+        return "확인필요"
+
+    # 표준 키 boolean 외에 자유입력 텍스트(예: UI 등록 {note: "벤처기업 인증"})도
+    # cert_mapping 키워드 매칭으로 인정 — 텍스트가 있는데 못 찾으면 단정하지 않는다
+    cert_texts = [v for v in company_certs.values() if isinstance(v, str) and v.strip()]
+
+    def _holds(k: str) -> bool:
+        if company_certs.get(k) is True:
+            return True
+        return bool(cert_texts) and match_cert(cert_texts, k)
 
     if op == "보유":
-        # 모든 요구 인증 키가 True이어야 충족
-        return "충족" if all(company_certs.get(k) is True for k in keys) else "미충족"
+        # 복수 요구 키는 '다음 인증 중 하나 보유' 요건이 일반적 → 하나라도 보유하면 충족
+        if any(_holds(k) for k in keys):
+            return "충족"
+        return "확인필요" if cert_texts else "미충족"
     elif op == "미보유":
-        # 어떤 인증 키도 True가 아니어야 충족
-        return "충족" if not any(company_certs.get(k) is True for k in keys) else "미충족"
+        if any(_holds(k) for k in keys):
+            return "미충족"
+        return "확인필요" if cert_texts else "충족"
     else:
         return "확인필요"
 

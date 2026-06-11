@@ -73,6 +73,10 @@ async def _try_text_llm(announcement: dict[str, Any]) -> AnnouncementEligibility
     try:
         raw_text = await text_llm.extract(combined_text, exclusion_text)
         text_result = verifier.verify(raw_text)
+        if text_result.error and not text_result.fields:
+            # LLM 호출/파싱 실패로 빈 결과 — 휴리스틱 분기(규칙 fallback 포함)로 넘긴다
+            logger.warning(f"[hybrid] 텍스트 LLM 단독 실행 오류 → fallback: {text_result.error}")
+            return None
         logger.info(f"[hybrid] 텍스트 LLM 단독 실행 성공: {len(text_result.fields)}개 필드")
         return _build_announcement_eligibility(ann_id, title, text_result)
     except Exception as e:
@@ -98,8 +102,8 @@ async def _try_vision_llm(announcement: dict[str, Any]) -> AnnouncementEligibili
 
     pdf_path = _get_attachment_pdf_path(announcement)
     if not pdf_path:
-        # PDF 파일이 없다면 텍스트 LLM 결과만이라도 반환
-        if text_result:
+        # PDF 파일이 없다면 내용 있는 텍스트 LLM 결과만 채택 (빈 결과면 휴리스틱 fallback)
+        if text_result and (text_result.fields or text_result.exclusions):
             return _build_announcement_eligibility(ann_id, title, text_result)
         return None
 
@@ -111,7 +115,7 @@ async def _try_vision_llm(announcement: dict[str, Any]) -> AnnouncementEligibili
         return _build_announcement_eligibility(ann_id, title, merged)
     except Exception as e:
         logger.warning(f"[hybrid] Vision LLM 단독 실행 실패: {e}")
-        if text_result:
+        if text_result and (text_result.fields or text_result.exclusions):
             return _build_announcement_eligibility(ann_id, title, text_result)
         return None
 
@@ -169,7 +173,8 @@ async def _heuristic_routing(announcement: dict[str, Any]) -> AnnouncementEligib
     if vision_result and (vision_result.fields or vision_result.exclusions):
         merged = _merge_results(text_result, vision_result)
         return _build_announcement_eligibility(ann_id, title, merged)
-    if text_result:
+    if text_result and (text_result.fields or text_result.exclusions):
+        # 에러로 빈 결과면 규칙 fallback이 살아야 하므로 내용 있는 경우에만 채택
         return _build_announcement_eligibility(ann_id, title, text_result)
 
     logger.warning("[hybrid] 모든 LLM 단계 실패 → 규칙 fallback")

@@ -242,6 +242,50 @@ def _norm_operator(op: Any) -> Any:
     return op
 
 
+# 의미가 반대인 operator 쌍 — 조건 문자열이 겹쳐도 매칭 금지 (예: "대구"(소재) vs "대구"(제외))
+_OP_OPPOSITES = [
+    ({"제외", "미보유"}, {"포함", "소재", "보유"}),
+    ({"미만", "이하"}, {"이상", "초과"}),
+]
+
+
+def _ops_opposed(a: Any, b: Any) -> bool:
+    a, b = _norm_operator(a), _norm_operator(b)
+    if not isinstance(a, str) or not isinstance(b, str):
+        return False
+    for s1, s2 in _OP_OPPOSITES:
+        if (a in s1 and b in s2) or (a in s2 and b in s1):
+            return True
+    return False
+
+
+def _condition_text_match(gt_item: Dict[str, Any], pred_item: Any, gt_op: Any, pred_op: Any) -> bool:
+    """value 미부여(어느 한쪽이라도 None) 시 조건 문자열로 동치 판정.
+
+    - 정규화 후 완전 동일 또는 한쪽이 다른 쪽을 포함하면 매칭
+    - 단, operator가 의미상 반대(_OP_OPPOSITES)면 문자열이 겹쳐도 거부
+    """
+    pred_raw = ""
+    if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
+        pred_raw = pred_item.condition.raw_text or ""
+    gt_cond_norm = _normalize(gt_item["condition"])
+    pred_cond_norm = _normalize(pred_raw)
+    if not gt_cond_norm or not pred_cond_norm:
+        return False
+    if _ops_opposed(gt_op, pred_op):
+        return False
+    # operator가 없어도 조건 문자열의 부정 토큰 비대칭은 차단
+    # (예: GT "대구" vs pred "대구 제외" — 포함 관계지만 반대 의미)
+    for neg in ("제외", "미보유"):
+        if (neg in gt_cond_norm) != (neg in pred_cond_norm):
+            return False
+    return (
+        gt_cond_norm == pred_cond_norm
+        or gt_cond_norm in pred_cond_norm
+        or pred_cond_norm in gt_cond_norm
+    )
+
+
 def match_fields(
     ann_id: str,
     gt_fields: List[Dict[str, Any]],
@@ -291,19 +335,18 @@ def match_fields(
 
                     pred_keys = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
 
-                    val_match = gt_keys == pred_keys and len(gt_keys) > 0
-                    if not val_match and not gt_keys and not pred_keys:
-                        # 양쪽 모두 표준 키 미부여(value None) → 조건 문자열로 동치 판정
-                        # (일반 필드 branch의 value 미산출 fallback과 동일 기준)
-                        pred_raw = ""
-                        if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
-                            pred_raw = pred_item.condition.raw_text or ""
-                        gt_cond_norm = _normalize(gt_item["condition"])
-                        pred_cond_norm = _normalize(pred_raw)
-                        val_match = bool(gt_cond_norm) and bool(pred_cond_norm) and (
-                            gt_cond_norm == pred_cond_norm
-                            or gt_cond_norm in pred_cond_norm
-                            or pred_cond_norm in gt_cond_norm
+                    pred_op_cert = pred_item.condition.operator if hasattr(pred_item, "condition") else None
+                    val_match = (
+                        gt_keys == pred_keys and len(gt_keys) > 0
+                        # 키가 같아도 보유 vs 미보유 같은 반대 의미면 매칭 금지
+                        and not _ops_opposed(gt_item.get("operator"), pred_op_cert)
+                    )
+                    if not val_match and not gt_keys:
+                        # GT가 표준 키 미부여(value None) → pred 키 유무와 무관하게
+                        # 조건 문자열로 동치 판정 (일반 필드 branch의 fallback과 동일 기준)
+                        pred_op = pred_item.condition.operator if hasattr(pred_item, "condition") else None
+                        val_match = _condition_text_match(
+                            gt_item, pred_item, gt_item.get("operator"), pred_op
                         )
 
                     if val_match:
@@ -364,22 +407,10 @@ def match_fields(
                     pred_op = pred_item.condition.operator
                     has_parsed = True
 
-                if has_parsed and pred_val is None and gt_val is not None:
-                    # value 미산출 추출은 조건 문자열로 동치 판정 (예: raw_text "대구" vs GT condition "대구")
-                    pred_raw = ""
-                    if hasattr(pred_item, "condition") and hasattr(pred_item.condition, "raw_text"):
-                        pred_raw = pred_item.condition.raw_text or ""
-                    gt_cond_norm = _normalize(gt_item["condition"])
-                    pred_cond_norm = _normalize(pred_raw)
-                    val_match = bool(gt_cond_norm) and bool(pred_cond_norm) and (
-                        gt_cond_norm == pred_cond_norm
-                        or gt_cond_norm in pred_cond_norm
-                        or pred_cond_norm in gt_cond_norm
-                    )
-                    if field in ("지역", "업종"):
-                        val_op_match = val_match
-                    else:
-                        val_op_match = val_match and (_norm_operator(gt_op) == _norm_operator(pred_op))
+                if has_parsed and (pred_val is None or gt_val is None):
+                    # 어느 한쪽이라도 value 미부여 → 값 자동 일치(None==None)로 단정하지 않고
+                    # 조건 문자열로 동치 판정 (반대 의미 operator는 내부에서 차단)
+                    val_op_match = _condition_text_match(gt_item, pred_item, gt_op, pred_op)
                 elif has_parsed:
                     # list 비교 (지역, 업종 등) — NFC 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
@@ -394,9 +425,10 @@ def match_fields(
                         val_match = (_norm_value(gt_val) == _norm_value(pred_val))
 
                     # 범주형 필드(지역/업종)는 operator가 필드 종류로 고정(소재/포함)이라 변별력이 없음
-                    # → value만으로 매칭. 수치형(업력/매출/나이/종업원 수)은 operator(미만/이상 등)도 일치해야 함.
+                    # → value 매칭 + 반대 의미 operator(포함 vs 제외 등)만 차단.
+                    # 수치형(업력/매출/나이/종업원 수)은 operator(미만/이상 등)도 일치해야 함.
                     if field in ("지역", "업종"):
-                        val_op_match = val_match
+                        val_op_match = val_match and not _ops_opposed(gt_op, pred_op)
                     else:
                         val_op_match = val_match and (_norm_operator(gt_op) == _norm_operator(pred_op))
                 else:

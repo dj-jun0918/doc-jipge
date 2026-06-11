@@ -465,6 +465,15 @@ def extract_announcement_eligibility(self, announcement_id: str) -> dict:
 
     except Exception as e:
         db.rollback()
+        # extraction_status가 'processing'으로 고착되지 않도록 실패 상태 기록
+        # (프론트 폴링이 영원히 '추출 중'에 머무는 것 방지, 재추출 대상 판별용)
+        try:
+            ann = db.get(Announcement, announcement_id)
+            if ann:
+                ann.extraction_status = "failed"
+                db.commit()
+        except Exception:
+            db.rollback()
         _finish_job(db, job, status="failed", error=str(e))
         logger.error(f"자격요건 추출 실패 (ann={announcement_id}): {e}")
         raise
