@@ -19,8 +19,8 @@ class KstartupCollector(BaseCollector):
 
     source_name = "kstartup"
 
-    def collect_all(self) -> list[dict[str, Any]]:
-        """전체 공고 수집."""
+    def collect_all(self, limit: int = 20) -> list[dict[str, Any]]:
+        """전체 공고 수집 (최대 limit 건수까지 수집)."""
         params = {
             "serviceKey": settings.kstartup_api_key,
             "numOfRows": 100,
@@ -28,14 +28,29 @@ class KstartupCollector(BaseCollector):
             "type": "json",
         }
         resp = httpx.get(settings.kstartup_api_url, params=params, timeout=30.0)
-
         resp.raise_for_status()
 
         content_type = resp.headers.get("content-type", "")
         if "xml" in content_type:
+            # 쿼터 초과 / 인증 에러 XML 검사
+            if "<errMsg>" in resp.text or "<returnAuthMsg>" in resp.text:
+                import xml.etree.ElementTree as ET
+                try:
+                    root = ET.fromstring(resp.text)
+                    err_msg = root.find(".//errMsg")
+                    err_text = err_msg.text if err_msg is not None else resp.text
+                except Exception:
+                    err_text = resp.text
+                raise ValueError(f"K-Startup API Error (XML): {err_text}")
             items = self._parse_xml(resp.text)
         else:
             raw = resp.json()
+            header = raw.get("response", {}).get("header", {})
+            result_code = header.get("resultCode", "00")
+            if result_code != "00":
+                result_msg = header.get("resultMsg", "Unknown API error")
+                raise ValueError(f"K-Startup API Error (JSON): resultCode={result_code}, msg={result_msg}")
+
             body = raw.get("response", {}).get("body", {})
             items_wrapper = body.get("items", {})
             items = items_wrapper.get("item", []) if isinstance(items_wrapper, dict) else items_wrapper
@@ -43,20 +58,32 @@ class KstartupCollector(BaseCollector):
             if isinstance(items, dict):
                 items = [items]
 
+        # 건수 제한 적용 (flaky 방지 및 540초 타임아웃 제한 준수)
+        items = items[:limit]
+
         results = []
-        for item in items:
-            normalized = self.normalize(item)
-            if normalized["detail_url"]:
-                try:
-                    attachments = asyncio.run(
-                        self._extract_attachments(normalized["detail_url"])
-                    )
-                    normalized["attachments"] = attachments
-                except Exception as e:
-                    print(f"[WARN] 첨부파일 추출 실패: {e}")
-                finally:
-                    time.sleep(2)  # 공고별 크롤링 간 2초 대기 (Rate Limiting)
-            results.append(normalized)
+        if items:
+            async def run_attachment_scraping():
+                from playwright.async_api import async_playwright
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch()
+                    page = await browser.new_page()
+                    try:
+                        for item in items:
+                            normalized = self.normalize(item)
+                            if normalized["detail_url"]:
+                                try:
+                                    attachments = await self._extract_attachments_with_page(page, normalized["detail_url"])
+                                    normalized["attachments"] = attachments
+                                except Exception as e:
+                                    print(f"[WARN] 첨부파일 추출 실패: {e}")
+                                finally:
+                                    await asyncio.sleep(1)  # 대기 시간 1초로 단축
+                            results.append(normalized)
+                    finally:
+                        await browser.close()
+
+            asyncio.run(run_attachment_scraping())
 
         return results
 
@@ -90,9 +117,13 @@ class KstartupCollector(BaseCollector):
                 return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
             return None
 
+        # pbanc_sn 값 문자열 타입 강제 정규화 (ProgrammingError 방지)
+        pbanc_sn = raw.get("pbanc_sn")
+        source_id = str(pbanc_sn) if pbanc_sn is not None else ""
+
         return {
             "source": "kstartup",
-            "source_id": raw.get("pbanc_sn", ""),
+            "source_id": source_id,
             "title": raw.get("intg_pbanc_biz_nm", ""),
             "organization": raw.get("pbanc_ntrp_nm"),
             "executor": raw.get("biz_prch_dprt_nm"),
@@ -107,47 +138,43 @@ class KstartupCollector(BaseCollector):
             "attachments": [],
         }
 
-    async def _extract_attachments(self, detail_url: str) -> list[dict]:
-        """Playwright로 상세 페이지에서 첨부파일 다운로드 링크 추출."""
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            page = await browser.new_page()
-            await page.goto(detail_url, wait_until="domcontentloaded", timeout=15000)
-            await asyncio.sleep(2)
+    async def _extract_attachments_with_page(self, page, detail_url: str) -> list[dict]:
+        """이미 기동된 page를 사용하여 상세 페이지에서 첨부파일 다운로드 링크 추출."""
+        await page.goto(detail_url, wait_until="domcontentloaded", timeout=15000)
+        await asyncio.sleep(1)
 
-            attachments = []
-            file_items = await page.query_selector_all("a.file_bg")
-            
-            for file_item in file_items:
-                text = (await file_item.inner_text()).strip()
-                ext = text.rsplit(".", 1)[-1].lower() if "." in text else "unknown"
+        attachments = []
+        file_items = await page.query_selector_all("a.file_bg")
+        
+        for file_item in file_items:
+            text = (await file_item.inner_text()).strip()
+            ext = text.rsplit(".", 1)[-1].lower() if "." in text else "unknown"
 
-                parent = await file_item.evaluate_handle("el => el.parentElement")
-                btn_down = await parent.query_selector("a.btn_down")
-                if not btn_down:
-                    btn_down = await parent.query_selector("a[href*='fileDownload']")
+            parent = await file_item.evaluate_handle("el => el.parentElement")
+            btn_down = await parent.query_selector("a.btn_down")
+            if not btn_down:
+                btn_down = await parent.query_selector("a[href*='fileDownload']")
 
-                href = ""
-                onclick = ""
-                if btn_down:
-                    href = await btn_down.get_attribute("href") or ""
-                    onclick = await btn_down.get_attribute("onclick") or ""
+            href = ""
+            onclick = ""
+            if btn_down:
+                href = await btn_down.get_attribute("href") or ""
+                onclick = await btn_down.get_attribute("onclick") or ""
 
-                if not href or href == "#" or "javascript" in href:
-                    href = onclick
+            if not href or href == "#" or "javascript" in href:
+                href = onclick
 
-                if href and not href.startswith("http") and not href.startswith("fn_"):
-                    from urllib.parse import urljoin
-                    href = urljoin("https://www.k-startup.go.kr", href)
+            if href and not href.startswith("http") and not href.startswith("fn_"):
+                from urllib.parse import urljoin
+                href = urljoin("https://www.k-startup.go.kr", href)
 
-                attachments.append({
-                    "file_name": text,
-                    "file_type": ext,
-                    "download_url": href,
-                })
+            attachments.append({
+                "file_name": text,
+                "file_type": ext,
+                "download_url": href,
+            })
 
-            await browser.close()
-            return attachments
+        return attachments
 
 
 if __name__ == "__main__":

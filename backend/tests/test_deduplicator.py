@@ -164,3 +164,39 @@ class TestFindDuplicate:
 
         result = find_duplicate(self._make_ann(), db)
         assert isinstance(result, str)
+
+    def test_지역_다르면_유사도_높아도_중복_제외(self):
+        db = MagicMock()
+        db.scalar.return_value = None  # 1단계 불일치
+
+        candidate = self._make_db_announcement(
+            id="uuid-005",
+            source_id="ANN005",
+            title="[강원] 2026 청년창업 지원사업"
+        )
+        db.scalars.return_value.all.return_value = [candidate]
+
+        ann = self._make_ann(
+            source_id="ANN999",
+            title="[경북] 2026 청년창업 지원사업"  # 지역만 [경북]으로 다름
+        )
+        result = find_duplicate(ann, db)
+        assert result is None
+
+    def test_차수_다르면_유사도_높아도_중복_제외(self):
+        db = MagicMock()
+        db.scalar.return_value = None
+
+        candidate = self._make_db_announcement(
+            id="uuid-006",
+            source_id="ANN006",
+            title="2026 청년창업 지원사업 1차"
+        )
+        db.scalars.return_value.all.return_value = [candidate]
+
+        ann = self._make_ann(
+            source_id="ANN999",
+            title="2026 청년창업 지원사업 2차"  # 차수만 2차로 다름
+        )
+        result = find_duplicate(ann, db)
+        assert result is None
