@@ -6,13 +6,11 @@
     {
       "field_name": "인증",
       "condition": "성능인증 신청 대상제품 근거기술 또는 관련 인증 보유",
-      "value": [
-        "ip_protection"
-      ],
+      "value": null,
       "operator": "보유",
       "evidence": "신청 대상제품: 국가연구개발사업 완료판정 과제의 기술이 적용된 제품, 특허 및 실용신안을 사업화한 제품, 우수재활용(GR)제품, 소프트웨어 1등급 품질인증제품(GS), 우수조달제품, 환경표지인증제품, 신제품(NEP), 신기술(NET) 이용 제조 제품, 녹색기술인증제품 등",
       "evidence_source": "공고문 1~2p, 2. 신청 대상 - 신청 대상제품",
-      "notes": "성능인증(EPC)을 신청하기 위해서는 제품이 시행세칙상 신청 대상제품 요건 중 하나에 해당해야 함. 특허와 실용신안은 지식재산권 요건이므로 표준 키인 ip_protection으로 맵핑함. 그 외 비표준 인증인 GR, GS, 우수조달, 환경표지, NEP, NET, 녹색기술인증은 cert_mapping에 없는 키이므로 fields에서 제외함."
+      "notes": "OR 매칭 필요 — matcher는 AND만 지원. 원문: '성능인증 신청 대상제품 근거기술 또는 관련 인증 보유'. 특허/실용신안(ip_protection), GS(gs), NEP(nep), NET(net) 등 다양한 근거기술/인증 중 1개 이상을 보유해야 하는 OR 조건이므로 value를 null로 설정."
     }
   ],
   "exclusions": [

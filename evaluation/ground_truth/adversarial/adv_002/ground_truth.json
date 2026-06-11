@@ -19,7 +19,7 @@
       "field_name": "업력",
       "condition": "창업 3년 이내",
       "value": 3,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "3년 이내 창업기업 또는 예비 창업자",
       "evidence_source": "첨부파일 1p 지원대상",
       "notes": "창업 3년 이하 초기창업기업"

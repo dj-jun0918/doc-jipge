@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "7년이내",
       "value": 7,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
       "evidence_source": "첨부파일 1p 사업 개요"
     },

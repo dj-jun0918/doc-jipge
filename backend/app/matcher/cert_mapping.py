@@ -19,6 +19,9 @@ CERT_MAPPING: dict[str, list[str]] = {
     "social_enterprise": ["사회적기업", "사회적기업 인증"],
     "rd_lab": ["기업부설연구소", "기업부설 연구소"],
     "ip_protection": ["특허", "지식재산권", "실용신안"],
+    "nep": ["신제품", "NEP"],
+    "net": ["신기술", "NET"],
+    "gs": ["GS 인증", "GS등급", "소프트웨어품질인증", "소프트웨어 1등급 품질인증"],
 }
 
 

@@ -621,9 +621,9 @@ def aggregate_metrics(
                 "announcement_id": ann_id,
                 "field_name": item["field_name"],
                 "type": "FN (미추출/누락)",
-                "condition": item["condition"],
+                "condition": "N/A",
                 "evidence": "N/A (미추출)",
-                "target": "N/A"
+                "target": item["condition"]
             })
 
     # 전체 micro 메트릭 계산

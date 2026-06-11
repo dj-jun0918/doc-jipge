@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "창업 후 7년 이내",
       "value": 7,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "해외 (pre-)startup이 한국 시장 진출을 희망해야 하며, 법인 설립일 기준 7년 이내여야 함",
       "evidence_source": "공고문 2~3쪽"
     }

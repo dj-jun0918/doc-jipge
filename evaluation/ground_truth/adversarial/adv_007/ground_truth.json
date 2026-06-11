@@ -2,17 +2,7 @@
   "announcement_id": "adv_007",
   "title": "2026년도 수출지원기반활용사업 참여기업 2차 모집공고",
   "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1067310&parentSeq=1067310",
-  "fields": [
-    {
-      "field_name": "매출",
-      "condition": "매출액 300억원 미만 (보조율 우대 기준)",
-      "value": 30000000000,
-      "operator": "미만",
-      "evidence": "300억원 이상 50%, 100~300억원 미만 60%, 100억원 미만 70%",
-      "evidence_source": "첨부파일 3p 국고 보조율",
-      "notes": "매출액 300억원 미만일 경우 60% 이상 국고 보조율 우대 적용. 300억원을 원 단위 정수로 변환하여 30000000000 매핑"
-    }
-  ],
+  "fields": [],
   "exclusions": [
     "휴·폐업했거나 국세·지방세 체납 중인 경우",
     "민사집행법에 의하여 채무불이행자명부에 등재되거나 신용정보 집중기관에 채무불이행자로 등록된 경우",

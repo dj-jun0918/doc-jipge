@@ -18,7 +18,7 @@
       "field_name": "업력",
       "condition": "창업 3년 이내",
       "value": 3,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "공고일 기준 창업 3년이내이면서",
       "evidence_source": "첨부파일 1p 모집개요",
       "notes": "창업 3년 이하 초기창업기업"

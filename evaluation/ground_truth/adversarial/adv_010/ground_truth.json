@@ -2,17 +2,7 @@
   "announcement_id": "adv_010",
   "title": "2026년도 중소기업 정책자금 융자계획 변경공고",
   "source_url": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=310&bcIdx=1065960&parentSeq=1065960",
-  "fields": [
-    {
-      "field_name": "업력",
-      "condition": "업력 7년 미만 (부채비율 제한 예외)",
-      "value": 7,
-      "operator": "미만",
-      "evidence": "⑩ 업종별 융자제한 부채비율(별표5, p46)을 초과하는 기업 [적용 예외] 업력 7년 미만 기업",
-      "evidence_source": "첨부파일 11p ⑩ 업종별 융자제한 부채비율 초과하는 기업",
-      "notes": "부채비율 기준 초과 시에도 융자 제한을 면제받을 수 있는 업력 7년 미만 예외 조건 매핑"
-    }
-  ],
+  "fields": [],
   "exclusions": [
     "민간 금융기관 이용이 가능한 우량기업 (상장기업 등)",
     "최근 재무제표 기준 자본총계 200억원 또는 자산총계 700억원 초과 기업",

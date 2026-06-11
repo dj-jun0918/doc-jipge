@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "창업 후 7년 이내",
       "value": 7,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "창업 7년 이내 창업기업만 신청 가능하다고 명시됨 (2019-04-29 ~ 2026-04-28 설립)",
       "evidence_source": "공고문 2쪽, 5쪽"
     }

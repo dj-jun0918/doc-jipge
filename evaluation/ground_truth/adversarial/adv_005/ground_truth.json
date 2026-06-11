@@ -7,7 +7,7 @@
       "field_name": "업력",
       "condition": "창업 3년 이내",
       "value": 3,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "예비창업자 또는 업력 3년 이내 창업기업",
       "evidence_source": "첨부파일 1p 지원자격",
       "notes": "일반/기술트랙 지원 자격으로 3년 이하 매핑"

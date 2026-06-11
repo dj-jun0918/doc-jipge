@@ -7,9 +7,17 @@
       "field_name": "업력",
       "condition": "공고일 기준 10년 이내 (2016.4.30. ~ 2026.4.29.)",
       "value": 10,
-      "operator": "이하",
+      "operator": "이내",
       "evidence": "로봇 등 신산업 기술을 보유한 스타트업 대표자로, 공고일 기준 업력 10년 이내인 자",
       "evidence_source": "본문 4p 신청 자격"
+    },
+    {
+      "field_name": "인증",
+      "condition": "벤처기업 인증 보유",
+      "value": "venture_company",
+      "operator": "보유",
+      "evidence": "⑭벤처기업확인서",
+      "evidence_source": "붙임 3 공공마이데이터 연동 서류(총 29종)"
     }
   ],
   "exclusions": [
