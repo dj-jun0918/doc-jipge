@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, useCallback } from "react";
+import { useEffect, useState, use, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import MatchResultCard, { MatchField } from "@/components/MatchResultCard";
@@ -68,7 +68,7 @@ interface MatchResultDetailItem {
   constraint_type?: "hard" | "soft" | null;
   company_value: MatchValue;
   requirement_value: MatchValue;
-  evidence: string | null;
+  evidence: { text: string; location: any } | null;
   processing_path: string;
 }
 
@@ -83,6 +83,7 @@ interface MatchResultDetailResponse {
     해당없음: number;
   };
   matched_at: string | null;
+  match_score?: number | null;
 }
 
 interface AttachmentInfo {
@@ -120,6 +121,23 @@ function EvidencePlaceholder({ text }: { text: string }) {
 
 function isPromise<T>(value: unknown): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === "function";
+}
+
+function getBizAge(foundedDateStr?: string) {
+  if (!foundedDateStr) return 0;
+  const founded = new Date(foundedDateStr);
+  const today = new Date();
+  const diffTime = Math.abs(today.getTime() - founded.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return parseFloat((diffDays / 365.25).toFixed(2));
+}
+
+function getSimulatedFoundedDate(targetAgeYears: number) {
+  const today = new Date();
+  const targetDays = targetAgeYears * 365.25;
+  const simulatedMs = today.getTime() - targetDays * 24 * 60 * 60 * 1000;
+  const simulatedDate = new Date(simulatedMs);
+  return simulatedDate.toISOString().split("T")[0];
 }
 
 export default function CompanyMatchingDetailPage(props: PageProps) {
@@ -176,24 +194,9 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         let location: any = null;
 
         if (item.evidence) {
-          try {
-            const parsed = JSON.parse(item.evidence);
-            page = parsed.page || parsed.page_num || parsed.location?.page;
-            text = parsed.text || parsed.context;
-            location = parsed.location || null;
-
-            if (!location && page) {
-              location = {
-                location_type: "pdf_page",
-                page: page,
-              };
-            }
-          } catch {
-            text = item.evidence;
-            location = {
-              location_type: "raw_text",
-            };
-          }
+          text = item.evidence.text;
+          location = item.evidence.location || null;
+          page = location?.page || undefined;
         }
 
         return {
@@ -210,27 +213,11 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       });
   }, []);
 
-  const getBizAge = useCallback((foundedDateStr?: string) => {
-    if (!foundedDateStr) return 0;
-    const founded = new Date(foundedDateStr);
-    const today = new Date();
-    const diffTime = Math.abs(today.getTime() - founded.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return parseFloat((diffDays / 365.25).toFixed(2));
-  }, []);
-
-  const getSimulatedFoundedDate = useCallback((targetAgeYears: number) => {
-    const today = new Date();
-    const targetDays = targetAgeYears * 365.25;
-    const simulatedMs = today.getTime() - targetDays * 24 * 60 * 60 * 1000;
-    const simulatedDate = new Date(simulatedMs);
-    return simulatedDate.toISOString().split("T")[0];
-  }, []);
-
   // ==========================================
   // 3. API & Async Event Handlers / Hooks
   // ==========================================
   useEffect(() => {
+    let active = true;
     async function fetchCompany() {
       try {
         const res = await fetch(`/api/companies`);
@@ -238,6 +225,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
+        if (!active) return;
         let found = (data.items || []).find((c: Company) => c.id === companyId);
 
         if (found) {
@@ -248,16 +236,23 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         }
         setCompanyError(null);
       } catch (err) {
+        if (!active) return;
         console.error("기업 정보 로드 실패:", err);
         setCompanyError("기업 정보를 불러오지 못했습니다. 백엔드 서버 상태를 확인해 주세요.");
       } finally {
-        setLoadingCompany(false);
+        if (active) {
+          setLoadingCompany(false);
+        }
       }
     }
     fetchCompany();
+    return () => {
+      active = false;
+    };
   }, [companyId]);
 
   useEffect(() => {
+    let active = true;
     async function fetchAnnouncements() {
       try {
         const res = await fetch(`/api/matching/${companyId}`);
@@ -265,26 +260,39 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
-        let items = data.items || [];
+        if (!active) return;
+        let items: CompanyMatchSummary[] = data.items || [];
 
         setAnnouncements(items);
 
-        if (!selectedAnnId && items.length > 0) {
-          setSelectedAnnId(items[0].announcement_id);
+        if (items.length > 0) {
+          setSelectedAnnId((prev) => {
+            if (prev && items.some((item) => item.announcement_id === prev)) {
+              return prev;
+            }
+            return items[0].announcement_id;
+          });
         }
         setAnnError(null);
       } catch (err) {
+        if (!active) return;
         console.error("매칭 공고 목록 로드 실패:", err);
         setAnnError("매칭 공고 목록을 불러오지 못했습니다.");
       } finally {
-        setLoadingAnnouncements(false);
+        if (active) {
+          setLoadingAnnouncements(false);
+        }
       }
     }
     fetchAnnouncements();
-  }, [companyId, selectedAnnId]);
+    return () => {
+      active = false;
+    };
+  }, [companyId]);
 
   useEffect(() => {
     if (!selectedAnnId) return;
+    let active = true;
 
     async function fetchDetailsAndMetadata() {
       setLoadingDetails(true);
@@ -301,29 +309,38 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
           throw new Error(`매칭 결과 HTTP ${matchRes.status}`);
         }
         const matchData: MatchResultDetailResponse = await matchRes.json();
-        setStats(matchData.stats);
+        if (!active) return;
 
         const detailsList = parseMatchResultItems(matchData.items);
-        setMatchDetails(detailsList);
 
         const annRes = await fetch(`/api/announcements?id=${selectedAnnId}`);
         if (!annRes.ok) {
           throw new Error(`공고 메타데이터 HTTP ${annRes.status}`);
         }
         const annData: AnnouncementDetail = await annRes.json();
+        if (!active) return;
+
+        setStats(matchData.stats);
+        setMatchDetails(detailsList);
         setSelectedAnnDetail(annData);
       } catch (err) {
+        if (!active) return;
         console.error("상세 매칭 결과 로드 실패:", err);
         setDetailError("매칭 상세 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         setMatchDetails([]);
         setStats(null);
         setSelectedAnnDetail(null);
       } finally {
-        setLoadingDetails(false);
+        if (active) {
+          setLoadingDetails(false);
+        }
       }
     }
 
     fetchDetailsAndMetadata();
+    return () => {
+      active = false;
+    };
   }, [companyId, selectedAnnId, detailRetryNonce, parseMatchResultItems]);
 
   const handleEvidenceClick = (page: number, text: string, location?: any) => {
@@ -332,8 +349,11 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     setSelectedLocation(location || null);
   };
 
+  const simulateSeqRef = useRef<number>(0);
+
   const handleSimulate = useDebouncedCallback(async (newOverrides: Partial<Company>) => {
     if (!companyId || !selectedAnnId) return;
+    const currentSeq = ++simulateSeqRef.current;
     setIsSimulating(true);
 
     try {
@@ -366,11 +386,17 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       }
 
       const data: MatchResultDetailResponse = await res.json();
-      setSimResult(data);
+      if (currentSeq === simulateSeqRef.current) {
+        setSimResult(data);
+      }
     } catch (err) {
-      console.error("시뮬레이션 연동 실패:", err);
+      if (currentSeq === simulateSeqRef.current) {
+        console.error("시뮬레이션 연동 실패:", err);
+      }
     } finally {
-      setIsSimulating(false);
+      if (currentSeq === simulateSeqRef.current) {
+        setIsSimulating(false);
+      }
     }
   }, 300);
 
@@ -399,11 +425,8 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const totalFields = currentDetails.length;
 
   const getMatchScorePct = () => {
-    if (isSimulatedActive) {
-      const scoredItems = simResult.items.filter(item => item.score !== null && item.status !== "해당없음");
-      if (scoredItems.length === 0) return 0;
-      const sum = scoredItems.reduce((acc, cur) => acc + (cur.score || 0), 0);
-      return Math.round((sum / scoredItems.length) * 100);
+    if (isSimulatedActive && simResult.match_score !== undefined && simResult.match_score !== null) {
+      return Math.round(simResult.match_score * 100);
     }
     return selectedAnnSummary ? Math.round(selectedAnnSummary.match_score * 100) : 0;
   };
@@ -436,208 +459,6 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   }
 
   // ==========================================
-  // 5. What-if Slider Control Panel Component
-  // ==========================================
-  function WhatIfPanel() {
-    if (!company) return null;
-
-    const currentRevenue = overrides.revenue !== undefined ? overrides.revenue : originalRevenue;
-    const currentBizAge = overrides.founded_date ? getBizAge(overrides.founded_date) : originalBizAge;
-    const currentEmployeeCount = overrides.employee_count !== undefined ? overrides.employee_count : originalEmployeeCount;
-    const currentRegion = overrides.region !== undefined ? overrides.region : originalRegion;
-
-    return (
-      <div className="rounded-2xl border border-blue-200 bg-white shadow-md mb-8 overflow-hidden transition-all duration-300">
-        {/* Header Accordion Bar */}
-        <div
-          onClick={() => setIsWhatIfExpanded(!isWhatIfExpanded)}
-          className="w-full text-left bg-gradient-to-r from-blue-50/50 via-indigo-50/10 to-white hover:from-blue-50 hover:via-indigo-50/20 px-6 py-4 flex items-center justify-between gap-4 border-b border-blue-100 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">🔮</span>
-            <div>
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                What-if 시뮬레이터 (실시간 기업 정보 가상 변경)
-                {isSimulatedActive && (
-                  <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full font-bold animate-pulse">
-                    가상 모드 활성화됨
-                  </span>
-                )}
-                {isSimulating && (
-                  <span className="text-xs text-gray-400 font-normal animate-pulse">
-                    (시뮬레이션 분석 중...)
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                기업의 매출액, 업력, 지역, 임직원 수를 가상으로 조정하여 실시간 매칭률과 충족 여부의 변화를 시뮬레이션합니다. (FastAPI 실시간 계산 연동)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isSimulatedActive && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOverrides({});
-                  setSimResult(null);
-                }}
-                className="text-xs text-red-500 hover:text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg transition font-semibold cursor-pointer"
-              >
-                초기화
-              </button>
-            )}
-            <svg
-              className={`w-5 h-5 text-gray-400 transform transition-transform duration-300 ${isWhatIfExpanded ? "rotate-180" : ""
-                }`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Simulated Sliders Grid */}
-        {isWhatIfExpanded && (
-          <div className="p-6 bg-gradient-to-b from-blue-50/5 to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 border-b border-gray-100">
-            {/* 1. 매출액 슬라이더 */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-gray-600">💰 가상 매출액</span>
-                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                  {(currentRevenue / 100000000).toFixed(1)}억원
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10000000000" // 100억원
-                step="100000000" // 1억원
-                value={currentRevenue}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  const next = { ...overrides, revenue: val };
-                  setOverrides(next);
-                  handleSimulate(next);
-                }}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>0원</span>
-                <span>원본: {(originalRevenue / 100000000).toFixed(1)}억</span>
-                <span>100억원</span>
-              </div>
-            </div>
-
-            {/* 2. 업력 슬라이더 */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-gray-600">⏳ 가상 업력</span>
-                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                  {currentBizAge.toFixed(1)}년
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="15"
-                step="0.5"
-                value={currentBizAge}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  const simulatedDate = getSimulatedFoundedDate(val);
-                  const next = { ...overrides, founded_date: simulatedDate };
-                  setOverrides(next);
-                  handleSimulate(next);
-                }}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>0년</span>
-                <span>원본: {originalBizAge.toFixed(1)}년</span>
-                <span>15년</span>
-              </div>
-            </div>
-
-            {/* 3. 종업원 수 슬라이더 */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-gray-600">👥 가상 임직원 수</span>
-                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                  {currentEmployeeCount}명
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="300"
-                step="5"
-                value={currentEmployeeCount}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  const next = { ...overrides, employee_count: val };
-                  setOverrides(next);
-                  handleSimulate(next);
-                }}
-                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>0명</span>
-                <span>원본: {originalEmployeeCount}명</span>
-                <span>300명</span>
-              </div>
-            </div>
-
-            {/* 4. 지역 선택 */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-gray-600">📍 가상 소재지</span>
-                <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                  {currentRegion}
-                </span>
-              </div>
-              <select
-                value={currentRegion}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const next = { ...overrides, region: val };
-                  setOverrides(next);
-                  handleSimulate(next);
-                }}
-                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-500 focus:outline-none cursor-pointer"
-              >
-                <option value="서울특별시">서울</option>
-                <option value="경기도">경기</option>
-                <option value="인천광역시">인천</option>
-                <option value="부산광역시">부산</option>
-                <option value="대구광역시">대구</option>
-                <option value="광주광역시">광주</option>
-                <option value="대전광역시">대전</option>
-                <option value="울산광역시">울산</option>
-                <option value="세종특별자치시">세종</option>
-                <option value="강원특별자치도">강원</option>
-                <option value="충청북도">충북</option>
-                <option value="충청남도">충남</option>
-                <option value="전라북도">전북</option>
-                <option value="전라남도">전남</option>
-                <option value="경상북도">경북</option>
-                <option value="경상남도">경남</option>
-                <option value="제주특별자치도">제주</option>
-              </select>
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>전국 17개 지자체 중 선택</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ==========================================
   // 6. JSX Render
   // ==========================================
   return (
@@ -647,7 +468,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/matching"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 transition"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 shadow-sm transition"
           >
             ← 대시보드로 돌아가기
           </Link>
@@ -679,10 +500,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
             </p>
           </div>
 
-          {/* 종합 매칭률 게이지 보드 (백엔드 점수 반영) */}
+          {/* 종합 매칭 점수 게이지 보드 (백엔드 점수 반영) */}
           <div className="bg-gray-50 border p-4 rounded-xl flex items-center gap-4 min-w-[240px]">
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-gray-400">종합 매칭률</span>
+              <span className="text-xs font-semibold text-gray-400">종합 매칭 점수</span>
               <span className="text-2xl font-black text-blue-600 mt-1">{matchScorePercentage}%</span>
             </div>
             <div className="flex-1">
@@ -707,7 +528,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 🤝 [{company.industry || "기업"}] vs {selectedAnnDetail.title}
               </h2>
               <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-bold">
-                매칭률: {matchScorePercentage}%
+                매칭 점수: {matchScorePercentage}%
               </span>
             </div>
 
@@ -732,7 +553,19 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         )}
 
         {/* 🔮 What-if 시뮬레이터 패널 랜더링 */}
-        <WhatIfPanel />
+        {company && (
+          <WhatIfPanel
+            company={company}
+            overrides={overrides}
+            setOverrides={setOverrides}
+            handleSimulate={handleSimulate}
+            isSimulating={isSimulating}
+            isSimulatedActive={isSimulatedActive}
+            isWhatIfExpanded={isWhatIfExpanded}
+            setIsWhatIfExpanded={setIsWhatIfExpanded}
+            setSimResult={setSimResult}
+          />
+        )}
 
         {/* 메인 2분할 레이아웃 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -779,7 +612,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                             요건 필드: {ann.total_fields}개
                           </span>
                           <span className="font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                            {scorePct}% 충족
+                            매칭 점수 {scorePct}%
                           </span>
                         </div>
                       </button>
@@ -953,5 +786,254 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         </div>
       </section>
     </main>
+  );
+}
+
+interface WhatIfPanelProps {
+  company: Company;
+  overrides: Partial<Company>;
+  setOverrides: React.Dispatch<React.SetStateAction<Partial<Company>>>;
+  handleSimulate: (newOverrides: Partial<Company>) => void;
+  isSimulating: boolean;
+  isSimulatedActive: boolean;
+  isWhatIfExpanded: boolean;
+  setIsWhatIfExpanded: (val: boolean) => void;
+  setSimResult: React.Dispatch<React.SetStateAction<MatchResultDetailResponse | null>>;
+}
+
+function WhatIfPanel({
+  company,
+  overrides,
+  setOverrides,
+  handleSimulate,
+  isSimulating,
+  isSimulatedActive,
+  isWhatIfExpanded,
+  setIsWhatIfExpanded,
+  setSimResult,
+}: WhatIfPanelProps) {
+  const originalBizAge = company.founded_date ? getBizAge(company.founded_date) : 0;
+  const originalRevenue = company.revenue ?? 0;
+  const originalEmployeeCount = company.employee_count ?? 0;
+  const originalRegion = company.region ?? "";
+
+  // Local state for smooth dragging
+  const [localRevenue, setLocalRevenue] = useState<number>(originalRevenue);
+  const [localBizAge, setLocalBizAge] = useState<number>(originalBizAge);
+  const [localEmployeeCount, setLocalEmployeeCount] = useState<number>(originalEmployeeCount);
+  const [localRegion, setLocalRegion] = useState<string>(originalRegion);
+
+  // Sync with overrides (e.g. on Reset)
+  useEffect(() => {
+    setLocalRevenue(overrides.revenue !== undefined ? overrides.revenue : originalRevenue);
+  }, [overrides.revenue, originalRevenue]);
+
+  useEffect(() => {
+    setLocalBizAge(overrides.founded_date ? getBizAge(overrides.founded_date) : originalBizAge);
+  }, [overrides.founded_date, originalBizAge]);
+
+  useEffect(() => {
+    setLocalEmployeeCount(overrides.employee_count !== undefined ? overrides.employee_count : originalEmployeeCount);
+  }, [overrides.employee_count, originalEmployeeCount]);
+
+  useEffect(() => {
+    setLocalRegion(overrides.region !== undefined ? overrides.region : originalRegion);
+  }, [overrides.region, originalRegion]);
+
+  // Debounced parent update
+  const debouncedUpdate = useDebouncedCallback((next: Partial<Company>) => {
+    setOverrides(next);
+    handleSimulate(next);
+  }, 300);
+
+  const currentRevenue = localRevenue;
+  const currentBizAge = localBizAge;
+  const currentEmployeeCount = localEmployeeCount;
+  const currentRegion = localRegion;
+
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-white shadow-md mb-8 overflow-hidden transition-all duration-300">
+      {/* Header Accordion Bar */}
+      <div
+        onClick={() => setIsWhatIfExpanded(!isWhatIfExpanded)}
+        className="w-full text-left bg-gradient-to-r from-blue-50/50 via-indigo-50/10 to-white hover:from-blue-50 hover:via-indigo-50/20 px-6 py-4 flex items-center justify-between gap-4 border-b border-blue-100 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl">🔮</span>
+          <div>
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              What-if 시뮬레이터 (실시간 기업 정보 가상 변경)
+              {isSimulatedActive && (
+                <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                  가상 모드 활성화됨
+                </span>
+              )}
+              {isSimulating && (
+                <span className="text-xs text-gray-400 font-normal animate-pulse">
+                  (시뮬레이션 분석 중...)
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              기업의 매출액, 업력, 지역, 임직원 수를 가상으로 조정하여 매칭 점수와 충족 여부의 변화를 시뮬레이션합니다.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {isSimulatedActive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setOverrides({});
+                setSimResult(null);
+              }}
+              className="text-xs text-red-500 hover:text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg transition font-semibold cursor-pointer"
+            >
+              초기화
+            </button>
+          )}
+          <svg
+            className={`w-5 h-5 text-gray-400 transform transition-transform duration-300 ${isWhatIfExpanded ? "rotate-180" : ""
+              }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+
+      {/* Simulated Sliders Grid */}
+      {isWhatIfExpanded && (
+        <div className="p-6 bg-gradient-to-b from-blue-50/5 to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 border-b border-gray-100">
+          {/* 1. 매출액 슬라이더 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-gray-600">💰 가상 매출액</span>
+              <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                {(currentRevenue / 100000000).toFixed(1)}억원
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="10000000000" // 100억원
+              step="100000000" // 1억원
+              value={currentRevenue}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setLocalRevenue(val);
+                debouncedUpdate({ ...overrides, revenue: val });
+              }}
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400">
+              <span>0원</span>
+              <span>원본: {(originalRevenue / 100000000).toFixed(1)}억</span>
+              <span>100억원</span>
+            </div>
+          </div>
+
+          {/* 2. 업력 슬라이더 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-gray-600">⏳ 가상 업력</span>
+              <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                {currentBizAge.toFixed(1)}년
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="15"
+              step="0.5"
+              value={currentBizAge}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setLocalBizAge(val);
+                const simulatedDate = getSimulatedFoundedDate(val);
+                debouncedUpdate({ ...overrides, founded_date: simulatedDate });
+              }}
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400">
+              <span>0년</span>
+              <span>원본: {originalBizAge.toFixed(1)}년</span>
+              <span>15년</span>
+            </div>
+          </div>
+
+          {/* 3. 종업원 수 슬라이더 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-gray-600">👥 가상 임직원 수</span>
+              <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                {currentEmployeeCount}명
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="300"
+              step="5"
+              value={currentEmployeeCount}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setLocalEmployeeCount(val);
+                debouncedUpdate({ ...overrides, employee_count: val });
+              }}
+              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400">
+              <span>0명</span>
+              <span>원본: {originalEmployeeCount}명</span>
+              <span>300명</span>
+            </div>
+          </div>
+
+          {/* 4. 지역 선택 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-gray-600">📍 가상 소재지</span>
+              <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                {currentRegion}
+              </span>
+            </div>
+            <select
+              value={currentRegion}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLocalRegion(val);
+                debouncedUpdate({ ...overrides, region: val });
+              }}
+              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white focus:border-blue-500 focus:outline-none cursor-pointer"
+            >
+              <option value="서울특별시">서울</option>
+              <option value="경기도">경기</option>
+              <option value="인천광역시">인천</option>
+              <option value="부산광역시">부산</option>
+              <option value="대구광역시">대구</option>
+              <option value="광주광역시">광주</option>
+              <option value="대전광역시">대전</option>
+              <option value="울산광역시">울산</option>
+              <option value="세종특별자치시">세종</option>
+              <option value="강원특별자치도">강원</option>
+              <option value="충청북도">충북</option>
+              <option value="충청남도">충남</option>
+              <option value="전라북도">전북</option>
+              <option value="전라남도">전남</option>
+              <option value="경상북도">경북</option>
+              <option value="경상남도">경남</option>
+              <option value="제주특별자치도">제주</option>
+            </select>
+            <div className="flex justify-between text-[10px] text-gray-400">
+              <span>전국 17개 지자체 중 선택</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

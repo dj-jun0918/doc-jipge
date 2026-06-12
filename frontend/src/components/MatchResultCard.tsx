@@ -113,10 +113,23 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
         </div>
       </div>
 
-      {/* 판정 세부 사유 */}
+      {/* 처리 경로 */}
       <div className="mt-4">
-        <span className="block text-[11px] text-gray-400 font-semibold mb-1">✍️ 판정 사유</span>
-        <p className="text-sm text-gray-700 leading-relaxed font-medium">{reason}</p>
+        <span className="block text-[11px] text-gray-400 font-semibold mb-1">⚙️ 처리 경로</span>
+        <p className="text-sm text-gray-700 leading-relaxed font-medium">
+          {(() => {
+            switch (reason) {
+              case "rule_base":
+                return "규칙 기반";
+              case "text_llm":
+                return "텍스트 LLM";
+              case "vision_llm":
+                return "비전 LLM";
+              default:
+                return reason || "조건 평가 완료";
+            }
+          })()}
+        </p>
       </div>
 
       {/* 하단 제어부 (원문 근거 및 수동 판정 액션) */}
@@ -130,16 +143,7 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            {(() => {
-              const loc = evidence_source.location;
-              if (loc?.location_type === "hwpx_table") {
-                return `HWPX 테이블 근거 보기 (Table ${(loc.table_index !== undefined ? loc.table_index : 0) + 1}${loc.row ? `, ${loc.row}행` : ""})`;
-              }
-              if (loc?.location_type === "pdf_page" || evidence_source.page) {
-                return `PDF 원문 근거 보기 (p. ${evidence_source.page || loc?.page || 1})`;
-              }
-              return "원문 근거 텍스트 보기";
-            })()}
+            원문 근거 보기
           </button>
         ) : (
           <span className="text-[11px] text-gray-400">원문 근거 정보가 존재하지 않습니다.</span>

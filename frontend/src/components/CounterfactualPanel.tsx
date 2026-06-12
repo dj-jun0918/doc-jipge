@@ -51,6 +51,7 @@ export default function CounterfactualPanel({ company_id, ann_id }: Props) {
 
   useEffect(() => {
     if (!company_id || !ann_id) return;
+    let active = true;
     setLoading(true);
     setError(null);
 
@@ -68,15 +69,25 @@ export default function CounterfactualPanel({ company_id, ann_id }: Props) {
         return r.json();
       })
       .then((res) => {
-        setData(res);
+        if (active) {
+          setData(res);
+        }
       })
       .catch((err) => {
-        console.error("반사실 분석 로드 실패:", err);
-        setError("반사실 분석 데이터를 가져오지 못했습니다.");
+        if (active) {
+          console.error("반사실 분석 로드 실패:", err);
+          setError("반사실 분석 데이터를 가져오지 못했습니다.");
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       });
+
+    return () => {
+      active = false;
+    };
   }, [company_id, ann_id]);
 
   if (loading) {

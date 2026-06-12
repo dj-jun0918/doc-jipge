@@ -121,25 +121,32 @@ export default function AnnouncementsPage() {
     );
   }
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-gray-50 px-6 py-10">
-        <section className="mx-auto max-w-5xl">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">공고 목록</h1>
-          <p className="text-red-500">{error}</p>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-10">
-    
+
       <section className="mx-auto max-w-5xl">
         <h1 className="mb-2 text-3xl font-bold text-gray-900">공고 목록</h1>
         <p className="mb-6 text-sm text-gray-600">
           전체 공고 수: {data?.total ?? 0}
         </p>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 shadow-sm">
+            <span className="text-red-500 text-lg">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-800">
+                공고 목록을 불러오는 중 오류가 발생했습니다
+              </p>
+              <p className="text-xs text-red-650 mt-0.5">{error}</p>
+            </div>
+            <button
+              onClick={() => fetchAnnouncements()}
+              className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold rounded-lg transition"
+            >
+              재시도
+            </button>
+          </div>
+        )}
 
         <SearchFilter
           keyword={keyword}
@@ -154,16 +161,16 @@ export default function AnnouncementsPage() {
           onReset={handleReset}
         />
 
-        {(!data || data.items.length === 0) ? (
+        {!error && (!data || data.items.length === 0) ? (
           <div className="rounded-xl border bg-white p-6 text-gray-600 shadow-sm">
             현재 등록된 공고가 없습니다.
           </div>
-        ) : (() => {
+        ) : data ? (() => {
           const displayedItems = data.items.filter(item => {
             if (!showBookmarks) return true;
             return getBookmarks().includes(String(item.id));
           });
-          
+
           if (displayedItems.length === 0) {
             return (
               <div className="rounded-xl border bg-white p-6 text-gray-600 shadow-sm">
@@ -208,7 +215,7 @@ export default function AnnouncementsPage() {
               ))}
             </div>
           );
-        })()}
+        })() : null}
 
         {data && totalPages > 1 && (
           <div className="mt-6 flex items-center justify-center gap-4">
