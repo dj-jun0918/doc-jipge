@@ -261,7 +261,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         }
         const data = await res.json();
         if (!active) return;
-        let items = data.items || [];
+        let items: CompanyMatchSummary[] = data.items || [];
 
         setAnnouncements(items);
 
@@ -553,17 +553,19 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         )}
 
         {/* 🔮 What-if 시뮬레이터 패널 랜더링 */}
-        <WhatIfPanel
-          company={company}
-          overrides={overrides}
-          setOverrides={setOverrides}
-          handleSimulate={handleSimulate}
-          isSimulating={isSimulating}
-          isSimulatedActive={isSimulatedActive}
-          isWhatIfExpanded={isWhatIfExpanded}
-          setIsWhatIfExpanded={setIsWhatIfExpanded}
-          setSimResult={setSimResult}
-        />
+        {company && (
+          <WhatIfPanel
+            company={company}
+            overrides={overrides}
+            setOverrides={setOverrides}
+            handleSimulate={handleSimulate}
+            isSimulating={isSimulating}
+            isSimulatedActive={isSimulatedActive}
+            isWhatIfExpanded={isWhatIfExpanded}
+            setIsWhatIfExpanded={setIsWhatIfExpanded}
+            setSimResult={setSimResult}
+          />
+        )}
 
         {/* 메인 2분할 레이아웃 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -788,7 +790,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
 }
 
 interface WhatIfPanelProps {
-  company: Company | null;
+  company: Company;
   overrides: Partial<Company>;
   setOverrides: React.Dispatch<React.SetStateAction<Partial<Company>>>;
   handleSimulate: (newOverrides: Partial<Company>) => void;
@@ -810,8 +812,6 @@ function WhatIfPanel({
   setIsWhatIfExpanded,
   setSimResult,
 }: WhatIfPanelProps) {
-  if (!company) return null;
-
   const originalBizAge = company.founded_date ? getBizAge(company.founded_date) : 0;
   const originalRevenue = company.revenue ?? 0;
   const originalEmployeeCount = company.employee_count ?? 0;

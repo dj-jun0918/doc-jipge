@@ -84,29 +84,34 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
       setPageNumber(clampPage(location.page, numPages));
       setSearchError(null);
     } else if (pdfDocument && evidenceText) {
+      const targetText = evidenceText;
       let active = true;
       async function searchPdf() {
         setSearchError(null);
-        const cleanTarget = evidenceText.replace(/\s+/g, "").toLowerCase();
+        const cleanTarget = targetText.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
         if (!cleanTarget) return;
 
         for (let i = 1; i <= pdfDocument.numPages; i++) {
           try {
+            if (!active) return;
             const page = await pdfDocument.getPage(i);
+            if (!active) return;
             const textContent = await page.getTextContent();
             if (!active) return;
 
             const pageText = textContent.items
               .map((item: any) => item.str)
               .join(" ");
-            const cleanPageText = pageText.replace(/\s+/g, "").toLowerCase();
+            const cleanPageText = pageText.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
 
             if (cleanPageText.includes(cleanTarget)) {
               setPageNumber(clampPage(i, pdfDocument.numPages));
               return;
             }
           } catch (err) {
-            console.error(`Error searching page ${i}:`, err);
+            if (active) {
+              console.error(`Error searching page ${i}:`, err);
+            }
           }
         }
 
@@ -143,6 +148,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
     let active = true;
     async function computeHighlight() {
       try {
+        if (!active) return;
         const textContent = await pdfPage.getTextContent();
         if (!active) return;
 
@@ -160,20 +166,24 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
           return;
         }
 
-        const cleanTarget = evidenceText.replace(/\s+/g, "").toLowerCase();
+        const cleanTarget = evidenceText.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
         if (!cleanTarget) {
           setHighlightRanges([]);
           return;
         }
 
-        // Clean and map concatenated page text
+        // Clean and map concatenated page text with character-level NFKC tracking
         let cleanPage = "";
         const pageMap: number[] = [];
         for (let i = 0; i < concatenated.length; i++) {
           const char = concatenated[i];
-          if (!/\s/.test(char)) {
-            cleanPage += char.toLowerCase();
-            pageMap.push(i);
+          const normChar = char.normalize("NFKC");
+          for (let j = 0; j < normChar.length; j++) {
+            const c = normChar[j];
+            if (!/\s/.test(c)) {
+              cleanPage += c.toLowerCase();
+              pageMap.push(i);
+            }
           }
         }
 
@@ -210,19 +220,24 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
     };
   }, [pdfPage, evidenceText]);
 
-  const textRenderer = useCallback(({ str, itemIndex }: { str: string; itemIndex: number }) => {
+  const textRenderer = useCallback((textItem: any) => {
+    const { str, itemIndex } = textItem;
     const range = highlightRanges[itemIndex];
     if (range && range.start < range.end) {
       const before = str.slice(0, range.start);
       const match = str.slice(range.start, range.end);
       const after = str.slice(range.end);
-      return (
-        <span>
-          {before}
-          <mark className="bg-yellow-300 text-yellow-900 rounded-sm px-0.5 shadow-sm">{match}</mark>
-          {after}
-        </span>
-      );
+
+      const escapeHtml = (text: string) => {
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+
+      return `${escapeHtml(before)}<mark class="bg-yellow-300 text-yellow-900 rounded-sm px-0.5 shadow-sm">${escapeHtml(match)}</mark>${escapeHtml(after)}`;
     }
     return str;
   }, [highlightRanges]);
