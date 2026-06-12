@@ -37,6 +37,10 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
   // 로드된 PDF Page 정보를 보관하여 bbox 스케일 계산에 사용
   const [pdfPage, setPdfPage] = useState<any>(null);
 
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [highlightRanges, setHighlightRanges] = useState<any[]>([]);
+
   // 자가 치유(Self-healing) Fallback 상태
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string>(pdfUrl);
 
@@ -64,14 +68,59 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
     return cleanup;
   }, [observeResize]);
 
-  // highlightPage가 변할 때 해당 페이지로 자동 점프
+  // 페이지 클램핑 헬퍼
+  const clampPage = useCallback((page: number, maxPages: number | null) => {
+    if (page < 1) return 1;
+    if (maxPages && page > maxPages) return maxPages;
+    return page;
+  }, []);
+
+  // highlightPage가 변할 때 또는 텍스트 검색을 통한 페이지 점프
   useEffect(() => {
     if (highlightPage && highlightPage > 0) {
-      setPageNumber(highlightPage);
+      setPageNumber(clampPage(highlightPage, numPages));
+      setSearchError(null);
     } else if (location?.page && location.page > 0) {
-      setPageNumber(location.page);
+      setPageNumber(clampPage(location.page, numPages));
+      setSearchError(null);
+    } else if (pdfDocument && evidenceText) {
+      let active = true;
+      async function searchPdf() {
+        setSearchError(null);
+        const cleanTarget = evidenceText.replace(/\s+/g, "").toLowerCase();
+        if (!cleanTarget) return;
+
+        for (let i = 1; i <= pdfDocument.numPages; i++) {
+          try {
+            const page = await pdfDocument.getPage(i);
+            const textContent = await page.getTextContent();
+            if (!active) return;
+
+            const pageText = textContent.items
+              .map((item: any) => item.str)
+              .join(" ");
+            const cleanPageText = pageText.replace(/\s+/g, "").toLowerCase();
+
+            if (cleanPageText.includes(cleanTarget)) {
+              setPageNumber(clampPage(i, pdfDocument.numPages));
+              return;
+            }
+          } catch (err) {
+            console.error(`Error searching page ${i}:`, err);
+          }
+        }
+
+        if (active) {
+          setSearchError("원문에서 위치를 찾을 수 없습니다. 전체 PDF를 표시합니다.");
+        }
+      }
+
+      searchPdf();
+      return () => {
+        active = false;
+      };
     }
-  }, [highlightPage, location]);
+  }, [highlightPage, location, pdfDocument, evidenceText, numPages, clampPage]);
 
   // pdfUrl이 바뀌면 페이지 및 상태 초기화
   useEffect(() => {
@@ -79,27 +128,115 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
     setLoading(true);
     setError(null);
     setPdfPage(null);
+    setPdfDocument(null);
+    setSearchError(null);
+    setHighlightRanges([]);
   }, [pdfUrl]);
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
+  // 텍스트 하이라이트 범위 계산
+  useEffect(() => {
+    if (!pdfPage) {
+      setHighlightRanges([]);
+      return;
+    }
+
+    let active = true;
+    async function computeHighlight() {
+      try {
+        const textContent = await pdfPage.getTextContent();
+        if (!active) return;
+
+        const items = textContent.items;
+        let concatenated = "";
+        const itemRanges = items.map((item: any) => {
+          const start = concatenated.length;
+          concatenated += item.str;
+          const end = concatenated.length;
+          return { start, end };
+        });
+
+        if (!evidenceText) {
+          setHighlightRanges([]);
+          return;
+        }
+
+        const cleanTarget = evidenceText.replace(/\s+/g, "").toLowerCase();
+        if (!cleanTarget) {
+          setHighlightRanges([]);
+          return;
+        }
+
+        // Clean and map concatenated page text
+        let cleanPage = "";
+        const pageMap: number[] = [];
+        for (let i = 0; i < concatenated.length; i++) {
+          const char = concatenated[i];
+          if (!/\s/.test(char)) {
+            cleanPage += char.toLowerCase();
+            pageMap.push(i);
+          }
+        }
+
+        const matchStartInClean = cleanPage.indexOf(cleanTarget);
+        if (matchStartInClean !== -1) {
+          const matchEndInClean = matchStartInClean + cleanTarget.length - 1;
+          const originalStart = pageMap[matchStartInClean];
+          const originalEnd = pageMap[matchEndInClean] + 1; // exclusive
+
+          const ranges: any[] = [];
+          itemRanges.forEach((range: any, idx: number) => {
+            const overlapStart = Math.max(range.start, originalStart);
+            const overlapEnd = Math.min(range.end, originalEnd);
+            if (overlapStart < overlapEnd) {
+              ranges[idx] = {
+                start: overlapStart - range.start,
+                end: overlapEnd - range.start,
+              };
+            }
+          });
+          setHighlightRanges(ranges);
+        } else {
+          setHighlightRanges([]);
+        }
+      } catch (err) {
+        console.error("Error computing text highlights:", err);
+        setHighlightRanges([]);
+      }
+    }
+
+    computeHighlight();
+    return () => {
+      active = false;
+    };
+  }, [pdfPage, evidenceText]);
+
+  const textRenderer = useCallback(({ str, itemIndex }: { str: string; itemIndex: number }) => {
+    const range = highlightRanges[itemIndex];
+    if (range && range.start < range.end) {
+      const before = str.slice(0, range.start);
+      const match = str.slice(range.start, range.end);
+      const after = str.slice(range.end);
+      return (
+        <span>
+          {before}
+          <mark className="bg-yellow-300 text-yellow-900 rounded-sm px-0.5 shadow-sm">{match}</mark>
+          {after}
+        </span>
+      );
+    }
+    return str;
+  }, [highlightRanges]);
+
+  function onDocumentLoadSuccess(pdf: any) {
+    setPdfDocument(pdf);
+    setNumPages(pdf.numPages);
     setLoading(false);
     setError(null);
+    setPageNumber((prev) => clampPage(prev, pdf.numPages));
   }
 
   function onDocumentLoadError(err: Error) {
     console.error("PDF load error:", err);
-
-    /* 🧪 자가 치유(Self-healing) Fallback (필요시 주석 제거하여 활성화)
-    if (currentPdfUrl !== "/sample.pdf") {
-      console.warn("원본 PDF 로드 실패. 테스트용 sample.pdf로 대체 표시합니다.");
-      setCurrentPdfUrl("/sample.pdf");
-      setError(null);
-      setLoading(true);
-      return;
-    }
-    */
-
     setError("PDF 문서를 불러올 수 없습니다. 경로가 올바르지 않거나 손상된 파일일 수 있습니다.");
     setLoading(false);
   }
@@ -107,17 +244,14 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
   const changePage = (offset: number) => {
     setPageNumber((prevPageNumber) => {
       const target = prevPageNumber + offset;
-      if (numPages && target >= 1 && target <= numPages) {
-        return target;
-      }
-      return prevPageNumber;
+      return clampPage(target, numPages);
     });
   };
 
   return (
     <div className="flex flex-col h-full bg-gray-100 rounded-2xl overflow-hidden border shadow-sm">
       {/* 툴바 컨트롤러 */}
-      <div className="bg-white border-b px-4 py-3 flex items-center justify-between gap-4 text-sm font-semibold shadow-sm">
+      <div className="bg-white border-b px-4 py-3 flex items-center justify-between gap-4 text-sm font-semibold shadow-sm animate-fade-in">
         <div className="flex items-center gap-2">
           <button
             onClick={() => changePage(-1)}
@@ -138,11 +272,15 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
           </button>
         </div>
 
-        {evidenceText && (
+        {searchError ? (
+          <div className="hidden md:block max-w-[50%] truncate text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full font-medium">
+            ⚠️ {searchError}
+          </div>
+        ) : evidenceText ? (
           <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium">
             🔍 근거: &quot;{evidenceText}&quot;
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* PDF 본문 영역 (반응형 너비 추적) */}
@@ -158,7 +296,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
         )}
 
         {error && (
-          <div className="my-auto text-center px-6 py-10 max-w-md bg-white border border-red-200 rounded-2xl shadow-sm">
+          <div className="my-auto text-center px-6 py-10 max-w-md bg-white border border-red-200 rounded-2xl shadow-sm animate-fade-in">
             <svg className="mx-auto h-12 w-12 text-red-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -185,9 +323,10 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
                   renderAnnotationLayer={false}
                   renderTextLayer={true}
                   onLoadSuccess={(page) => setPdfPage(page)}
+                  customTextRenderer={textRenderer}
                 />
 
-                {/* 🎯 BBox 정밀 하이라이트 오버레이 */}
+                {/* 🎯 BBox 정밀 하이라이트 오버레이 (location bbox가 있을 때만 유지) */}
                 {pdfPage && location?.bbox && (
                   (() => {
                     const bbox = location.bbox;

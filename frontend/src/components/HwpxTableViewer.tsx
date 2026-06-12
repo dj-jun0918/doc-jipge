@@ -57,11 +57,6 @@ export default function HwpxTableViewer({ tables, location }: Props) {
           </p>
         </div>
 
-        {location?.row !== undefined && (
-          <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full animate-pulse shadow-sm">
-            🎯 근거 행: {location.row}행 매칭 완료
-          </span>
-        )}
       </div>
 
       {/* 테이블 렌더링 영역 */}
@@ -87,23 +82,11 @@ export default function HwpxTableViewer({ tables, location }: Props) {
                   {children}
                 </th>
               ),
-              tbody: ({ children }) => {
-                const rows = React.Children.toArray(children);
-                return (
-                  <tbody className="divide-y divide-gray-100">
-                    {rows.map((row, index) => {
-                      const isHighlighted = index === targetRowIndex;
-                      return React.cloneElement(row as any, {
-                        className: `transition-colors duration-300 relative ${
-                          isHighlighted
-                            ? "bg-yellow-50/75 font-medium text-amber-950 shadow-[inset_3px_0_0_#eab308] border-y border-yellow-200/50"
-                            : "hover:bg-gray-50/50 text-gray-600"
-                        }`
-                      });
-                    })}
-                  </tbody>
-                );
-              },
+              tbody: ({ children }) => (
+                <tbody className="divide-y divide-gray-100 text-gray-600">
+                  {children}
+                </tbody>
+              ),
               td: ({ children }) => (
                 <td className="px-4 py-3.5">
                   {children}

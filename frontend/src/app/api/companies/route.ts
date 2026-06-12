@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const response = await fetch(`${BACKEND_URL}/api/companies`, {
+    const response = await fetch(`${BACKEND_URL}/api/companies/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
