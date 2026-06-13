@@ -1,0 +1,21 @@
+{
+  "description": "매칭 정확도 평가 케이스 — 다툼 없는 명백한 (자격조건 × 회사 프로필) → 기대 판정. 추출과 분리해 matcher 로직만 검증. 기준일 2026-06-13.",
+  "cases": [
+    {"desc": "매출 50억 이하 + 회사 10억 → 충족", "field": {"field_name": "매출", "operator": "이하", "value": 5000000000, "raw_text": "매출액 50억원 이하"}, "company": {"revenue": 1000000000}, "expected": "충족"},
+    {"desc": "매출 50억 이하 + 회사 100억 → 미충족", "field": {"field_name": "매출", "operator": "이하", "value": 5000000000, "raw_text": "매출액 50억원 이하"}, "company": {"revenue": 10000000000}, "expected": "미충족"},
+    {"desc": "업력 7년 이내 + 회사 3년 → 충족", "field": {"field_name": "업력", "operator": "이하", "value": 7, "raw_text": "업력 7년 이내"}, "company": {"founded_date": "2023-06-01"}, "expected": "충족"},
+    {"desc": "업력 3년 미만 + 회사 5년 → 미충족", "field": {"field_name": "업력", "operator": "미만", "value": 3, "raw_text": "창업 3년 미만"}, "company": {"founded_date": "2021-01-01"}, "expected": "미충족"},
+    {"desc": "지역 서울 소재 + 회사 서울 → 충족", "field": {"field_name": "지역", "operator": "소재", "value": ["서울"], "raw_text": "서울특별시 소재"}, "company": {"region": "서울"}, "expected": "충족"},
+    {"desc": "지역 서울 소재 + 회사 경기 → 미충족", "field": {"field_name": "지역", "operator": "소재", "value": ["서울"], "raw_text": "서울특별시 소재"}, "company": {"region": "경기"}, "expected": "미충족"},
+    {"desc": "나이 만 39세 이하 + 대표 만 30세 → 충족", "field": {"field_name": "나이", "operator": "이하", "value": 39, "raw_text": "대표자 만 39세 이하"}, "company": {"ceo_birth_date": "1996-01-01"}, "expected": "충족"},
+    {"desc": "나이 만 39세 이하 + 대표 만 50세 → 미충족", "field": {"field_name": "나이", "operator": "이하", "value": 39, "raw_text": "대표자 만 39세 이하"}, "company": {"ceo_birth_date": "1975-01-01"}, "expected": "미충족"},
+    {"desc": "종업원 5인 이상 + 회사 10명 → 충족", "field": {"field_name": "종업원 수", "operator": "이상", "value": 5, "raw_text": "상시근로자 5인 이상"}, "company": {"employee_count": 10}, "expected": "충족"},
+    {"desc": "종업원 5인 이상 + 회사 3명 → 미충족", "field": {"field_name": "종업원 수", "operator": "이상", "value": 5, "raw_text": "상시근로자 5인 이상"}, "company": {"employee_count": 3}, "expected": "미충족"},
+    {"desc": "업종 제조업 포함 + 회사 제조업 → 충족", "field": {"field_name": "업종", "operator": "포함", "value": "제조업", "raw_text": "제조업 영위 기업"}, "company": {"industry": "제조업"}, "expected": "충족"},
+    {"desc": "업종 제조업 포함 + 회사 IT서비스 → 미충족", "field": {"field_name": "업종", "operator": "포함", "value": "제조업", "raw_text": "제조업 영위 기업"}, "company": {"industry": "IT서비스업"}, "expected": "미충족"},
+    {"desc": "인증 벤처기업 보유 + 회사 벤처 보유 → 충족", "field": {"field_name": "인증", "operator": "보유", "value": "venture_company", "raw_text": "벤처기업 인증 보유"}, "company": {"certifications": {"venture_company": true}}, "expected": "충족"},
+    {"desc": "인증 벤처기업 보유 + 회사 인증 없음 → 미충족", "field": {"field_name": "인증", "operator": "보유", "value": "venture_company", "raw_text": "벤처기업 인증 보유"}, "company": {"certifications": {}}, "expected": "미충족"},
+    {"desc": "지역 시군구(광명시) + 회사 도 단위(경기)만 → 확인필요 (시군구 단정 불가)", "field": {"field_name": "지역", "operator": "소재", "value": null, "raw_text": "광명시 소재"}, "company": {"region": "경기"}, "expected": "확인필요"},
+    {"desc": "업력 정보 없음(대표 미상) + 7년 이내 → 확인필요", "field": {"field_name": "업력", "operator": "이하", "value": 7, "raw_text": "업력 7년 이내"}, "company": {"founded_date": null}, "expected": "확인필요"}
+  ]
+}
