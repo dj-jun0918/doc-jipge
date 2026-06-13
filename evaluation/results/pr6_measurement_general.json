@@ -23,19 +23,19 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "6개월 이상",
+            "field_name": "매출",
+            "condition": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)",
             "evidence": {
-              "text": "접수일 기준 업력 6개월 이상인 소상공인",
+              "text": "최근 2개월 동안 200만원 이상 또는 당기 부가가치세 신고 매출액이 1,200만원 이상인 소상공인",
               "location": null
             },
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "매출",
-            "condition": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)",
+            "field_name": "업력",
+            "condition": "6개월 이상",
             "evidence": {
-              "text": "최근 2개월 동안 200만원 이상 또는 당기 부가가치세 신고 매출액이 1,200만원 이상인 소상공인",
+              "text": "접수일 기준 업력 6개월 이상인 소상공인",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -113,8 +113,8 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "1년 이상",
+            "field_name": "지역",
+            "condition": "전북 소재",
             "evidence": {
               "text": "지원자격: 공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
               "location": null
@@ -122,8 +122,8 @@
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "지역",
-            "condition": "전북 소재",
+            "field_name": "업력",
+            "condition": "1년 이상",
             "evidence": {
               "text": "지원자격: 공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
               "location": null
@@ -190,6 +190,15 @@
         ],
         "fps": [
           {
+            "field_name": "지역",
+            "condition": "횡성군 관내",
+            "evidence": {
+              "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
             "field_name": "업종",
             "condition": "제조업 분야",
             "evidence": {
@@ -198,15 +207,6 @@
             },
             "processing_path": "vision_llm",
             "mismatch_target": "생산·제조 기업"
-          },
-          {
-            "field_name": "지역",
-            "condition": "횡성군 관내",
-            "evidence": {
-              "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
-              "location": null
-            },
-            "processing_path": "vision_llm"
           }
         ],
         "fns": [
@@ -237,8 +237,8 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "7년 이내",
+            "field_name": "지역",
+            "condition": "원주시 소재",
             "evidence": {
               "text": "신청일 현재 원주시에 소재하며 다음에 해당하는 창업 7년 이내 중소기업",
               "location": null
@@ -246,8 +246,8 @@
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "지역",
-            "condition": "원주시 소재",
+            "field_name": "업력",
+            "condition": "7년 이내",
             "evidence": {
               "text": "신청일 현재 원주시에 소재하며 다음에 해당하는 창업 7년 이내 중소기업",
               "location": null
@@ -288,19 +288,19 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "7년 미만",
+            "field_name": "지역",
+            "condition": "광명시",
             "evidence": {
-              "text": "광명시 소재 7년 미만 스타트업(또는 예비창업자)",
+              "text": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
               "location": null
             },
             "processing_path": "text_llm"
           },
           {
-            "field_name": "지역",
-            "condition": "광명시",
+            "field_name": "업력",
+            "condition": "7년 미만",
             "evidence": {
-              "text": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
+              "text": "광명시 소재 7년 미만 스타트업(또는 예비창업자)",
               "location": null
             },
             "processing_path": "text_llm"
@@ -339,19 +339,19 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "7년 미만",
+            "field_name": "지역",
+            "condition": "전국",
             "evidence": {
-              "text": "공고일 기준 창업 후 7년 미만 기술창업기업",
+              "text": "전국 소재",
               "location": null
             },
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "지역",
-            "condition": "전국",
+            "field_name": "업력",
+            "condition": "7년 미만",
             "evidence": {
-              "text": "전국 소재",
+              "text": "공고일 기준 창업 후 7년 미만 기술창업기업",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -418,6 +418,15 @@
       "details": {
         "tps": [
           {
+            "field_name": "지역",
+            "condition": "서울",
+            "evidence": {
+              "text": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
             "field_name": "업력",
             "condition": "3년 이내",
             "evidence": {
@@ -429,15 +438,6 @@
           {
             "field_name": "업종",
             "condition": "핀테크",
-            "evidence": {
-              "text": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
-            "field_name": "지역",
-            "condition": "서울",
             "evidence": {
               "text": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업",
               "location": null
@@ -565,15 +565,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
-            "evidence": {
-              "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "지역",
             "condition": "중동 지역 수출이력",
             "evidence": {
@@ -581,6 +572,15 @@
               "location": null
             },
             "processing_path": "text_llm"
+          },
+          {
+            "field_name": "업종",
+            "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+            "evidence": {
+              "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
         ],
         "fns": []
@@ -680,15 +680,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "지원제외 업종을 영위하는 경우",
-            "evidence": {
-              "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "종업원 수",
             "condition": "상시근로자 수 10명 미만",
             "evidence": {
@@ -697,6 +688,15 @@
             },
             "processing_path": "text_llm",
             "mismatch_target": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만"
+          },
+          {
+            "field_name": "업종",
+            "condition": "지원제외 업종을 영위하는 경우",
+            "evidence": {
+              "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
         ],
         "fns": [
@@ -771,14 +771,14 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "업종",
-            "condition": "제조업 (공정기술형 / 생활문화형)",
-            "evidence_source": "본문 3p 2. 지원유형 및 대상 개별형 ①②"
-          },
-          {
             "field_name": "종업원 수",
             "condition": "상시근로자 10인 미만 (소공인)",
             "evidence_source": "본문 2p 1. 사업개요 나. 지원대상"
+          },
+          {
+            "field_name": "업종",
+            "condition": "제조업 (공정기술형 / 생활문화형)",
+            "evidence_source": "본문 3p 2. 지원유형 및 대상 개별형 ①②"
           }
         ]
       },
@@ -1068,15 +1068,6 @@
         ],
         "fps": [
           {
-            "field_name": "나이",
-            "condition": "여성 예비창업자",
-            "evidence": {
-              "text": "전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "지역",
             "condition": "전국",
             "evidence": {
@@ -1084,6 +1075,15 @@
               "location": null
             },
             "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "나이",
+            "condition": "여성 예비창업자",
+            "evidence": {
+              "text": "전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fns": [
@@ -1136,19 +1136,19 @@
       "details": {
         "tps": [
           {
-            "field_name": "업종",
-            "condition": "사업자등록증 상 '제조' 업종",
+            "field_name": "인증",
+            "condition": "중소기업확인서(또는 소상공인확인서) 보유",
             "evidence": {
-              "text": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
+              "text": "중소기업확인서(또는 소상공인확인서) 보유",
               "location": null
             },
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "인증",
-            "condition": "중소기업확인서(또는 소상공인확인서) 보유",
+            "field_name": "업종",
+            "condition": "사업자등록증 상 '제조' 업종",
             "evidence": {
-              "text": "중소기업확인서(또는 소상공인확인서) 보유",
+              "text": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -1328,6 +1328,15 @@
         "tps": [],
         "fps": [
           {
+            "field_name": "지역",
+            "condition": "서울, 인천, 경기",
+            "evidence": {
+              "text": "수도권 • 서울, 인천, 경기",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
             "field_name": "업력",
             "condition": "체불사업주 제외",
             "evidence": {
@@ -1345,15 +1354,6 @@
             },
             "processing_path": "vision_llm",
             "mismatch_target": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업"
-          },
-          {
-            "field_name": "지역",
-            "condition": "서울, 인천, 경기",
-            "evidence": {
-              "text": "수도권 • 서울, 인천, 경기",
-              "location": null
-            },
-            "processing_path": "vision_llm"
           }
         ],
         "fns": [
@@ -1482,19 +1482,19 @@
       "details": {
         "tps": [
           {
-            "field_name": "업력",
-            "condition": "창업 7년 이내",
+            "field_name": "지역",
+            "condition": "광주 내 소재",
             "evidence": {
-              "text": "창업기업(공고일 기준 업력 7년 이내)",
+              "text": "광주 소재(본점, 지점/지사, 연구소, 공장 등을 두고 있는 기업)",
               "location": null
             },
             "processing_path": "text_llm"
           },
           {
-            "field_name": "지역",
-            "condition": "광주 내 소재",
+            "field_name": "업력",
+            "condition": "창업 7년 이내",
             "evidence": {
-              "text": "광주 소재(본점, 지점/지사, 연구소, 공장 등을 두고 있는 기업)",
+              "text": "창업기업(공고일 기준 업력 7년 이내)",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1785,30 +1785,6 @@
     }
   },
   "fields": {
-    "업력": {
-      "tp": 17,
-      "fp": 6,
-      "fn": 1,
-      "precision": 0.7391304347826086,
-      "recall": 0.9444444444444444,
-      "f1": 0.8292682926829269
-    },
-    "업종": {
-      "tp": 3,
-      "fp": 14,
-      "fn": 10,
-      "precision": 0.17647058823529413,
-      "recall": 0.23076923076923078,
-      "f1": 0.20000000000000004
-    },
-    "나이": {
-      "tp": 2,
-      "fp": 3,
-      "fn": 1,
-      "precision": 0.4,
-      "recall": 0.6666666666666666,
-      "f1": 0.5
-    },
     "매출": {
       "tp": 2,
       "fp": 2,
@@ -1833,6 +1809,14 @@
       "recall": 0.4,
       "f1": 0.5714285714285715
     },
+    "업력": {
+      "tp": 17,
+      "fp": 6,
+      "fn": 1,
+      "precision": 0.7391304347826086,
+      "recall": 0.9444444444444444,
+      "f1": 0.8292682926829269
+    },
     "종업원 수": {
       "tp": 1,
       "fp": 1,
@@ -1840,6 +1824,22 @@
       "precision": 0.5,
       "recall": 0.25,
       "f1": 0.3333333333333333
+    },
+    "업종": {
+      "tp": 3,
+      "fp": 14,
+      "fn": 10,
+      "precision": 0.17647058823529413,
+      "recall": 0.23076923076923078,
+      "f1": 0.20000000000000004
+    },
+    "나이": {
+      "tp": 2,
+      "fp": 3,
+      "fn": 1,
+      "precision": 0.4,
+      "recall": 0.6666666666666666,
+      "f1": 0.5
     }
   },
   "processing_paths": {
@@ -1915,17 +1915,6 @@
     },
     {
       "announcement_id": "ann_004",
-      "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "제조업 분야",
-      "evidence": {
-        "text": "횡성군 관내 직접 생산·제조 기업으로 창업 7년이내 기업",
-        "location": null
-      },
-      "target": "생산·제조 기업"
-    },
-    {
-      "announcement_id": "ann_004",
       "field_name": "지역",
       "type": "FP (과추출/오인식)",
       "condition": "횡성군 관내",
@@ -1934,6 +1923,17 @@
         "location": null
       },
       "target": "N/A"
+    },
+    {
+      "announcement_id": "ann_004",
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "제조업 분야",
+      "evidence": {
+        "text": "횡성군 관내 직접 생산·제조 기업으로 창업 7년이내 기업",
+        "location": null
+      },
+      "target": "생산·제조 기업"
     },
     {
       "announcement_id": "ann_004",
@@ -1997,22 +1997,22 @@
     },
     {
       "announcement_id": "ann_013",
-      "field_name": "업종",
+      "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+      "condition": "중동 지역 수출이력",
       "evidence": {
-        "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+        "text": "단, 추경 우선선정 기업은 중동지역(22개국) 수출 실적 필요",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "ann_013",
-      "field_name": "지역",
+      "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "중동 지역 수출이력",
+      "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
       "evidence": {
-        "text": "단, 추경 우선선정 기업은 중동지역(22개국) 수출 실적 필요",
+        "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
         "location": null
       },
       "target": "N/A"
@@ -2030,17 +2030,6 @@
     },
     {
       "announcement_id": "ann_016",
-      "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "지원제외 업종을 영위하는 경우",
-      "evidence": {
-        "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_016",
       "field_name": "종업원 수",
       "type": "FP (과추출/오인식)",
       "condition": "상시근로자 수 10명 미만",
@@ -2049,6 +2038,17 @@
         "location": null
       },
       "target": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만"
+    },
+    {
+      "announcement_id": "ann_016",
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "지원제외 업종을 영위하는 경우",
+      "evidence": {
+        "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_016",
@@ -2071,19 +2071,19 @@
     },
     {
       "announcement_id": "ann_018",
-      "field_name": "업종",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "제조업 (공정기술형 / 생활문화형)"
-    },
-    {
-      "announcement_id": "ann_018",
       "field_name": "종업원 수",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "상시근로자 10인 미만 (소공인)"
+    },
+    {
+      "announcement_id": "ann_018",
+      "field_name": "업종",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "제조업 (공정기술형 / 생활문화형)"
     },
     {
       "announcement_id": "ann_019",
@@ -2171,22 +2171,22 @@
     },
     {
       "announcement_id": "ann_027",
-      "field_name": "나이",
+      "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "여성 예비창업자",
+      "condition": "전국",
       "evidence": {
-        "text": "전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
+        "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성기업인 등 창업에 관심 있는 자",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "ann_027",
-      "field_name": "지역",
+      "field_name": "나이",
       "type": "FP (과추출/오인식)",
-      "condition": "전국",
+      "condition": "여성 예비창업자",
       "evidence": {
-        "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성기업인 등 창업에 관심 있는 자",
+        "text": "전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
         "location": null
       },
       "target": "N/A"
@@ -2250,6 +2250,17 @@
     },
     {
       "announcement_id": "ann_034",
+      "field_name": "지역",
+      "type": "FP (과추출/오인식)",
+      "condition": "서울, 인천, 경기",
+      "evidence": {
+        "text": "수도권 • 서울, 인천, 경기",
+        "location": null
+      },
+      "target": "N/A"
+    },
+    {
+      "announcement_id": "ann_034",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
       "condition": "체불사업주 제외",
@@ -2269,17 +2280,6 @@
         "location": null
       },
       "target": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업"
-    },
-    {
-      "announcement_id": "ann_034",
-      "field_name": "지역",
-      "type": "FP (과추출/오인식)",
-      "condition": "서울, 인천, 경기",
-      "evidence": {
-        "text": "수도권 • 서울, 인천, 경기",
-        "location": null
-      },
-      "target": "N/A"
     },
     {
       "announcement_id": "ann_034",

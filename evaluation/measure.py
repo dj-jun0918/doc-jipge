@@ -827,9 +827,22 @@ def aggregate_metrics(
 
 def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], output_path: Path):
     """결과 데이터를 바탕으로 마크다운 보고서(report.md) 자동 생성."""
+    from evaluation.bootstrap import calculate_metrics_ci
+
     overall_gen = results_general["overall"]
     overall_adv = results_adv["overall"]
-    
+    # 측정 건수는 하드코딩하지 않고 실제 집계 대상 수로 — 보고서 자기모순 방지
+    n_gen = len(results_general["announcements"])
+    n_adv = len(results_adv["announcements"])
+
+    # 부트스트랩 95% CI (공고 단위 1,000회 재표집) — 소표본 불확실성 정직 노출
+    def _ci(results):
+        items = [{"tp": a["counts"]["tp"], "fp": a["counts"]["fp"], "fn": a["counts"]["fn"]}
+                 for a in results["announcements"].values()]
+        return calculate_metrics_ci(items, n_iter=1000)
+    ci_gen = _ci(results_general)
+    f1_ci = ci_gen["f1"]
+
     # 커버리지 계산
     cov_gen = results_general.get("coverage", {})
     cov_adv = results_adv.get("coverage", {})
@@ -839,15 +852,16 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     md = [
         "# [PR#6] 자격요건 추출기 E2E 평가 & 적대적(Adversarial) 강건성 종합 보고서",
         "",
-        "본 보고서는 Ground Truth(50건)와 적대적(Adversarial) 케이스(10건)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다.",
+        f"본 보고서는 일반 GT {n_gen}건과 적대적(Adversarial) {n_adv}건(측정 기준)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다. 비용은 경로별 공시 단가 기반 하한 추정치(실청구액 아님).",
         "",
         "## 1. 표준 7종 추출 P/R 종합 성능 비교 (General vs Adversarial)",
         "",
         "| 구분 (Dataset) | 평가 건수 | TP | FP | FN | Precision | Recall | F1-Score | 누적 비용 |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-        f"| **일반 GT (50건)** | {len(results_general['announcements'])}건 | {overall_gen['tp']} | {overall_gen['fp']} | {overall_gen['fn']} | `{overall_gen['precision']:.4f}` | `{overall_gen['recall']:.4f}` | **`{overall_gen['f1']:.4f}`** | ${results_general['total_cost_usd']:.2f} |",
-        f"| **적대적 케이스 (10건)** | {len(results_adv['announcements'])}건 | {overall_adv['tp']} | {overall_adv['fp']} | {overall_adv['fn']} | `{overall_adv['precision']:.4f}` | `{overall_adv['recall']:.4f}` | **`{overall_adv['f1']:.4f}`** | ${results_adv['total_cost_usd']:.2f} |",
+        f"| **일반 GT** | {n_gen}건 | {overall_gen['tp']} | {overall_gen['fp']} | {overall_gen['fn']} | `{overall_gen['precision']:.4f}` | `{overall_gen['recall']:.4f}` | **`{overall_gen['f1']:.4f}`** | ${results_general['total_cost_usd']:.2f} |",
+        f"| **적대적 케이스** | {n_adv}건 | {overall_adv['tp']} | {overall_adv['fp']} | {overall_adv['fn']} | `{overall_adv['precision']:.4f}` | `{overall_adv['recall']:.4f}` | **`{overall_adv['f1']:.4f}`** | ${results_adv['total_cost_usd']:.2f} |",
         "",
+        f"- **Bootstrap 95% 신뢰구간 (일반 GT, 1,000회 재표집)**: F1 **`[{f1_ci['ci_low']:.3f}, {f1_ci['ci_high']:.3f}]`** (점추정 `{f1_ci['point_estimate']:.4f}`) — 표본이 작아 구간이 넓다(과대 해석 금지).",
         f"- **표준 7종 외 조건 보유 공고 비율 (미지원)**: 일반 GT `{gen_ratio:.1f}%`, 적대적 케이스 `{adv_ratio:.1f}%`",
         "",
         "---",
@@ -864,6 +878,24 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     md.append("")
     md.append("---")
     md.append("")
+
+    # 2-1. 근거 품질(grounding) — verbatim 차별축을 사람이 읽는 산출물에 노출 (JSON에만 두지 않음)
+    g = results_general.get("grounding", {})
+    if g:
+        def _pct(x):
+            return f"{x*100:.1f}%" if isinstance(x, (int, float)) else "N/A"
+        md.append("## 2-1. 근거 품질 (Grounding) — 추출 근거가 원문에 실재하는가")
+        md.append("")
+        md.append("| 지표 | 값 | 분모 |")
+        md.append("| --- | --- | --- |")
+        md.append(f"| 근거 존재율 (evidence present) | **{_pct(g.get('evidence_present_rate'))}** | 전체 {g.get('total_fields', 0)}필드 |")
+        md.append(f"| 원문 verbatim 일치율 | **{_pct(g.get('evidence_verbatim_rate'))}** | 텍스트레이어 {g.get('verbatim_checkable', 0)}필드 (스캔 추출 제외) |")
+        md.append(f"| 값-인용 연결율 (반환각 탐지) | **{_pct(g.get('value_grounded_rate'))}** | {g.get('value_checkable', 0)}필드 · 하한 추정 |")
+        md.append("")
+        md.append(f"> {g.get('note', '')}")
+        md.append("")
+        md.append("---")
+        md.append("")
 
     # 3. 처리 경로별 지표 표
     md.append("## 3. 처리 경로별 세부 지표 및 비용 분석 (Processing Path & Cost Metrics)")

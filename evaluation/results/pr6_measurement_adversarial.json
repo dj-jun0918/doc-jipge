@@ -57,13 +57,13 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "업력",
-            "condition": "창업 3년 이내",
+            "field_name": "지역",
+            "condition": "대구 서구 소재",
             "evidence_source": "첨부파일 1p 지원대상"
           },
           {
-            "field_name": "지역",
-            "condition": "대구 서구 소재",
+            "field_name": "업력",
+            "condition": "창업 3년 이내",
             "evidence_source": "첨부파일 1p 지원대상"
           }
         ]
@@ -243,15 +243,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업력",
-            "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
-            "evidence": {
-              "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "매출",
             "condition": "전년도 수출액 '1,000불 미만'",
             "evidence": {
@@ -259,6 +250,15 @@
               "location": null
             },
             "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+            "evidence": {
+              "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fns": []
@@ -350,30 +350,6 @@
     }
   },
   "fields": {
-    "업력": {
-      "tp": 2,
-      "fp": 4,
-      "fn": 2,
-      "precision": 0.3333333333333333,
-      "recall": 0.5,
-      "f1": 0.4
-    },
-    "업종": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "나이": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
     "매출": {
       "tp": 1,
       "fp": 2,
@@ -398,9 +374,33 @@
       "recall": 0.0,
       "f1": 0.0
     },
+    "업력": {
+      "tp": 2,
+      "fp": 4,
+      "fn": 2,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
+      "f1": 0.4
+    },
     "종업원 수": {
       "tp": 0,
       "fp": 0,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "업종": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "나이": {
+      "tp": 0,
+      "fp": 1,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
@@ -442,19 +442,19 @@
   "mismatches": [
     {
       "announcement_id": "adv_002",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "창업 3년 이내"
-    },
-    {
-      "announcement_id": "adv_002",
       "field_name": "지역",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "대구 서구 소재"
+    },
+    {
+      "announcement_id": "adv_002",
+      "field_name": "업력",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "창업 3년 이내"
     },
     {
       "announcement_id": "adv_003",
@@ -510,22 +510,22 @@
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "업력",
+      "field_name": "매출",
       "type": "FP (과추출/오인식)",
-      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+      "condition": "전년도 수출액 '1,000불 미만'",
       "evidence": {
-        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+        "text": "전년도 수출액 '1,000불 미만'",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "매출",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "전년도 수출액 '1,000불 미만'",
+      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
       "evidence": {
-        "text": "전년도 수출액 '1,000불 미만'",
+        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
         "location": null
       },
       "target": "N/A"
