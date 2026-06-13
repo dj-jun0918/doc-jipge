@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,6 +19,14 @@ from app.schemas.announcement import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _parse_uuid(value: str, what: str = "announcement_id") -> uuid.UUID:
+    """잘못된 UUID는 DB까지 보내 500을 내지 말고 400으로 — 엔드포인트 간 일관성."""
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail=f"{what} UUID 형식 오류: {value}")
 
 
 def _parse_date(value: str | None) -> date | None:
@@ -65,10 +74,11 @@ def list_announcements(
 
 @router.get("/{announcement_id}", response_model=AnnouncementDetailResponse)
 def get_announcement(announcement_id: str, db: Session = Depends(get_db)):
+    ann_uuid = _parse_uuid(announcement_id)
     ann = db.scalar(
         select(Announcement)
         .options(selectinload(Announcement.attachments))  # N+1 방지
-        .where(Announcement.id == announcement_id)
+        .where(Announcement.id == ann_uuid)
     )
     if not ann:
         raise HTTPException(status_code=404, detail="공고를 찾을 수 없습니다")
@@ -78,7 +88,7 @@ def get_announcement(announcement_id: str, db: Session = Depends(get_db)):
 @router.get("/{announcement_id}/summary", response_model=AnnouncementSummaryResponse)
 async def summarize(announcement_id: str, db: Session = Depends(get_db)):
     """공고 본문 한 줄 요약 (LLM 호출 + DB 캐싱)."""
-    ann = db.get(Announcement, announcement_id)
+    ann = db.get(Announcement, _parse_uuid(announcement_id))
     if not ann:
         raise HTTPException(status_code=404, detail="공고를 찾을 수 없습니다")
 
