@@ -172,6 +172,40 @@ class TestMatchNumeric:
     def test_범위_dict_상한_초과_미충족(self):
         assert match_numeric(8, cond("범위", {"min": 3, "max": 7}, "3~7년")) == "미충족"
 
+    # 범위 경계 배타성 — raw_text의 '미만'/'초과'를 반영 (B-AGE-040)
+    def test_범위_상한_미만_경계값_미충족(self):
+        # "40세 이상 65세 미만" — 만 65세는 미충족이어야 함 (미만 = 배타)
+        c = cond("범위", {"min": 40, "max": 65}, "만 40세 이상 65세 미만")
+        assert match_numeric(65, c) == "미충족"
+        assert match_numeric(64, c) == "충족"
+        assert match_numeric(40, c) == "충족"
+
+    def test_범위_하한_초과_경계값_미충족(self):
+        # "5명 초과 10명 이하" — 정확히 5명은 미충족 (초과 = 배타)
+        c = cond("범위", {"min": 5, "max": 10}, "5명 초과 10명 이하")
+        assert match_numeric(5, c) == "미충족"
+        assert match_numeric(6, c) == "충족"
+        assert match_numeric(10, c) == "충족"
+
+    def test_범위_미만초과_없으면_경계_포함(self):
+        # raw에 미만/초과 없으면 기존대로 양끝 포함
+        c = cond("범위", {"min": 3, "max": 7}, "3년 이상 7년 이하")
+        assert match_numeric(3, c) == "충족"
+        assert match_numeric(7, c) == "충족"
+
+    def test_범위_다른절_키워드_오인_안함(self):
+        # raw의 다른 절에 있는 '미만'/'초과'는 경계에 결합되지 않으면 무시 (SAFE-1)
+        c1 = cond("범위", {"min": 5, "max": 10}, "3년 미만 기업 제외, 5년 이상 10년 이하")
+        assert match_numeric(10, c1) == "충족"  # 상한 10은 '이하'(포함) — '3년 미만'에 오염 안됨
+        c2 = cond("범위", {"min": 5, "max": 10}, "5년 이상 10년 이하(초과 근무 우대)")
+        assert match_numeric(5, c2) == "충족"  # 하한 5는 '이상'(포함) — '초과 근무'에 오염 안됨
+
+    def test_범위_다자릿수_경계_오매칭_안함(self):
+        # min=15인데 '5'가 '15'에 오매칭되어선 안됨
+        c = cond("범위", {"min": 15, "max": 65}, "15세 이상 65세 미만")
+        assert match_numeric(15, c) == "충족"
+        assert match_numeric(65, c) == "미충족"
+
     # 범위 — list
     def test_범위_list_충족(self):
         # list는 ParsedCondition.value 타입 미지원 → 함수 직접 호출
