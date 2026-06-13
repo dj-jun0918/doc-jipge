@@ -232,6 +232,22 @@ def _norm_value(v: Any) -> Any:
     return v
 
 
+# 지역 행정구역 접미사 — 채점 시 동치 처리 ("광명시" = "광명", "강원특별자치도" = "강원").
+# 긴 접미사부터 검사. 어간이 2자 미만으로 줄면 제거 안 함 ("대구"의 "구"가 깎이는 것 방지).
+_REGION_SUFFIXES = ("특별자치도", "특별자치시", "특별시", "광역시", "자치도", "도", "시", "군", "구")
+
+
+def _norm_region_token(v: Any) -> Any:
+    """지역 토큰을 행정구역 접미사 제거 후 비교 (시군구/광역 표기 차이 흡수)."""
+    s = _norm_value(v)
+    if not isinstance(s, str):
+        return s
+    for suf in _REGION_SUFFIXES:
+        if s.endswith(suf) and len(s) - len(suf) >= 2:
+            return s[: -len(suf)]
+    return s
+
+
 _OP_SYNONYM = {"이내": "이하"}
 
 
@@ -287,6 +303,24 @@ def _condition_text_match(gt_item: Dict[str, Any], pred_item: Any, gt_op: Any, p
     )
 
 
+# 우대·가점은 자격요건이 아니라 가산점 — 추출에서 잡혔어도 자격 판정 대상이 아니다.
+# 채점 단계의 거울 필터 (verifier.py에 동일 로직 — 실 파이프라인용).
+# 원칙적 카테고리만(우대/가점/감면/면제) — 특정 공고 고유명사는 과적합이라 제외.
+_NON_REQUIREMENT_MARKERS = ("가점", "우대", "감면", "면제")
+
+
+def _is_preferential_field(pred_field: Any) -> bool:
+    parts = []
+    ev = getattr(pred_field, "evidence", None)
+    if ev is not None and getattr(ev, "text", None):
+        parts.append(ev.text)
+    cond = getattr(pred_field, "condition", None)
+    if cond is not None and getattr(cond, "raw_text", None):
+        parts.append(cond.raw_text)
+    text = " ".join(parts)
+    return any(m in text for m in _NON_REQUIREMENT_MARKERS)
+
+
 def match_fields(
     ann_id: str,
     gt_fields: List[Dict[str, Any]],
@@ -309,6 +343,9 @@ def match_fields(
         name = pf.field_name
         if name not in STANDARD_FIELDS:
             logger.warning(f"[{ann_id}] 추출된 항목 중 비표준 필드 제외 처리: {name}")
+            continue
+        if _is_preferential_field(pf):
+            logger.info(f"[{ann_id}] 우대·가점 추출 제외 (자격요건 아님): {name}")
             continue
         filtered_pred.append(pf)
 
@@ -413,17 +450,19 @@ def match_fields(
                     # 조건 문자열로 동치 판정 (반대 의미 operator는 내부에서 차단)
                     val_op_match = _condition_text_match(gt_item, pred_item, gt_op, pred_op)
                 elif has_parsed:
-                    # list 비교 (지역, 업종 등) — NFC 정규화 후 집합 비교
+                    # 지역은 행정구역 접미사 차이를 흡수, 그 외는 NFC 정규화만
+                    _nv = _norm_region_token if field == "지역" else _norm_value
+                    # list 비교 (지역, 업종 등) — 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
-                        gt_set = {_norm_value(x) for x in gt_val} if isinstance(gt_val, list) else ({_norm_value(gt_val)} if gt_val else set())
-                        pred_set = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
+                        gt_set = {_nv(x) for x in gt_val} if isinstance(gt_val, list) else ({_nv(gt_val)} if gt_val else set())
+                        pred_set = {_nv(x) for x in pred_val} if isinstance(pred_val, list) else ({_nv(pred_val)} if pred_val else set())
                         val_match = bool(gt_set) and (gt_set == pred_set)
                     # dict 비교 (범위 등)
                     elif isinstance(gt_val, dict) and isinstance(pred_val, dict):
                         val_match = (gt_val == pred_val)
-                    # 단일 값 비교 (NFC 정규화)
+                    # 단일 값 비교 (지역은 접미사 흡수, 그 외 NFC 정규화)
                     else:
-                        val_match = (_norm_value(gt_val) == _norm_value(pred_val))
+                        val_match = (_nv(gt_val) == _nv(pred_val))
 
                     # 범주형 필드(지역/업종)는 operator가 필드 종류로 고정(소재/포함)이라 변별력이 없음
                     # → value 매칭 + 반대 의미 operator(포함 vs 제외 등)만 차단.

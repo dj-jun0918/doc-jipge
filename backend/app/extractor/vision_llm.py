@@ -93,6 +93,16 @@ def pdf_to_images(pdf_path: str | Path, dpi: int = 150) -> list[bytes]:
     return images
 
 
+def _has_text_layer(pdf_path: str | Path, min_chars: int = 200) -> bool:
+    """PDF에 추출 가능한 텍스트 레이어가 있는지 (스캔본 판정용 — 없으면 이미지 스캔)."""
+    try:
+        with pymupdf.open(str(pdf_path)) as doc:
+            text = "\n".join(page.get_text() for page in doc)
+        return len(text.strip()) >= min_chars
+    except Exception:
+        return True  # 판정 실패 시 보수적으로 텍스트 있다고 간주(스캔 라우팅 안 함)
+
+
 def detect_tables(pdf_path: str | Path) -> list[int]:
     """표가 있을 가능성이 높은 페이지 번호 리스트.
 
@@ -194,8 +204,14 @@ async def extract_from_pdf(
 
     table_pages = detect_tables(pdf_path)
     if not table_pages:
-        logger.info(f"vision_llm: 표 페이지 없음 ({pdf_path})")
-        return ExtractionResult(fields=[], exclusions=[], processing_path="vision_llm")
+        # 벡터 표가 없어도, 텍스트 레이어가 없는 스캔본이면 vision으로 직행
+        # (스캔 PDF는 표 검출 대상이 아니지만 비전 모델이 직접 읽을 수 있음)
+        if not _has_text_layer(pdf_path):
+            logger.info(f"vision_llm: 스캔본 판정 → 앞 {max_pages}페이지 vision 직행 ({pdf_path})")
+            table_pages = list(range(max_pages))
+        else:
+            logger.info(f"vision_llm: 표 페이지 없음 ({pdf_path})")
+            return ExtractionResult(fields=[], exclusions=[], processing_path="vision_llm")
 
     table_pages = table_pages[:max_pages]
 

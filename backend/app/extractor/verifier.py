@@ -16,6 +16,20 @@ from app.schemas.eligibility import EligibilityField
 
 logger = logging.getLogger(__name__)
 
+# 우대·가점·감면·면제는 가산 요소 — 자격요건이 아니므로 추출됐어도 자격 판정에서 제외.
+# 원칙적 카테고리만 (특정 공고 고유명사는 과적합이라 미포함).
+_NON_REQUIREMENT_MARKERS = ("가점", "우대", "감면", "면제")
+
+
+def _is_preferential(field: EligibilityField) -> bool:
+    parts = []
+    if field.evidence and field.evidence.text:
+        parts.append(field.evidence.text)
+    if field.condition and field.condition.raw_text:
+        parts.append(field.condition.raw_text)
+    text = " ".join(parts)
+    return any(m in text for m in _NON_REQUIREMENT_MARKERS)
+
 
 def normalize_cert_value(field: EligibilityField) -> None:
     """인증 field의 value를 표준 키로 정규화 (in-place).
@@ -64,6 +78,10 @@ def verify(result: ExtractionResult) -> ExtractionResult:
 
     for field in result.fields:
         if field.field_name not in VALID_FIELD_NAMES:
+            continue
+
+        # 우대·가점·감면은 가산 요소이지 자격요건이 아니므로 자격 판정에서 제외
+        if _is_preferential(field):
             continue
 
         cond = field.condition

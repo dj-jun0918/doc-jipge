@@ -57,13 +57,13 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "지역",
-            "condition": "대구 서구 소재",
+            "field_name": "업력",
+            "condition": "창업 3년 이내",
             "evidence_source": "첨부파일 1p 지원대상"
           },
           {
-            "field_name": "업력",
-            "condition": "창업 3년 이내",
+            "field_name": "지역",
+            "condition": "대구 서구 소재",
             "evidence_source": "첨부파일 1p 지원대상"
           }
         ]
@@ -350,6 +350,30 @@
     }
   },
   "fields": {
+    "업종": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "업력": {
+      "tp": 2,
+      "fp": 4,
+      "fn": 2,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
+      "f1": 0.4
+    },
+    "종업원 수": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
     "인증": {
       "tp": 0,
       "fp": 1,
@@ -366,21 +390,13 @@
       "recall": 0.0,
       "f1": 0.0
     },
-    "종업원 수": {
+    "나이": {
       "tp": 0,
-      "fp": 0,
+      "fp": 1,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
-    },
-    "업력": {
-      "tp": 2,
-      "fp": 4,
-      "fn": 2,
-      "precision": 0.3333333333333333,
-      "recall": 0.5,
-      "f1": 0.4
     },
     "매출": {
       "tp": 1,
@@ -389,22 +405,6 @@
       "precision": 0.3333333333333333,
       "recall": 0.5,
       "f1": 0.4
-    },
-    "업종": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "나이": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
     }
   },
   "processing_paths": {
@@ -442,19 +442,19 @@
   "mismatches": [
     {
       "announcement_id": "adv_002",
-      "field_name": "지역",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "대구 서구 소재"
-    },
-    {
-      "announcement_id": "adv_002",
       "field_name": "업력",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "창업 3년 이내"
+    },
+    {
+      "announcement_id": "adv_002",
+      "field_name": "지역",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "대구 서구 소재"
     },
     {
       "announcement_id": "adv_003",
