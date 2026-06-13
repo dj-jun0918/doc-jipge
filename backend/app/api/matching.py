@@ -229,8 +229,8 @@ def _apply_overrides(company: Company, overrides: SimulateOverrides) -> Company:
         name=company.name,
         founded_date=overrides.founded_date or company.founded_date,
         revenue=overrides.revenue if overrides.revenue is not None else company.revenue,
-        region=overrides.region or company.region,
-        industry=overrides.industry or company.industry,
+        region=overrides.region if overrides.region is not None else company.region,
+        industry=overrides.industry if overrides.industry is not None else company.industry,
         employee_count=(
             overrides.employee_count
             if overrides.employee_count is not None

@@ -84,7 +84,9 @@ class SimulateOverrides(BaseModel):
     region: str | None = None
     industry: str | None = None
     ceo_birth_date: date | None = None
-    certifications: dict[str, bool] | None = None
+    # bool(표준 키)뿐 아니라 자유입력 문자열 인증값도 합법(CompanyCreate.certifications=dict,
+    # match_certification이 cert_texts로 매칭) → dict[str,bool]로 좁히면 counterfactual이 500.
+    certifications: dict | None = None
 
 
 class SimulateRequest(BaseModel):

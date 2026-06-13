@@ -675,6 +675,8 @@ def counterfactual_for_field(field: EligibilityField, company: Company) -> dict 
     if fn == "인증":
         keys = val if isinstance(val, list) else ([val] if val else [])
         if op == "보유" and keys:
+            # 회사 인증값은 bool(표준 키)뿐 아니라 자유입력 문자열도 합법(match_certification
+            # 의 cert_texts 매칭) → 값 종류를 보존. SimulateOverrides.certifications는 dict로 완화됨.
             certs = dict(company.certifications or {})
             for k in keys:
                 certs[k] = True

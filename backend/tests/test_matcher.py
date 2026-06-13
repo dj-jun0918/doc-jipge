@@ -12,6 +12,8 @@ from unittest.mock import MagicMock
 import pytest
 from dateutil.relativedelta import relativedelta
 
+from types import SimpleNamespace
+
 from app.matcher.matcher import (
     calculate_age,
     calculate_biz_age,
@@ -19,6 +21,7 @@ from app.matcher.matcher import (
     compute_field_score,
     compute_field_sensitivities,
     compute_numeric_distance,
+    counterfactual_for_field,
     match_announcement,
     match_certification,
     match_industry,
@@ -107,9 +110,8 @@ class TestCalculateAge:
         assert calculate_age(birth) == 40
 
     def test_만나이_생일_당일(self):
-        # 오늘 생일 → 만 나이 증가
-        today = date.today()
-        age = calculate_age(date(today.year - 30, today.month, today.day))
+        # 오늘 생일 → 만 나이 증가 (윤일에도 안전하게 relativedelta — date() 직접 생성은 2/29에 ValueError)
+        age = calculate_age(date.today() - relativedelta(years=30))
         assert age == 30
 
     def test_만나이_생일_아직(self):
@@ -239,6 +241,31 @@ class TestMatchNumeric:
     def test_이내_초과시_미충족(self):
         assert match_numeric(3.08, cond("이내", 3, "3년 이내")) == "미충족"
         assert match_numeric(5.9, cond("이내", 3, "3년 이내")) == "미충족"
+
+
+# ──────────────────────────────────────────────
+# counterfactual_for_field
+# ──────────────────────────────────────────────
+
+class TestCounterfactual:
+
+    def test_인증_counterfactual_override_SimulateOverrides에_안전(self):
+        # 회사 인증값이 bool·자유입력 문자열·잡값 혼재여도 counterfactual override가
+        # SimulateOverrides 검증을 통과해야 함(500 방지) + 자유입력 문자열 인증은 보존돼야 함
+        from app.schemas.matching import SimulateOverrides
+        field = SimpleNamespace(
+            field_name="인증",
+            condition=SimpleNamespace(operator="보유", value=["inno_biz"], raw_text="이노비즈 인증 보유"),
+        )
+        company = SimpleNamespace(
+            certifications={"venture_company": True, "note": "벤처기업 인증", "garbage": ""}
+        )
+        cf = counterfactual_for_field(field, company)
+        assert cf is not None and cf["override_attr"] == "certifications"
+        override = cf["override_value"]
+        assert override["inno_biz"] is True
+        assert override["note"] == "벤처기업 인증"  # 자유입력 문자열 인증 보존 (버리지 않음)
+        SimulateOverrides(certifications=override)  # ValidationError(500) 안 남
 
 
 # ──────────────────────────────────────────────
