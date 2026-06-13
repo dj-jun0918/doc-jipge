@@ -331,21 +331,22 @@ def compute_field_score(
     필드별 score (0~1).
 
     - 충족: 1.0
-    - 확인필요: 0.3 (보수적, 불확실성 반영)
-    - 미충족: 거리 기반 부분 점수 (0.0 ~ 0.5)
+    - 확인필요: 0.45 — "사실이면 충족일 수 있는 미지"는 "확실한 미충족"보다 항상 위
+    - 미충족: 거리 기반 부분 점수 (0.0 ~ 0.3)
       - distance가 작을수록 (조건에 가까울수록) 높은 점수
       - distance >= 1.0이거나 None이면 0.0
+      - 상한 0.3 < 확인필요 0.45: 확실한 탈락이 미지보다 위에 랭크되는 역전 방지
     - 해당없음: None (점수 계산에서 제외)
+    ※ 0.45/0.3은 매칭 정답 데이터 부재로 캘리브레이션되지 않은 설계 상수 — 값이 아니라 순서가 설계 의도
     """
     if status == "충족":
         return 1.0
     elif status == "확인필요":
-        return 0.3
+        return 0.45
     elif status == "미충족":
         if distance is None or distance >= 1.0:
             return 0.0
-        # 거리가 작을수록 점수 ↑ (최대 0.5 — 충족과 명확히 구분)
-        return max(0.0, 1.0 - distance) * 0.5
+        return max(0.0, 1.0 - distance) * 0.3
     else:  # 해당없음
         return None
 
