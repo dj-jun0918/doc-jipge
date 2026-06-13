@@ -321,8 +321,8 @@ export default function EvaluationDashboardPage() {
                 {metrics && (
                   <div className="mt-6 border-t pt-5 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase">분석 누적 총 비용 (USD)</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Vision LLM 및 API 사용료 포함</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase">분석 비용 추정 (USD)</p>
+                      <p className="text-xs text-gray-400 mt-0.5">경로별 단가 기반 추정치 (실제 청구액 아님)</p>
                     </div>
                     <p className="text-3xl font-black text-emerald-600">${metrics.total_cost_usd.toFixed(2)}</p>
                   </div>

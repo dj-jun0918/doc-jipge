@@ -41,24 +41,17 @@ class TestEvaluationAPI:
         assert isinstance(body["total_cost_usd"], float)
 
     def test_get_ablation(self, client):
-        """GET /api/evaluation/ablation API 호출 및 스키마 검증."""
+        """GET /api/evaluation/ablation — 실측 파일이 없으면 빈 목록 (창작 mock 서빙 금지)."""
         response = client.get("/api/evaluation/ablation")
         assert response.status_code == 200
-        
+
         body = response.json()
-        
+
         assert "conditions" in body
         assert isinstance(body["conditions"], list)
-        assert len(body["conditions"]) == 4
-        
-        # C1 조건 세부 검증
-        c1 = body["conditions"][0]
-        assert c1["condition_id"] == "C1"
-        assert c1["name"] == "Rule Parser Baseline"
-        assert "rule_parser" in c1["components"]
-        assert "metrics" in c1
-        assert c1["metrics"]["precision"] == 0.985
-        assert c1["cost_estimate_usd"] == 0.0
+        # ablation 실측 파일(ablation_C*.json)이 있으면 그 내용, 없으면 빈 목록 — 가짜 숫자는 없어야 함
+        for c in body["conditions"]:
+            assert "condition_id" in c and "metrics" in c
 
     def test_get_iaa(self, client):
         """GET /api/evaluation/iaa API 호출 및 스키마 검증."""

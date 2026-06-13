@@ -13,8 +13,15 @@ from tenacity import (
 
 from app.config import settings
 from app.extractor.llm_response_parser import ExtractionResult, build_extraction_result
+from app.matcher.cert_mapping import CERT_MAPPING
 
 logger = logging.getLogger(__name__)
+
+
+def build_cert_mapping_block() -> str:
+    """인증 표준 키 프롬프트 블록 — CERT_MAPPING 단일 소스에서 생성 (사본 드리프트 방지)."""
+    lines = [f"- {key}: {', '.join(aliases)}" for key, aliases in CERT_MAPPING.items()]
+    return "\n".join(lines) + "\n- 매핑에 없는 인증은 원문 그대로"
 
 _client: AsyncOpenAI | None = None
 
@@ -62,12 +69,7 @@ SYSTEM_PROMPT = """당신은 정부지원사업 공고문에서 기업 자격요
 - 여러 지역→value=["강원", "서울"]
 
 # 인증 표준 키 (value)
-- venture_company: 벤처기업 / inno_biz: 이노비즈, 기술혁신형 중소기업 / main_biz: 메인비즈, 경영혁신형 중소기업
-- iso_9001: ISO 9001, 품질경영시스템 / iso_14001: ISO 14001, 환경경영시스템
-- iso_27001: ISO 27001, 정보보안경영시스템 / iso_22000: ISO 22000, 식품안전경영시스템
-- gmp: GMP / haccp: HACCP / ce_marking: CE / kc_certification: KC
-- women_owned: 여성기업 / social_enterprise: 사회적기업 / rd_lab: 기업부설연구소 / ip_protection: 특허, 지식재산권
-- 매핑에 없는 인증은 원문 그대로
+__CERT_MAPPING_BLOCK__
 
 # 예시 1
 입력: "창업 후 3년 미만 중소기업, 강원도 소재, 만 39세 이하"
@@ -80,14 +82,15 @@ SYSTEM_PROMPT = """당신은 정부지원사업 공고문에서 기업 자격요
   "exclusions": []
 }
 
-# 예시 2 (모호한 조건)
-입력: "청년 대표자 우대"
+# 예시 2 (모호한 자격 조건)
+입력: "신청자격: 청년 창업자"
 출력: {
   "fields": [
-    {"field_name": "나이", "condition": "청년", "operator": null, "value": null, "evidence": "청년 대표자 우대"}
+    {"field_name": "나이", "condition": "청년", "operator": null, "value": null, "evidence": "신청자격: 청년 창업자"}
   ],
   "exclusions": []
 }
+(주의: "청년 대표자 우대"처럼 '우대'가 붙은 표현은 자격요건이 아니라 우대사항이므로 추출하지 않는다 — 규칙 6)
 
 # 예시 3 (표 형식 자격요건 + 제외 대상)
 입력: "신청자격: 아래 표 참조. 단, 휴폐업 기업, 국세 체납 기업은 지원 제외.
@@ -115,11 +118,23 @@ SYSTEM_PROMPT = """당신은 정부지원사업 공고문에서 기업 자격요
 출력: {"fields": [], "exclusions": []}
 (이유: 지원금액·자부담률은 지원내용, 가점은 우대사항 — 신청 자격요건이 아님)
 
+# 예시 4-2 (심사기준 문장 — 추출 금지)
+입력: "신청자격: 도내 소재 중소기업. 심사기준: 사업성(40점), 창업 3년 미만 기업 여부(10점), 고용창출 계획(20점)"
+출력: {
+  "fields": [
+    {"field_name": "지역", "condition": "도내 소재", "operator": "소재", "value": null, "evidence": "신청자격: 도내 소재 중소기업"}
+  ],
+  "exclusions": []
+}
+(이유: "창업 3년 미만"은 심사 배점표의 평가 항목이지 신청 자격이 아님 — 업력으로 추출 금지)
+
 # 예시 5 (자격요건 없음)
 입력: "본 사업은 사업자등록을 마친 누구나 신청 가능합니다."
 출력: {"fields": [], "exclusions": []}
 
 반드시 유효한 JSON만 응답하세요."""
+
+SYSTEM_PROMPT = SYSTEM_PROMPT.replace("__CERT_MAPPING_BLOCK__", build_cert_mapping_block())
 
 
 @retry(

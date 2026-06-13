@@ -1,50 +1,43 @@
 {
   "overall": {
     "tp": 3,
-    "fp": 10,
+    "fp": 9,
     "fn": 4,
-    "precision": 0.23076923076923078,
+    "precision": 0.25,
     "recall": 0.42857142857142855,
-    "f1": 0.3
+    "f1": 0.3157894736842105
   },
   "announcements": {
     "adv_001": {
       "title": "2026년도 M&A 활성화 지원사업 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": null
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
       },
       "counts": {
-        "tp": 0,
-        "fp": 1,
-        "fn": 1
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
       },
       "details": {
-        "tps": [],
-        "fps": [
+        "tps": [
           {
             "field_name": "매출",
-            "condition": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업",
+            "condition": "평균 매출액 400억원 이하",
             "evidence": {
               "text": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업 중 M&A 정보망에 등록된 지원센터 및 자문기관 또는 기술보증기금 M&A 파트너스와 M&A 자문계약을 체결한 기업",
               "location": null
             },
-            "processing_path": "vision_llm",
-            "mismatch_target": "평균 매출액 400억원 이하"
+            "processing_path": "vision_llm"
           }
         ],
-        "fns": [
-          {
-            "field_name": "매출",
-            "condition": "평균 매출액 400억원 이하",
-            "evidence_source": "첨부파일 2p ➊ M&A 기업가치 평가비용 지원"
-          }
-        ]
+        "fps": [],
+        "fns": []
       },
       "routing": {
         "chosen_path": "vision_llm",
-        "cost_usd": 2.86
+        "cost_usd": 0.01
       }
     },
     "adv_002": {
@@ -76,33 +69,24 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "adv_003": {
       "title": "2026년 팁스(TIPS) 창업기업 지원계획 수정 공고",
       "metrics": {
-        "precision": 0.6666666666666666,
-        "recall": 1.0,
-        "f1": 0.8
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "f1": 0.4
       },
       "counts": {
-        "tp": 2,
-        "fp": 1,
-        "fn": 0
+        "tp": 1,
+        "fp": 2,
+        "fn": 1
       },
       "details": {
         "tps": [
-          {
-            "field_name": "매출",
-            "condition": "직전 연도 매출액 20억원 미만",
-            "evidence": {
-              "text": "직전 연도 매출액 20억원 미만",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
           {
             "field_name": "업력",
             "condition": "창업 7년 이내",
@@ -122,13 +106,29 @@
               "location": null
             },
             "processing_path": "text_llm"
+          },
+          {
+            "field_name": "매출",
+            "condition": "20억원 미만",
+            "evidence": {
+              "text": "직전 연도 매출액 20억원 미만",
+              "location": null
+            },
+            "processing_path": "text_llm",
+            "mismatch_target": "직전 연도 매출액 20억원 미만"
           }
         ],
-        "fns": []
+        "fns": [
+          {
+            "field_name": "매출",
+            "condition": "직전 연도 매출액 20억원 미만",
+            "evidence_source": "첨부파일 5p 팁스R&D 일반트랙 필수요건"
+          }
+        ]
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "adv_004": {
@@ -140,36 +140,27 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 2,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
         "fps": [
           {
-            "field_name": "인증",
-            "condition": "국제표준(AAS) 관련 전문성을 보유한 개발기관",
-            "evidence": {
-              "text": "중소·중견기업, 공공기관, 연구기관, 대학 등 제조데이터 국제표준(AAS) 관련 전문성을 보유한 개발기관",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "업종",
-            "condition": "제조데이터 표준 참조모델 개발에 대한 지식·기술을 갖추고, 국제표준(AAS) 기반 참조모델 및 가이던스 개발을 주도적으로 추진할 역량을 보유한 기관",
+            "condition": "유흥·향락업, 숙박·음식점 제외",
             "evidence": {
-              "text": "제조데이터 표준 참조모델 개발에 대한 지식·기술을 갖추고, 국제표준(AAS) 기반 참조모델 및 가이던스 개발을 주도적으로 추진할 역량을 보유한 기관",
+              "text": "유흥·향락업, 숙박·음식점",
               "location": null
             },
-            "processing_path": "vision_llm"
+            "processing_path": "text_llm"
           }
         ],
         "fns": []
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "adv_005": {
@@ -200,8 +191,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "adv_006": {
@@ -232,8 +223,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "adv_007": {
@@ -252,15 +243,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "불건전 영상게임기 제조업",
-            "evidence": {
-              "text": "불건전 영상게임기 제조업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "업력",
             "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
             "evidence": {
@@ -268,13 +250,22 @@
               "location": null
             },
             "processing_path": "text_llm"
+          },
+          {
+            "field_name": "매출",
+            "condition": "전년도 수출액 '1,000불 미만'",
+            "evidence": {
+              "text": "전년도 수출액 '1,000불 미만'",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
         ],
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "adv_008": {
@@ -312,8 +303,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "adv_010": {
@@ -332,6 +323,15 @@
         "tps": [],
         "fps": [
           {
+            "field_name": "업력",
+            "condition": "3년 이내",
+            "evidence": {
+              "text": "자가 사업장 확보를 위한 사업장 매입 자금(경·공매 포함) * 자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
             "field_name": "나이",
             "condition": "만 39세 이하",
             "evidence": {
@@ -339,37 +339,20 @@
               "location": null
             },
             "processing_path": "text_llm"
-          },
-          {
-            "field_name": "업력",
-            "condition": "3년 이내",
-            "evidence": {
-              "text": "자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
-              "location": null
-            },
-            "processing_path": "vision_llm"
           }
         ],
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     }
   },
   "fields": {
     "인증": {
       "tp": 0,
-      "fp": 2,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "종업원 수": {
-      "tp": 0,
-      "fp": 0,
+      "fp": 1,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
@@ -383,25 +366,9 @@
       "recall": 0.0,
       "f1": 0.0
     },
-    "나이": {
+    "종업원 수": {
       "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "매출": {
-      "tp": 1,
-      "fp": 1,
-      "fn": 1,
-      "precision": 0.5,
-      "recall": 0.5,
-      "f1": 0.5
-    },
-    "업종": {
-      "tp": 0,
-      "fp": 2,
+      "fp": 0,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
@@ -414,60 +381,65 @@
       "precision": 0.3333333333333333,
       "recall": 0.5,
       "f1": 0.4
+    },
+    "매출": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 1,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
+      "f1": 0.4
+    },
+    "업종": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "나이": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
     }
   },
   "processing_paths": {
     "rule_based": {
       "tp": 0,
       "fp": 0,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0,
-      "count": 0,
-      "cost_usd": 0.0
-    },
-    "text_llm": {
-      "tp": 3,
-      "fp": 9,
-      "fn": 3,
-      "precision": 0.25,
-      "recall": 0.5,
-      "f1": 0.3333333333333333,
-      "count": 8,
-      "cost_usd": 4.0
-    },
-    "vision_llm": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 1,
+      "fn": 2,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0,
       "count": 1,
-      "cost_usd": 2.86
+      "cost_usd": 0.0
+    },
+    "text_llm": {
+      "tp": 1,
+      "fp": 3,
+      "fn": 1,
+      "precision": 0.25,
+      "recall": 0.5,
+      "f1": 0.3333333333333333,
+      "count": 2,
+      "cost_usd": 0.002
+    },
+    "vision_llm": {
+      "tp": 2,
+      "fp": 6,
+      "fn": 1,
+      "precision": 0.25,
+      "recall": 0.6666666666666666,
+      "f1": 0.36363636363636365,
+      "count": 6,
+      "cost_usd": 0.062
     }
   },
   "mismatches": [
-    {
-      "announcement_id": "adv_001",
-      "field_name": "매출",
-      "type": "FP (과추출/오인식)",
-      "condition": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업",
-      "evidence": {
-        "text": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업 중 M&A 정보망에 등록된 지원센터 및 자문기관 또는 기술보증기금 M&A 파트너스와 M&A 자문계약을 체결한 기업",
-        "location": null
-      },
-      "target": "평균 매출액 400억원 이하"
-    },
-    {
-      "announcement_id": "adv_001",
-      "field_name": "매출",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "평균 매출액 400억원 이하"
-    },
     {
       "announcement_id": "adv_002",
       "field_name": "지역",
@@ -496,23 +468,31 @@
       "target": "N/A"
     },
     {
-      "announcement_id": "adv_004",
-      "field_name": "인증",
+      "announcement_id": "adv_003",
+      "field_name": "매출",
       "type": "FP (과추출/오인식)",
-      "condition": "국제표준(AAS) 관련 전문성을 보유한 개발기관",
+      "condition": "20억원 미만",
       "evidence": {
-        "text": "중소·중견기업, 공공기관, 연구기관, 대학 등 제조데이터 국제표준(AAS) 관련 전문성을 보유한 개발기관",
+        "text": "직전 연도 매출액 20억원 미만",
         "location": null
       },
-      "target": "N/A"
+      "target": "직전 연도 매출액 20억원 미만"
+    },
+    {
+      "announcement_id": "adv_003",
+      "field_name": "매출",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "직전 연도 매출액 20억원 미만"
     },
     {
       "announcement_id": "adv_004",
       "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "제조데이터 표준 참조모델 개발에 대한 지식·기술을 갖추고, 국제표준(AAS) 기반 참조모델 및 가이던스 개발을 주도적으로 추진할 역량을 보유한 기관",
+      "condition": "유흥·향락업, 숙박·음식점 제외",
       "evidence": {
-        "text": "제조데이터 표준 참조모델 개발에 대한 지식·기술을 갖추고, 국제표준(AAS) 기반 참조모델 및 가이던스 개발을 주도적으로 추진할 역량을 보유한 기관",
+        "text": "유흥·향락업, 숙박·음식점",
         "location": null
       },
       "target": "N/A"
@@ -530,22 +510,22 @@
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "업종",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "불건전 영상게임기 제조업",
+      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
       "evidence": {
-        "text": "불건전 영상게임기 제조업",
+        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "업력",
+      "field_name": "매출",
       "type": "FP (과추출/오인식)",
-      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+      "condition": "전년도 수출액 '1,000불 미만'",
       "evidence": {
-        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+        "text": "전년도 수출액 '1,000불 미만'",
         "location": null
       },
       "target": "N/A"
@@ -571,22 +551,22 @@
     },
     {
       "announcement_id": "adv_010",
-      "field_name": "나이",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "만 39세 이하",
+      "condition": "3년 이내",
       "evidence": {
-        "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
+        "text": "자가 사업장 확보를 위한 사업장 매입 자금(경·공매 포함) * 자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_010",
-      "field_name": "업력",
+      "field_name": "나이",
       "type": "FP (과추출/오인식)",
-      "condition": "3년 이내",
+      "condition": "만 39세 이하",
       "evidence": {
-        "text": "자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
+        "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
         "location": null
       },
       "target": "N/A"
@@ -597,9 +577,9 @@
       "announcement_id": "adv_001",
       "title": "2026년도 M&A 활성화 지원사업 공고",
       "gt_fields_count": 1,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": null
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
     },
     {
       "announcement_id": "adv_004",
@@ -650,10 +630,19 @@
       "f1": null
     }
   ],
-  "total_cost_usd": 6.859999999999999,
+  "total_cost_usd": 0.064,
   "coverage": {
     "non_standard_announcement_count": 0,
     "total_announcement_count": 9,
     "non_standard_ratio": 0.0
+  },
+  "grounding": {
+    "total_fields": 12,
+    "evidence_present_rate": 1.0,
+    "evidence_verbatim_rate": 0.9167,
+    "verbatim_checkable": 12,
+    "value_grounded_rate": 0.8333,
+    "value_checkable": 12,
+    "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음"
   }
 }

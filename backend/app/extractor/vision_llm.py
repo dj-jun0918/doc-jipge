@@ -19,6 +19,7 @@ from tenacity import (
 
 from app.config import settings
 from app.extractor.llm_response_parser import ExtractionResult, build_extraction_result
+from app.extractor.text_llm import build_cert_mapping_block
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,24 @@ VISION_PROMPT = """이 이미지는 정부지원사업 공고문의 일부입니
 4. operator: 미만 | 이하 | 이상 | 초과 | 범위 | 소재 | 무관 | 포함 | 제외 | 보유 | 미보유
 5. **신청 자격요건만** 추출하세요. 지원내용, 지원금액, 지원규모, 보조율, 자부담률, 심사기준, 가점, 우대사항, 추진일정은 자격요건이 아니므로 추출 금지
 6. 이미지에 해당 필드의 명시적 제한이 없으면 그 필드를 출력하지 마세요. 제한이 없다는 이유로 operator "무관"을 만들어내지 마세요
-7. 반드시 유효한 JSON만 응답하세요"""
+7. 반드시 유효한 JSON만 응답하세요
+
+# value 형식
+- 금액: "10억"→1000000000, "5000만원"→50000000 (원 단위 정수)
+- 종업원: "5인"/"5명"→5, 나이: "만 39세"→39
+- 범위: "3년 이상 5년 이하"→operator "범위", value={"min": 3, "max": 5}
+- 업종: 허용 업종은 operator "포함", 배제 업종은 operator "제외", value는 업종명 문자열 또는 리스트
+
+# 지역 정규화 (value)
+- "강원도"/"강원특별자치도"→"강원", "서울특별시"→"서울", "경기도"→"경기"
+- "전국"→operator "무관", value "전국" / 여러 지역→value=["강원", "서울"]
+
+# 인증 표준 키 (value)
+__CERT_MAPPING_BLOCK__"""
+
+VISION_PROMPT = VISION_PROMPT.replace(
+    "__CERT_MAPPING_BLOCK__", build_cert_mapping_block()
+)
 
 
 def pdf_to_images(pdf_path: str | Path, dpi: int = 150) -> list[bytes]:
