@@ -4,7 +4,7 @@ import pytest
 from typing import Any
 from evaluation.measure import (
     _normalize, match_fields, calculate_metrics, aggregate_metrics,
-    _norm_region_token, _is_preferential_field,
+    _norm_region_token, _is_preferential_field, _norm_industry_token,
 )
 from app.schemas.eligibility import EligibilityField, ParsedCondition, AnnouncementEligibility
 
@@ -30,6 +30,25 @@ def test_norm_region_token_short_stem_guard():
     # 어간 2자 미만 보호 — "대구"의 "구"는 깎이지 않음
     assert _norm_region_token("대구") == "대구"
     assert _norm_region_token("대전") == "대전"
+
+
+def test_norm_industry_token_suffix_strip():
+    # '업' 접미사 동치 — "제조" = "제조업", "서비스" = "서비스업"
+    assert _norm_industry_token("제조") == _norm_industry_token("제조업")
+    assert _norm_industry_token("서비스") == _norm_industry_token("서비스업")
+    assert _norm_industry_token("제조업") == "제조"
+
+
+def test_norm_industry_token_short_stem_guard():
+    # 어간 2자 미만 보호 — "농업"의 "업"은 깎이지 않음 (어간 "농" 1자)
+    assert _norm_industry_token("농업") == "농업"
+    assert _norm_industry_token("광업") == "광업"
+
+
+def test_norm_industry_token_keeps_distinct_industries_apart():
+    # 접미사만 흡수 — 무관 업종은 정규화 후에도 불일치 (무차별 완화 아님)
+    assert _norm_industry_token("제조업") != _norm_industry_token("서비스업")
+    assert _norm_industry_token("바이오") != _norm_industry_token("제조")
 
 
 def test_is_preferential_field_drops_only_principled():

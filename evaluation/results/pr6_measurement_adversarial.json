@@ -99,15 +99,6 @@
         ],
         "fps": [
           {
-            "field_name": "인증",
-            "condition": "벤처기업·이노비즈 인증을 받은 경우",
-            "evidence": {
-              "text": "벤처기업·이노비즈 인증을 받은 경우",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "매출",
             "condition": "20억원 미만",
             "evidence": {
@@ -116,6 +107,15 @@
             },
             "processing_path": "text_llm",
             "mismatch_target": "직전 연도 매출액 20억원 미만"
+          },
+          {
+            "field_name": "인증",
+            "condition": "벤처기업·이노비즈 인증을 받은 경우",
+            "evidence": {
+              "text": "벤처기업·이노비즈 인증을 받은 경우",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fns": [
@@ -350,14 +350,6 @@
     }
   },
   "fields": {
-    "업종": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
     "업력": {
       "tp": 2,
       "fp": 4,
@@ -366,26 +358,10 @@
       "recall": 0.5,
       "f1": 0.4
     },
-    "종업원 수": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "인증": {
+    "업종": {
       "tp": 0,
       "fp": 1,
       "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "지역": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 1,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
@@ -405,6 +381,30 @@
       "precision": 0.3333333333333333,
       "recall": 0.5,
       "f1": 0.4
+    },
+    "지역": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "인증": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "종업원 수": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
     }
   },
   "processing_paths": {
@@ -458,17 +458,6 @@
     },
     {
       "announcement_id": "adv_003",
-      "field_name": "인증",
-      "type": "FP (과추출/오인식)",
-      "condition": "벤처기업·이노비즈 인증을 받은 경우",
-      "evidence": {
-        "text": "벤처기업·이노비즈 인증을 받은 경우",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "adv_003",
       "field_name": "매출",
       "type": "FP (과추출/오인식)",
       "condition": "20억원 미만",
@@ -477,6 +466,17 @@
         "location": null
       },
       "target": "직전 연도 매출액 20억원 미만"
+    },
+    {
+      "announcement_id": "adv_003",
+      "field_name": "인증",
+      "type": "FP (과추출/오인식)",
+      "condition": "벤처기업·이노비즈 인증을 받은 경우",
+      "evidence": {
+        "text": "벤처기업·이노비즈 인증을 받은 경우",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "adv_003",

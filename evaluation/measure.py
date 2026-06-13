@@ -248,6 +248,18 @@ def _norm_region_token(v: Any) -> Any:
     return s
 
 
+def _norm_industry_token(v: Any) -> Any:
+    """업종 토큰의 '업' 접미사를 흡수 ('제조' = '제조업'). 어간 2자 미만이면 제거 안 함
+    ('농업'→'농', '광업'→'광' 방지). 정규화 후 집합 정확 일치는 유지되므로 무관 업종은
+    여전히 불일치 — 접미사 표기차만 흡수하는 보수적 동치."""
+    s = _norm_value(v)
+    if not isinstance(s, str):
+        return s
+    if s.endswith("업") and len(s) - 1 >= 2:
+        return s[:-1]
+    return s
+
+
 _OP_SYNONYM = {"이내": "이하"}
 
 
@@ -450,8 +462,13 @@ def match_fields(
                     # 조건 문자열로 동치 판정 (반대 의미 operator는 내부에서 차단)
                     val_op_match = _condition_text_match(gt_item, pred_item, gt_op, pred_op)
                 elif has_parsed:
-                    # 지역은 행정구역 접미사 차이를 흡수, 그 외는 NFC 정규화만
-                    _nv = _norm_region_token if field == "지역" else _norm_value
+                    # 지역은 행정구역 접미사, 업종은 '업' 접미사 차이를 흡수, 그 외는 NFC 정규화만
+                    if field == "지역":
+                        _nv = _norm_region_token
+                    elif field == "업종":
+                        _nv = _norm_industry_token
+                    else:
+                        _nv = _norm_value
                     # list 비교 (지역, 업종 등) — 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
                         gt_set = {_nv(x) for x in gt_val} if isinstance(gt_val, list) else ({_nv(gt_val)} if gt_val else set())
