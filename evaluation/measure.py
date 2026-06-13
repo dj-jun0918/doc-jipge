@@ -232,6 +232,34 @@ def _norm_value(v: Any) -> Any:
     return v
 
 
+# 지역 행정구역 접미사 — 채점 시 동치 처리 ("광명시" = "광명", "강원특별자치도" = "강원").
+# 긴 접미사부터 검사. 어간이 2자 미만으로 줄면 제거 안 함 ("대구"의 "구"가 깎이는 것 방지).
+_REGION_SUFFIXES = ("특별자치도", "특별자치시", "특별시", "광역시", "자치도", "도", "시", "군", "구")
+
+
+def _norm_region_token(v: Any) -> Any:
+    """지역 토큰을 행정구역 접미사 제거 후 비교 (시군구/광역 표기 차이 흡수)."""
+    s = _norm_value(v)
+    if not isinstance(s, str):
+        return s
+    for suf in _REGION_SUFFIXES:
+        if s.endswith(suf) and len(s) - len(suf) >= 2:
+            return s[: -len(suf)]
+    return s
+
+
+def _norm_industry_token(v: Any) -> Any:
+    """업종 토큰의 '업' 접미사를 흡수 ('제조' = '제조업'). 어간 2자 미만이면 제거 안 함
+    ('농업'→'농', '광업'→'광' 방지). 정규화 후 집합 정확 일치는 유지되므로 무관 업종은
+    여전히 불일치 — 접미사 표기차만 흡수하는 보수적 동치."""
+    s = _norm_value(v)
+    if not isinstance(s, str):
+        return s
+    if s.endswith("업") and len(s) - 1 >= 2:
+        return s[:-1]
+    return s
+
+
 _OP_SYNONYM = {"이내": "이하"}
 
 
@@ -287,6 +315,24 @@ def _condition_text_match(gt_item: Dict[str, Any], pred_item: Any, gt_op: Any, p
     )
 
 
+# 우대·가점은 자격요건이 아니라 가산점 — 추출에서 잡혔어도 자격 판정 대상이 아니다.
+# 채점 단계의 거울 필터 (verifier.py에 동일 로직 — 실 파이프라인용).
+# 원칙적 카테고리만(우대/가점/감면/면제) — 특정 공고 고유명사는 과적합이라 제외.
+_NON_REQUIREMENT_MARKERS = ("가점", "우대", "감면", "면제")
+
+
+def _is_preferential_field(pred_field: Any) -> bool:
+    parts = []
+    ev = getattr(pred_field, "evidence", None)
+    if ev is not None and getattr(ev, "text", None):
+        parts.append(ev.text)
+    cond = getattr(pred_field, "condition", None)
+    if cond is not None and getattr(cond, "raw_text", None):
+        parts.append(cond.raw_text)
+    text = " ".join(parts)
+    return any(m in text for m in _NON_REQUIREMENT_MARKERS)
+
+
 def match_fields(
     ann_id: str,
     gt_fields: List[Dict[str, Any]],
@@ -309,6 +355,9 @@ def match_fields(
         name = pf.field_name
         if name not in STANDARD_FIELDS:
             logger.warning(f"[{ann_id}] 추출된 항목 중 비표준 필드 제외 처리: {name}")
+            continue
+        if _is_preferential_field(pf):
+            logger.info(f"[{ann_id}] 우대·가점 추출 제외 (자격요건 아님): {name}")
             continue
         filtered_pred.append(pf)
 
@@ -413,17 +462,24 @@ def match_fields(
                     # 조건 문자열로 동치 판정 (반대 의미 operator는 내부에서 차단)
                     val_op_match = _condition_text_match(gt_item, pred_item, gt_op, pred_op)
                 elif has_parsed:
-                    # list 비교 (지역, 업종 등) — NFC 정규화 후 집합 비교
+                    # 지역은 행정구역 접미사, 업종은 '업' 접미사 차이를 흡수, 그 외는 NFC 정규화만
+                    if field == "지역":
+                        _nv = _norm_region_token
+                    elif field == "업종":
+                        _nv = _norm_industry_token
+                    else:
+                        _nv = _norm_value
+                    # list 비교 (지역, 업종 등) — 정규화 후 집합 비교
                     if isinstance(gt_val, list) or isinstance(pred_val, list):
-                        gt_set = {_norm_value(x) for x in gt_val} if isinstance(gt_val, list) else ({_norm_value(gt_val)} if gt_val else set())
-                        pred_set = {_norm_value(x) for x in pred_val} if isinstance(pred_val, list) else ({_norm_value(pred_val)} if pred_val else set())
+                        gt_set = {_nv(x) for x in gt_val} if isinstance(gt_val, list) else ({_nv(gt_val)} if gt_val else set())
+                        pred_set = {_nv(x) for x in pred_val} if isinstance(pred_val, list) else ({_nv(pred_val)} if pred_val else set())
                         val_match = bool(gt_set) and (gt_set == pred_set)
                     # dict 비교 (범위 등)
                     elif isinstance(gt_val, dict) and isinstance(pred_val, dict):
                         val_match = (gt_val == pred_val)
-                    # 단일 값 비교 (NFC 정규화)
+                    # 단일 값 비교 (지역은 접미사 흡수, 그 외 NFC 정규화)
                     else:
-                        val_match = (_norm_value(gt_val) == _norm_value(pred_val))
+                        val_match = (_nv(gt_val) == _nv(pred_val))
 
                     # 범주형 필드(지역/업종)는 operator가 필드 종류로 고정(소재/포함)이라 변별력이 없음
                     # → value 매칭 + 반대 의미 operator(포함 vs 제외 등)만 차단.
@@ -771,9 +827,22 @@ def aggregate_metrics(
 
 def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], output_path: Path):
     """결과 데이터를 바탕으로 마크다운 보고서(report.md) 자동 생성."""
+    from evaluation.bootstrap import calculate_metrics_ci
+
     overall_gen = results_general["overall"]
     overall_adv = results_adv["overall"]
-    
+    # 측정 건수는 하드코딩하지 않고 실제 집계 대상 수로 — 보고서 자기모순 방지
+    n_gen = len(results_general["announcements"])
+    n_adv = len(results_adv["announcements"])
+
+    # 부트스트랩 95% CI (공고 단위 1,000회 재표집) — 소표본 불확실성 정직 노출
+    def _ci(results):
+        items = [{"tp": a["counts"]["tp"], "fp": a["counts"]["fp"], "fn": a["counts"]["fn"]}
+                 for a in results["announcements"].values()]
+        return calculate_metrics_ci(items, n_iter=1000)
+    ci_gen = _ci(results_general)
+    f1_ci = ci_gen["f1"]
+
     # 커버리지 계산
     cov_gen = results_general.get("coverage", {})
     cov_adv = results_adv.get("coverage", {})
@@ -783,15 +852,16 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     md = [
         "# [PR#6] 자격요건 추출기 E2E 평가 & 적대적(Adversarial) 강건성 종합 보고서",
         "",
-        "본 보고서는 Ground Truth(50건)와 적대적(Adversarial) 케이스(10건)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다.",
+        f"본 보고서는 일반 GT {n_gen}건과 적대적(Adversarial) {n_adv}건(측정 기준)에 대해 각각 파이프라인 성능을 개별 분석한 자료입니다. 비용은 경로별 공시 단가 기반 하한 추정치(실청구액 아님).",
         "",
         "## 1. 표준 7종 추출 P/R 종합 성능 비교 (General vs Adversarial)",
         "",
         "| 구분 (Dataset) | 평가 건수 | TP | FP | FN | Precision | Recall | F1-Score | 누적 비용 |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-        f"| **일반 GT (50건)** | {len(results_general['announcements'])}건 | {overall_gen['tp']} | {overall_gen['fp']} | {overall_gen['fn']} | `{overall_gen['precision']:.4f}` | `{overall_gen['recall']:.4f}` | **`{overall_gen['f1']:.4f}`** | ${results_general['total_cost_usd']:.2f} |",
-        f"| **적대적 케이스 (10건)** | {len(results_adv['announcements'])}건 | {overall_adv['tp']} | {overall_adv['fp']} | {overall_adv['fn']} | `{overall_adv['precision']:.4f}` | `{overall_adv['recall']:.4f}` | **`{overall_adv['f1']:.4f}`** | ${results_adv['total_cost_usd']:.2f} |",
+        f"| **일반 GT** | {n_gen}건 | {overall_gen['tp']} | {overall_gen['fp']} | {overall_gen['fn']} | `{overall_gen['precision']:.4f}` | `{overall_gen['recall']:.4f}` | **`{overall_gen['f1']:.4f}`** | ${results_general['total_cost_usd']:.2f} |",
+        f"| **적대적 케이스** | {n_adv}건 | {overall_adv['tp']} | {overall_adv['fp']} | {overall_adv['fn']} | `{overall_adv['precision']:.4f}` | `{overall_adv['recall']:.4f}` | **`{overall_adv['f1']:.4f}`** | ${results_adv['total_cost_usd']:.2f} |",
         "",
+        f"- **Bootstrap 95% 신뢰구간 (일반 GT, 1,000회 재표집)**: F1 **`[{f1_ci['ci_low']:.3f}, {f1_ci['ci_high']:.3f}]`** (점추정 `{f1_ci['point_estimate']:.4f}`) — 표본이 작아 구간이 넓다(과대 해석 금지).",
         f"- **표준 7종 외 조건 보유 공고 비율 (미지원)**: 일반 GT `{gen_ratio:.1f}%`, 적대적 케이스 `{adv_ratio:.1f}%`",
         "",
         "---",
@@ -808,6 +878,24 @@ def render_report(results_general: Dict[str, Any], results_adv: Dict[str, Any], 
     md.append("")
     md.append("---")
     md.append("")
+
+    # 2-1. 근거 품질(grounding) — verbatim 차별축을 사람이 읽는 산출물에 노출 (JSON에만 두지 않음)
+    g = results_general.get("grounding", {})
+    if g:
+        def _pct(x):
+            return f"{x*100:.1f}%" if isinstance(x, (int, float)) else "N/A"
+        md.append("## 2-1. 근거 품질 (Grounding) — 추출 근거가 원문에 실재하는가")
+        md.append("")
+        md.append("| 지표 | 값 | 분모 |")
+        md.append("| --- | --- | --- |")
+        md.append(f"| 근거 존재율 (evidence present) | **{_pct(g.get('evidence_present_rate'))}** | 전체 {g.get('total_fields', 0)}필드 |")
+        md.append(f"| 원문 verbatim 일치율 | **{_pct(g.get('evidence_verbatim_rate'))}** | 텍스트레이어 {g.get('verbatim_checkable', 0)}필드 (스캔 추출 제외) |")
+        md.append(f"| 값-인용 연결율 (반환각 탐지) | **{_pct(g.get('value_grounded_rate'))}** | {g.get('value_checkable', 0)}필드 · 하한 추정 |")
+        md.append("")
+        md.append(f"> {g.get('note', '')}")
+        md.append("")
+        md.append("---")
+        md.append("")
 
     # 3. 처리 경로별 지표 표
     md.append("## 3. 처리 경로별 세부 지표 및 비용 분석 (Processing Path & Cost Metrics)")

@@ -99,15 +99,6 @@
         ],
         "fps": [
           {
-            "field_name": "인증",
-            "condition": "벤처기업·이노비즈 인증을 받은 경우",
-            "evidence": {
-              "text": "벤처기업·이노비즈 인증을 받은 경우",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "매출",
             "condition": "20억원 미만",
             "evidence": {
@@ -116,6 +107,15 @@
             },
             "processing_path": "text_llm",
             "mismatch_target": "직전 연도 매출액 20억원 미만"
+          },
+          {
+            "field_name": "인증",
+            "condition": "벤처기업·이노비즈 인증을 받은 경우",
+            "evidence": {
+              "text": "벤처기업·이노비즈 인증을 받은 경우",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fns": [
@@ -243,15 +243,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업력",
-            "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
-            "evidence": {
-              "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "매출",
             "condition": "전년도 수출액 '1,000불 미만'",
             "evidence": {
@@ -259,6 +250,15 @@
               "location": null
             },
             "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+            "evidence": {
+              "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fns": []
@@ -350,13 +350,13 @@
     }
   },
   "fields": {
-    "인증": {
-      "tp": 0,
-      "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+    "매출": {
+      "tp": 1,
+      "fp": 2,
+      "fn": 1,
+      "precision": 0.3333333333333333,
+      "recall": 0.5,
+      "f1": 0.4
     },
     "지역": {
       "tp": 0,
@@ -366,9 +366,9 @@
       "recall": 0.0,
       "f1": 0.0
     },
-    "종업원 수": {
+    "인증": {
       "tp": 0,
-      "fp": 0,
+      "fp": 1,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
@@ -382,13 +382,13 @@
       "recall": 0.5,
       "f1": 0.4
     },
-    "매출": {
-      "tp": 1,
-      "fp": 2,
-      "fn": 1,
-      "precision": 0.3333333333333333,
-      "recall": 0.5,
-      "f1": 0.4
+    "종업원 수": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
     },
     "업종": {
       "tp": 0,
@@ -458,17 +458,6 @@
     },
     {
       "announcement_id": "adv_003",
-      "field_name": "인증",
-      "type": "FP (과추출/오인식)",
-      "condition": "벤처기업·이노비즈 인증을 받은 경우",
-      "evidence": {
-        "text": "벤처기업·이노비즈 인증을 받은 경우",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "adv_003",
       "field_name": "매출",
       "type": "FP (과추출/오인식)",
       "condition": "20억원 미만",
@@ -477,6 +466,17 @@
         "location": null
       },
       "target": "직전 연도 매출액 20억원 미만"
+    },
+    {
+      "announcement_id": "adv_003",
+      "field_name": "인증",
+      "type": "FP (과추출/오인식)",
+      "condition": "벤처기업·이노비즈 인증을 받은 경우",
+      "evidence": {
+        "text": "벤처기업·이노비즈 인증을 받은 경우",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "adv_003",
@@ -510,22 +510,22 @@
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "업력",
+      "field_name": "매출",
       "type": "FP (과추출/오인식)",
-      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+      "condition": "전년도 수출액 '1,000불 미만'",
       "evidence": {
-        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+        "text": "전년도 수출액 '1,000불 미만'",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "매출",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "전년도 수출액 '1,000불 미만'",
+      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
       "evidence": {
-        "text": "전년도 수출액 '1,000불 미만'",
+        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
         "location": null
       },
       "target": "N/A"

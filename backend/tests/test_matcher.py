@@ -12,6 +12,8 @@ from unittest.mock import MagicMock
 import pytest
 from dateutil.relativedelta import relativedelta
 
+from types import SimpleNamespace
+
 from app.matcher.matcher import (
     calculate_age,
     calculate_biz_age,
@@ -19,6 +21,7 @@ from app.matcher.matcher import (
     compute_field_score,
     compute_field_sensitivities,
     compute_numeric_distance,
+    counterfactual_for_field,
     match_announcement,
     match_certification,
     match_industry,
@@ -101,19 +104,20 @@ class TestCalculateAge:
     def test_None_반환_None(self):
         assert calculate_age(None) is None
 
-    def test_만나이_생일_전(self):
-        # 1986-04-12 → 2026-05-09 기준 생일 지남 → 만 40세
-        assert calculate_age(date(1986, 4, 12)) == 40
+    def test_만나이_생일_지남(self):
+        # 생일이 이미 지난 사람 → 만 40세 (절대연도 하드코딩 제거 — 매년 통과)
+        birth = date.today() - relativedelta(years=40, days=1)
+        assert calculate_age(birth) == 40
 
     def test_만나이_생일_당일(self):
-        # 오늘 생일 → 만 나이 증가
-        today = date.today()
-        age = calculate_age(date(today.year - 30, today.month, today.day))
+        # 오늘 생일 → 만 나이 증가 (윤일에도 안전하게 relativedelta — date() 직접 생성은 2/29에 ValueError)
+        age = calculate_age(date.today() - relativedelta(years=30))
         assert age == 30
 
-    def test_만나이_생일_후(self):
-        # 1990-01-01 → 2026-05-09 기준 생일 지남 → 만 36세
-        assert calculate_age(date(1990, 1, 1)) == 36
+    def test_만나이_생일_아직(self):
+        # 생일이 아직 안 온 사람 → 만 나이 1 적음 (36세 아닌 35세)
+        birth = date.today() - relativedelta(years=36) + relativedelta(days=1)
+        assert calculate_age(birth) == 35
 
 
 # ──────────────────────────────────────────────
@@ -172,6 +176,40 @@ class TestMatchNumeric:
     def test_범위_dict_상한_초과_미충족(self):
         assert match_numeric(8, cond("범위", {"min": 3, "max": 7}, "3~7년")) == "미충족"
 
+    # 범위 경계 배타성 — raw_text의 '미만'/'초과'를 반영 (B-AGE-040)
+    def test_범위_상한_미만_경계값_미충족(self):
+        # "40세 이상 65세 미만" — 만 65세는 미충족이어야 함 (미만 = 배타)
+        c = cond("범위", {"min": 40, "max": 65}, "만 40세 이상 65세 미만")
+        assert match_numeric(65, c) == "미충족"
+        assert match_numeric(64, c) == "충족"
+        assert match_numeric(40, c) == "충족"
+
+    def test_범위_하한_초과_경계값_미충족(self):
+        # "5명 초과 10명 이하" — 정확히 5명은 미충족 (초과 = 배타)
+        c = cond("범위", {"min": 5, "max": 10}, "5명 초과 10명 이하")
+        assert match_numeric(5, c) == "미충족"
+        assert match_numeric(6, c) == "충족"
+        assert match_numeric(10, c) == "충족"
+
+    def test_범위_미만초과_없으면_경계_포함(self):
+        # raw에 미만/초과 없으면 기존대로 양끝 포함
+        c = cond("범위", {"min": 3, "max": 7}, "3년 이상 7년 이하")
+        assert match_numeric(3, c) == "충족"
+        assert match_numeric(7, c) == "충족"
+
+    def test_범위_다른절_키워드_오인_안함(self):
+        # raw의 다른 절에 있는 '미만'/'초과'는 경계에 결합되지 않으면 무시 (SAFE-1)
+        c1 = cond("범위", {"min": 5, "max": 10}, "3년 미만 기업 제외, 5년 이상 10년 이하")
+        assert match_numeric(10, c1) == "충족"  # 상한 10은 '이하'(포함) — '3년 미만'에 오염 안됨
+        c2 = cond("범위", {"min": 5, "max": 10}, "5년 이상 10년 이하(초과 근무 우대)")
+        assert match_numeric(5, c2) == "충족"  # 하한 5는 '이상'(포함) — '초과 근무'에 오염 안됨
+
+    def test_범위_다자릿수_경계_오매칭_안함(self):
+        # min=15인데 '5'가 '15'에 오매칭되어선 안됨
+        c = cond("범위", {"min": 15, "max": 65}, "15세 이상 65세 미만")
+        assert match_numeric(15, c) == "충족"
+        assert match_numeric(65, c) == "미충족"
+
     # 범위 — list
     def test_범위_list_충족(self):
         # list는 ParsedCondition.value 타입 미지원 → 함수 직접 호출
@@ -203,6 +241,31 @@ class TestMatchNumeric:
     def test_이내_초과시_미충족(self):
         assert match_numeric(3.08, cond("이내", 3, "3년 이내")) == "미충족"
         assert match_numeric(5.9, cond("이내", 3, "3년 이내")) == "미충족"
+
+
+# ──────────────────────────────────────────────
+# counterfactual_for_field
+# ──────────────────────────────────────────────
+
+class TestCounterfactual:
+
+    def test_인증_counterfactual_override_SimulateOverrides에_안전(self):
+        # 회사 인증값이 bool·자유입력 문자열·잡값 혼재여도 counterfactual override가
+        # SimulateOverrides 검증을 통과해야 함(500 방지) + 자유입력 문자열 인증은 보존돼야 함
+        from app.schemas.matching import SimulateOverrides
+        field = SimpleNamespace(
+            field_name="인증",
+            condition=SimpleNamespace(operator="보유", value=["inno_biz"], raw_text="이노비즈 인증 보유"),
+        )
+        company = SimpleNamespace(
+            certifications={"venture_company": True, "note": "벤처기업 인증", "garbage": ""}
+        )
+        cf = counterfactual_for_field(field, company)
+        assert cf is not None and cf["override_attr"] == "certifications"
+        override = cf["override_value"]
+        assert override["inno_biz"] is True
+        assert override["note"] == "벤처기업 인증"  # 자유입력 문자열 인증 보존 (버리지 않음)
+        SimulateOverrides(certifications=override)  # ValidationError(500) 안 남
 
 
 # ──────────────────────────────────────────────

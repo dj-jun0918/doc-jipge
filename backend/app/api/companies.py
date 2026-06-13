@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -7,6 +9,14 @@ from app.models.company import Company
 from app.schemas.company import CompanyCreate, CompanyUpdate
 
 router = APIRouter()
+
+
+def _parse_uuid(value: str, what: str = "company_id") -> uuid.UUID:
+    """잘못된 UUID는 DB까지 보내 500을 내지 말고 400으로 — 엔드포인트 간 일관성."""
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail=f"{what} UUID 형식 오류: {value}")
 
 
 @router.get("/")
@@ -23,7 +33,7 @@ def list_companies(
 
 @router.get("/{company_id}")
 def get_company(company_id: str, db: Session = Depends(get_db)):
-    company = db.get(Company, company_id)
+    company = db.get(Company, _parse_uuid(company_id))
     if not company:
         raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
     return company
@@ -40,7 +50,7 @@ def create_company(data: CompanyCreate, db: Session = Depends(get_db)):
 
 @router.put("/{company_id}")
 def update_company(company_id: str, data: CompanyUpdate, db: Session = Depends(get_db)):
-    company = db.get(Company, company_id)
+    company = db.get(Company, _parse_uuid(company_id))
     if not company:
         raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
     for field, value in data.model_dump(exclude_unset=True).items():

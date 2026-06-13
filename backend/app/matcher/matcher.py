@@ -5,6 +5,7 @@ backend/app/matcher/matcher.py
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import date
 from typing import Literal
@@ -96,6 +97,22 @@ def calculate_age(birth_date: date | None) -> int | None:
 # match_numeric
 # ──────────────────────────────────────────────
 
+def _bound_is_exclusive(raw_text: str, bound, keyword: str) -> bool:
+    """범위 경계값 토큰 직후에 배타 키워드('미만'/'초과')가 결합돼 있는지 판별.
+
+    raw 전역 substring 검색은 다른 절의 키워드를 오인한다
+    (예: "3년 미만 기업 제외, 5년 이상 10년 이하"에서 상한 10은 '이하'(포함)여야 하나
+    전역 검색은 '미만'을 잡아 10을 배타 처리해버림). 따라서 경계 숫자를 앞뒤가 숫자가
+    아닌 토큰으로 찾아, 그 직후 8자 이내에 키워드가 붙은 경우만 배타로 인정한다.
+    """
+    if not raw_text:
+        return False
+    for m in re.finditer(rf"(?<!\d){re.escape(str(bound))}(?!\d)", raw_text):
+        if keyword in raw_text[m.end(): m.end() + 8]:
+            return True
+    return False
+
+
 def match_numeric(
     company_value: int | float | None,
     condition: ParsedCondition,
@@ -131,7 +148,13 @@ def match_numeric(
                 lo, hi = val
             else:
                 return "확인필요"
-            return "충족" if lo <= company_value <= hi else "미충족"
+            # 경계 포함/배타 판별 — "이상~미만"은 상한 배타, "초과~이하"는 하한 배타.
+            # 추출은 경계값을 그대로 인코딩하므로("65세 미만"→max:65) raw_text로 배타성을 복원한다.
+            # 미복원 시 만 65세가 "65세 미만"에 충족으로 오판정됨. 키워드는 경계값에 결합된 것만 인정.
+            raw = condition.raw_text or ""
+            lower_ok = (lo < company_value) if _bound_is_exclusive(raw, lo, "초과") else (lo <= company_value)
+            upper_ok = (company_value < hi) if _bound_is_exclusive(raw, hi, "미만") else (company_value <= hi)
+            return "충족" if (lower_ok and upper_ok) else "미충족"
         else:
             return "확인필요"
     except TypeError:
@@ -550,7 +573,8 @@ def _numeric_target(operator: str | None, value) -> int | float | None:
         return value
     if operator == "초과":
         return value + 1
-    if operator == "이하":
+    if operator in ("이하", "이내"):
+        # match_numeric은 '이내'를 '이하'와 동일 처리 — counterfactual도 일관되게 맞춤
         return value
     if operator == "미만":
         return value - 1
@@ -651,6 +675,8 @@ def counterfactual_for_field(field: EligibilityField, company: Company) -> dict 
     if fn == "인증":
         keys = val if isinstance(val, list) else ([val] if val else [])
         if op == "보유" and keys:
+            # 회사 인증값은 bool(표준 키)뿐 아니라 자유입력 문자열도 합법(match_certification
+            # 의 cert_texts 매칭) → 값 종류를 보존. SimulateOverrides.certifications는 dict로 완화됨.
             certs = dict(company.certifications or {})
             for k in keys:
                 certs[k] = True

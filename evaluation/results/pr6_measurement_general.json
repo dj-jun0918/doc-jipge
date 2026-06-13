@@ -1,67 +1,91 @@
 {
   "overall": {
-    "tp": 26,
+    "tp": 37,
     "fp": 33,
-    "fn": 31,
-    "precision": 0.4406779661016949,
-    "recall": 0.45614035087719296,
-    "f1": 0.44827586206896547
+    "fn": 20,
+    "precision": 0.5285714285714286,
+    "recall": 0.6491228070175439,
+    "f1": 0.5826771653543307
   },
   "announcements": {
     "ann_001": {
       "title": "2026년 소상공인 개인사업 비즈플러스카드 지원사업 시행 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
       },
       "counts": {
-        "tp": 0,
+        "tp": 2,
         "fp": 0,
-        "fn": 2
+        "fn": 0
       },
       "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
-          {
-            "field_name": "업력",
-            "condition": "6개월 이상",
-            "evidence_source": "첨부파일 3p ②(업력)"
-          },
+        "tps": [
           {
             "field_name": "매출",
             "condition": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)",
-            "evidence_source": "첨부파일 3p ③(매출액)"
+            "evidence": {
+              "text": "최근 2개월 동안 200만원 이상 또는 당기 부가가치세 신고 매출액이 1,200만원 이상인 소상공인",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "6개월 이상",
+            "evidence": {
+              "text": "접수일 기준 업력 6개월 이상인 소상공인",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
-        ]
+        ],
+        "fps": [],
+        "fns": []
       },
       "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_002": {
       "title": "2026년도 창업성장기술개발사업(디딤돌) 제1차 시행계획 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5
       },
       "counts": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 2
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
       },
       "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
+        "tps": [
           {
             "field_name": "업력",
             "condition": "7년 이하 (신산업 분야 10년 이내)",
-            "evidence_source": "첨부파일 3p (공통자격)"
-          },
+            "evidence": {
+              "text": "「중소기업기본법」 제2조에서 정한 중소기업으로 업력 7년 이하이고, 매출액 20억원 미만이면서, 중소벤처기업부 R&D를 처음 수행하는 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "매출",
+            "condition": "20억원 미만",
+            "evidence": {
+              "text": "「중소기업기본법」 제2조에서 정한 중소기업으로 업력 7년 이하이고, 매출액 20억원 미만이면서, 중소벤처기업부 R&D를 처음 수행하는 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm",
+            "mismatch_target": "20억원 미만"
+          }
+        ],
+        "fns": [
           {
             "field_name": "매출",
             "condition": "20억원 미만",
@@ -70,133 +94,208 @@
         ]
       },
       "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_003": {
       "title": "2026 전북 지역특화콘텐츠개발지원 지원기업 모집공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.6666666666666666,
+        "recall": 0.6666666666666666,
+        "f1": 0.6666666666666666
       },
       "counts": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 3
+        "tp": 2,
+        "fp": 1,
+        "fn": 1
       },
       "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
+        "tps": [
           {
             "field_name": "지역",
             "condition": "전북 소재",
-            "evidence_source": "첨부파일 5p 사업참여 제한사유 ①"
-          },
-          {
-            "field_name": "종업원 수",
-            "condition": "3인 이상",
-            "evidence_source": "첨부파일 4p 지원자격 및 조건"
+            "evidence": {
+              "text": "지원자격: 공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           },
           {
             "field_name": "업력",
             "condition": "1년 이상",
+            "evidence": {
+              "text": "지원자격: 공고일 기준 창업 1년 이상의 전북소재 콘텐츠 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "업종",
+            "condition": "콘텐츠산업",
+            "evidence": {
+              "text": "한국표준산업분류 상 콘텐츠산업 업종에 해당하는 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fns": [
+          {
+            "field_name": "종업원 수",
+            "condition": "3인 이상",
             "evidence_source": "첨부파일 4p 지원자격 및 조건"
           }
         ]
       },
       "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_004": {
       "title": "2026년 횡성군 청년 창업가 양성 지원사업 참여기업 모집공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.5,
+        "recall": 0.6666666666666666,
+        "f1": 0.5714285714285715
       },
       "counts": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 3
-      },
-      "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
-          {
-            "field_name": "업력",
-            "condition": "7년이내",
-            "evidence_source": "첨부파일 1p 사업 개요"
-          },
-          {
-            "field_name": "업종",
-            "condition": "생산·제조 기업",
-            "evidence_source": "첨부파일 1p 사업 개요"
-          },
-          {
-            "field_name": "나이",
-            "condition": "만45세 이하",
-            "evidence_source": "첨부파일 1p 사업 개요"
-          }
-        ]
-      },
-      "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
-      }
-    },
-    "ann_005": {
-      "title": "2026년도 원주시 창업기업자금 동행지원 계획 공고",
-      "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
-      },
-      "counts": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 2
-      },
-      "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
-          {
-            "field_name": "지역",
-            "condition": "원주시 소재",
-            "evidence_source": "첨부파일 2p 2. 지원대상"
-          },
-          {
-            "field_name": "업력",
-            "condition": "7년 이내",
-            "evidence_source": "첨부파일 2p 2. 지원대상"
-          }
-        ]
-      },
-      "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
-      }
-    },
-    "ann_006": {
-      "title": "2026년 광명형 혁신스타트업 스케일업 액셀러레이팅 프로그램 참가기업 모집 공고",
-      "metrics": {
-        "precision": 0.3333333333333333,
-        "recall": 0.5,
-        "f1": 0.4
-      },
-      "counts": {
-        "tp": 1,
+        "tp": 2,
         "fp": 2,
         "fn": 1
       },
       "details": {
         "tps": [
+          {
+            "field_name": "업력",
+            "condition": "7년이내",
+            "evidence": {
+              "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "나이",
+            "condition": "만45세 이하",
+            "evidence": {
+              "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "지역",
+            "condition": "횡성군 관내",
+            "evidence": {
+              "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업종",
+            "condition": "제조업 분야",
+            "evidence": {
+              "text": "횡성군 관내 직접 생산·제조 기업으로 창업 7년이내 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm",
+            "mismatch_target": "생산·제조 기업"
+          }
+        ],
+        "fns": [
+          {
+            "field_name": "업종",
+            "condition": "생산·제조 기업",
+            "evidence_source": "첨부파일 1p 사업 개요"
+          }
+        ]
+      },
+      "routing": {
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
+      }
+    },
+    "ann_005": {
+      "title": "2026년도 원주시 창업기업자금 동행지원 계획 공고",
+      "metrics": {
+        "precision": 0.6666666666666666,
+        "recall": 1.0,
+        "f1": 0.8
+      },
+      "counts": {
+        "tp": 2,
+        "fp": 1,
+        "fn": 0
+      },
+      "details": {
+        "tps": [
+          {
+            "field_name": "지역",
+            "condition": "원주시 소재",
+            "evidence": {
+              "text": "신청일 현재 원주시에 소재하며 다음에 해당하는 창업 7년 이내 중소기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "7년 이내",
+            "evidence": {
+              "text": "신청일 현재 원주시에 소재하며 다음에 해당하는 창업 7년 이내 중소기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "업종",
+            "condition": "제조업, 지식정보 관련업, 건설업(2년 이상 사업영위), 관광업, 도소매, 숙박업, 이미용업, 목욕장업, 세탁업, 일반음식점업, 자동차정비업, 운수업",
+            "evidence": {
+              "text": "제조업 ② 지식정보 관련업 ③ 건설업(2년 이상 사업영위) ④ 관광업 ⑤ 도소매 ⑥ 숙박업, 이미용업, 목욕장업, 세탁업 ⑦ 일반음식점업 ⑧ 자동차정비업 ⑨ 운수업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fns": []
+      },
+      "routing": {
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
+      }
+    },
+    "ann_006": {
+      "title": "2026년 광명형 혁신스타트업 스케일업 액셀러레이팅 프로그램 참가기업 모집 공고",
+      "metrics": {
+        "precision": 0.6666666666666666,
+        "recall": 1.0,
+        "f1": 0.8
+      },
+      "counts": {
+        "tp": 2,
+        "fp": 1,
+        "fn": 0
+      },
+      "details": {
+        "tps": [
+          {
+            "field_name": "지역",
+            "condition": "광명시",
+            "evidence": {
+              "text": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          },
           {
             "field_name": "업력",
             "condition": "7년 미만",
@@ -209,16 +308,6 @@
         ],
         "fps": [
           {
-            "field_name": "지역",
-            "condition": "광명시 소재",
-            "evidence": {
-              "text": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
-              "location": null
-            },
-            "processing_path": "text_llm",
-            "mismatch_target": "광명시"
-          },
-          {
             "field_name": "나이",
             "condition": "2026년 12월까지 사업자등록 필수",
             "evidence": {
@@ -228,13 +317,7 @@
             "processing_path": "text_llm"
           }
         ],
-        "fns": [
-          {
-            "field_name": "지역",
-            "condition": "광명시",
-            "evidence_source": "본문 모집개요 신청자격 ①"
-          }
-        ]
+        "fns": []
       },
       "routing": {
         "chosen_path": "text_llm",
@@ -755,21 +838,12 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 2,
+        "fp": 1,
         "fn": 1
       },
       "details": {
         "tps": [],
         "fps": [
-          {
-            "field_name": "지역",
-            "condition": "비수도권 소재",
-            "evidence": {
-              "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
           {
             "field_name": "업력",
             "condition": "창업일로부터 7년 이내",
@@ -818,28 +892,18 @@
     "ann_023": {
       "title": "2026년 성능인증(epc) 신규신청 접수 공고(제2차)",
       "metrics": {
-        "precision": 0.0,
+        "precision": null,
         "recall": 0.0,
         "f1": null
       },
       "counts": {
         "tp": 0,
-        "fp": 1,
+        "fp": 0,
         "fn": 1
       },
       "details": {
         "tps": [],
-        "fps": [
-          {
-            "field_name": "업력",
-            "condition": "업력 7년 이내 창업기업",
-            "evidence": {
-              "text": "업력 7년 이내 창업기업이면서, 소기업(또는 소상공인)인 경우에 한해 20% 감면",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          }
-        ],
+        "fps": [],
         "fns": [
           {
             "field_name": "인증",
@@ -1060,14 +1124,14 @@
     "ann_029": {
       "title": "2026년 k-수출전략품목 육성사업 참여기업 모집 공고",
       "metrics": {
-        "precision": 0.5,
-        "recall": 0.5,
-        "f1": 0.5
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
       },
       "counts": {
-        "tp": 1,
-        "fp": 1,
-        "fn": 1
+        "tp": 2,
+        "fp": 0,
+        "fn": 0
       },
       "details": {
         "tps": [
@@ -1079,27 +1143,19 @@
               "location": null
             },
             "processing_path": "vision_llm"
-          }
-        ],
-        "fps": [
+          },
           {
             "field_name": "업종",
-            "condition": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
+            "condition": "사업자등록증 상 '제조' 업종",
             "evidence": {
               "text": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
               "location": null
             },
-            "processing_path": "vision_llm",
-            "mismatch_target": "사업자등록증 상 '제조' 업종"
+            "processing_path": "vision_llm"
           }
         ],
-        "fns": [
-          {
-            "field_name": "업종",
-            "condition": "사업자등록증 상 '제조' 업종",
-            "evidence_source": "첨부파일 2p <분야별 지원대상> 공통(필수)"
-          }
-        ]
+        "fps": [],
+        "fns": []
       },
       "routing": {
         "chosen_path": "vision_llm",
@@ -1574,21 +1630,12 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 2,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
         "fps": [
-          {
-            "field_name": "지역",
-            "condition": "비수도권 소재 기업에 대한 가점 신설",
-            "evidence": {
-              "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
           {
             "field_name": "업력",
             "condition": "창업일로부터 7년 이내 중소기업",
@@ -1738,6 +1785,22 @@
     }
   },
   "fields": {
+    "매출": {
+      "tp": 2,
+      "fp": 2,
+      "fn": 1,
+      "precision": 0.5,
+      "recall": 0.6666666666666666,
+      "f1": 0.5714285714285715
+    },
+    "지역": {
+      "tp": 10,
+      "fp": 7,
+      "fn": 1,
+      "precision": 0.5882352941176471,
+      "recall": 0.9090909090909091,
+      "f1": 0.7142857142857143
+    },
     "인증": {
       "tp": 2,
       "fp": 0,
@@ -1746,13 +1809,13 @@
       "recall": 0.4,
       "f1": 0.5714285714285715
     },
-    "지역": {
-      "tp": 7,
-      "fp": 9,
-      "fn": 4,
-      "precision": 0.4375,
-      "recall": 0.6363636363636364,
-      "f1": 0.5185185185185185
+    "업력": {
+      "tp": 17,
+      "fp": 6,
+      "fn": 1,
+      "precision": 0.7391304347826086,
+      "recall": 0.9444444444444444,
+      "f1": 0.8292682926829269
     },
     "종업원 수": {
       "tp": 1,
@@ -1762,95 +1825,66 @@
       "recall": 0.25,
       "f1": 0.3333333333333333
     },
-    "업력": {
-      "tp": 12,
-      "fp": 7,
-      "fn": 6,
-      "precision": 0.631578947368421,
-      "recall": 0.6666666666666666,
-      "f1": 0.6486486486486486
-    },
-    "매출": {
-      "tp": 1,
-      "fp": 1,
-      "fn": 2,
-      "precision": 0.5,
-      "recall": 0.3333333333333333,
-      "f1": 0.4
-    },
     "업종": {
-      "tp": 2,
-      "fp": 12,
-      "fn": 11,
-      "precision": 0.14285714285714285,
-      "recall": 0.15384615384615385,
-      "f1": 0.14814814814814817
+      "tp": 3,
+      "fp": 14,
+      "fn": 10,
+      "precision": 0.17647058823529413,
+      "recall": 0.23076923076923078,
+      "f1": 0.20000000000000004
     },
     "나이": {
-      "tp": 1,
+      "tp": 2,
       "fp": 3,
-      "fn": 2,
-      "precision": 0.25,
-      "recall": 0.3333333333333333,
-      "f1": 0.28571428571428575
+      "fn": 1,
+      "precision": 0.4,
+      "recall": 0.6666666666666666,
+      "f1": 0.5
     }
   },
   "processing_paths": {
     "rule_based": {
       "tp": 0,
       "fp": 0,
-      "fn": 14,
+      "fn": 2,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0,
-      "count": 9,
+      "count": 4,
       "cost_usd": 0.0
     },
     "text_llm": {
-      "tp": 9,
-      "fp": 12,
-      "fn": 5,
-      "precision": 0.42857142857142855,
-      "recall": 0.6428571428571429,
-      "f1": 0.5142857142857143,
+      "tp": 10,
+      "fp": 8,
+      "fn": 4,
+      "precision": 0.5555555555555556,
+      "recall": 0.7142857142857143,
+      "f1": 0.6250000000000001,
       "count": 12,
       "cost_usd": 0.012000000000000004
     },
     "vision_llm": {
-      "tp": 17,
-      "fp": 21,
-      "fn": 12,
-      "precision": 0.4473684210526316,
-      "recall": 0.5862068965517241,
-      "f1": 0.5074626865671642,
-      "count": 23,
-      "cost_usd": 0.23600000000000007
+      "tp": 27,
+      "fp": 25,
+      "fn": 14,
+      "precision": 0.5192307692307693,
+      "recall": 0.6585365853658537,
+      "f1": 0.5806451612903226,
+      "count": 28,
+      "cost_usd": 0.2860000000000001
     }
   },
   "mismatches": [
     {
-      "announcement_id": "ann_001",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "6개월 이상"
-    },
-    {
-      "announcement_id": "ann_001",
-      "field_name": "매출",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)"
-    },
-    {
       "announcement_id": "ann_002",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "7년 이하 (신산업 분야 10년 이내)"
+      "field_name": "매출",
+      "type": "FP (과추출/오인식)",
+      "condition": "20억원 미만",
+      "evidence": {
+        "text": "「중소기업기본법」 제2조에서 정한 중소기업으로 업력 7년 이하이고, 매출액 20억원 미만이면서, 중소벤처기업부 R&D를 처음 수행하는 기업",
+        "location": null
+      },
+      "target": "20억원 미만"
     },
     {
       "announcement_id": "ann_002",
@@ -1862,11 +1896,14 @@
     },
     {
       "announcement_id": "ann_003",
-      "field_name": "지역",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "전북 소재"
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "콘텐츠산업",
+      "evidence": {
+        "text": "한국표준산업분류 상 콘텐츠산업 업종에 해당하는 기업",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_003",
@@ -1877,20 +1914,26 @@
       "target": "3인 이상"
     },
     {
-      "announcement_id": "ann_003",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "1년 이상"
+      "announcement_id": "ann_004",
+      "field_name": "지역",
+      "type": "FP (과추출/오인식)",
+      "condition": "횡성군 관내",
+      "evidence": {
+        "text": "횡성군 관내 만45세 이하 창업기업(설립일 7년이내) 및 창업예정자",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_004",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "7년이내"
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "제조업 분야",
+      "evidence": {
+        "text": "횡성군 관내 직접 생산·제조 기업으로 창업 7년이내 기업",
+        "location": null
+      },
+      "target": "생산·제조 기업"
     },
     {
       "announcement_id": "ann_004",
@@ -1901,39 +1944,15 @@
       "target": "생산·제조 기업"
     },
     {
-      "announcement_id": "ann_004",
-      "field_name": "나이",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "만45세 이하"
-    },
-    {
       "announcement_id": "ann_005",
-      "field_name": "지역",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "원주시 소재"
-    },
-    {
-      "announcement_id": "ann_005",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "7년 이내"
-    },
-    {
-      "announcement_id": "ann_006",
-      "field_name": "지역",
+      "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "광명시 소재",
+      "condition": "제조업, 지식정보 관련업, 건설업(2년 이상 사업영위), 관광업, 도소매, 숙박업, 이미용업, 목욕장업, 세탁업, 일반음식점업, 자동차정비업, 운수업",
       "evidence": {
-        "text": "광명시 본사 소재 기업 (2019년 4월 20일 이후 사업자등록 기업)",
+        "text": "제조업 ② 지식정보 관련업 ③ 건설업(2년 이상 사업영위) ④ 관광업 ⑤ 도소매 ⑥ 숙박업, 이미용업, 목욕장업, 세탁업 ⑦ 일반음식점업 ⑧ 자동차정비업 ⑨ 운수업",
         "location": null
       },
-      "target": "광명시"
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_006",
@@ -1945,14 +1964,6 @@
         "location": null
       },
       "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_006",
-      "field_name": "지역",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "광명시"
     },
     {
       "announcement_id": "ann_008",
@@ -2087,17 +2098,6 @@
     },
     {
       "announcement_id": "ann_021",
-      "field_name": "지역",
-      "type": "FP (과추출/오인식)",
-      "condition": "비수도권 소재",
-      "evidence": {
-        "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_021",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
       "condition": "창업일로부터 7년 이내",
@@ -2114,17 +2114,6 @@
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "기업부설연구소 보유"
-    },
-    {
-      "announcement_id": "ann_023",
-      "field_name": "업력",
-      "type": "FP (과추출/오인식)",
-      "condition": "업력 7년 이내 창업기업",
-      "evidence": {
-        "text": "업력 7년 이내 창업기업이면서, 소기업(또는 소상공인)인 경우에 한해 20% 감면",
-        "location": null
-      },
-      "target": "N/A"
     },
     {
       "announcement_id": "ann_023",
@@ -2209,25 +2198,6 @@
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "여성 예비창업자 또는 여성기업"
-    },
-    {
-      "announcement_id": "ann_029",
-      "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
-      "evidence": {
-        "text": "사업자등록증 상 '제조' 업종(도·소매, 임대 등 유통·서비스 분야 제외)",
-        "location": null
-      },
-      "target": "사업자등록증 상 '제조' 업종"
-    },
-    {
-      "announcement_id": "ann_029",
-      "field_name": "업종",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "사업자등록증 상 '제조' 업종"
     },
     {
       "announcement_id": "ann_030",
@@ -2381,17 +2351,6 @@
     },
     {
       "announcement_id": "ann_041",
-      "field_name": "지역",
-      "type": "FP (과추출/오인식)",
-      "condition": "비수도권 소재 기업에 대한 가점 신설",
-      "evidence": {
-        "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_041",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
       "condition": "창업일로부터 7년 이내 중소기업",
@@ -2533,7 +2492,7 @@
       "announcement_id": "ann_023",
       "title": "2026년 성능인증(epc) 신규신청 접수 공고(제2차)",
       "gt_fields_count": 1,
-      "precision": 0.0,
+      "precision": null,
       "recall": 0.0,
       "f1": null
     },
@@ -2650,19 +2609,19 @@
       "f1": null
     }
   ],
-  "total_cost_usd": 0.24800000000000008,
+  "total_cost_usd": 0.29800000000000015,
   "coverage": {
     "non_standard_announcement_count": 0,
     "total_announcement_count": 44,
     "non_standard_ratio": 0.0
   },
   "grounding": {
-    "total_fields": 59,
+    "total_fields": 73,
     "evidence_present_rate": 1.0,
     "evidence_verbatim_rate": 1.0,
     "verbatim_checkable": 59,
-    "value_grounded_rate": 0.8772,
-    "value_checkable": 57,
+    "value_grounded_rate": 0.8451,
+    "value_checkable": 71,
     "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음"
   }
 }

@@ -2,8 +2,63 @@
 
 import pytest
 from typing import Any
-from evaluation.measure import _normalize, match_fields, calculate_metrics, aggregate_metrics
+from evaluation.measure import (
+    _normalize, match_fields, calculate_metrics, aggregate_metrics,
+    _norm_region_token, _is_preferential_field, _norm_industry_token,
+)
 from app.schemas.eligibility import EligibilityField, ParsedCondition, AnnouncementEligibility
+
+
+class _PrefDummy:
+    """우대 가드 테스트용 — evidence는 {text} 객체, condition은 {raw_text} 객체."""
+    def __init__(self, field_name, evidence_text="", raw_text=""):
+        self.field_name = field_name
+        self.evidence = type("E", (), {"text": evidence_text})()
+        self.condition = type("C", (), {"raw_text": raw_text})()
+        self.processing_path = "text_llm"
+
+
+def test_norm_region_token_suffix_strip():
+    # 행정구역 접미사 동치
+    assert _norm_region_token("광명시") == _norm_region_token("광명")
+    assert _norm_region_token("강원특별자치도") == _norm_region_token("강원")
+    assert _norm_region_token("부산광역시") == _norm_region_token("부산")
+    assert _norm_region_token("원주시") == "원주"
+
+
+def test_norm_region_token_short_stem_guard():
+    # 어간 2자 미만 보호 — "대구"의 "구"는 깎이지 않음
+    assert _norm_region_token("대구") == "대구"
+    assert _norm_region_token("대전") == "대전"
+
+
+def test_norm_industry_token_suffix_strip():
+    # '업' 접미사 동치 — "제조" = "제조업", "서비스" = "서비스업"
+    assert _norm_industry_token("제조") == _norm_industry_token("제조업")
+    assert _norm_industry_token("서비스") == _norm_industry_token("서비스업")
+    assert _norm_industry_token("제조업") == "제조"
+
+
+def test_norm_industry_token_short_stem_guard():
+    # 어간 2자 미만 보호 — "농업"의 "업"은 깎이지 않음 (어간 "농" 1자)
+    assert _norm_industry_token("농업") == "농업"
+    assert _norm_industry_token("광업") == "광업"
+
+
+def test_norm_industry_token_keeps_distinct_industries_apart():
+    # 접미사만 흡수 — 무관 업종은 정규화 후에도 불일치 (무차별 완화 아님)
+    assert _norm_industry_token("제조업") != _norm_industry_token("서비스업")
+    assert _norm_industry_token("바이오") != _norm_industry_token("제조")
+
+
+def test_is_preferential_field_drops_only_principled():
+    # 우대·가점·감면·면제는 자격요건 아님 → 제외
+    assert _is_preferential_field(_PrefDummy("나이", evidence_text="청년 대표자 우대"))
+    assert _is_preferential_field(_PrefDummy("업종", raw_text="제조업 가점 5점"))
+    assert _is_preferential_field(_PrefDummy("매출", evidence_text="중소기업 세액 감면 대상"))
+    # 정상 자격요건은 보존
+    assert not _is_preferential_field(_PrefDummy("업력", evidence_text="창업 3년 미만 중소기업"))
+    assert not _is_preferential_field(_PrefDummy("지역", raw_text="서울특별시 소재"))
 
 
 # Mock 객체들을 생성하기 위한 헬퍼 클래스
