@@ -85,6 +85,12 @@ def build_extraction_result(
                 raw_text=f.get("condition") or "",
             )
             evidence_text = f.get("evidence") or ""
+            # 근거 없는 단언은 검증이 불가능하므로 신뢰하지 않는다 (빈 evidence가 검증을 우회하던 구멍 봉쇄).
+            if source_text is not None and not evidence_text.strip():
+                logger.warning(
+                    f"evidence가 비어 있음 (검증 불가로 필드 제외): field={field_name}"
+                )
+                continue
             # 근거를 원문에서 검증 못 하면 단언하지 않고 제외 (환각 방어 — 검증 가능한 추출만 신뢰).
             if source_text is not None and not is_evidence_verbatim(evidence_text, source_text):
                 logger.warning(

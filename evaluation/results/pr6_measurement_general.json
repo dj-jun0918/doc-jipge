@@ -1,11 +1,11 @@
 {
   "overall": {
-    "tp": 23,
-    "fp": 42,
-    "fn": 34,
-    "precision": 0.35384615384615387,
-    "recall": 0.40350877192982454,
-    "f1": 0.3770491803278689
+    "tp": 26,
+    "fp": 33,
+    "fn": 31,
+    "precision": 0.4406779661016949,
+    "recall": 0.45614035087719296,
+    "f1": 0.44827586206896547
   },
   "announcements": {
     "ann_001": {
@@ -25,20 +25,20 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "매출",
-            "condition": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)",
-            "evidence_source": "첨부파일 3p ③(매출액)"
-          },
-          {
             "field_name": "업력",
             "condition": "6개월 이상",
             "evidence_source": "첨부파일 3p ②(업력)"
+          },
+          {
+            "field_name": "매출",
+            "condition": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)",
+            "evidence_source": "첨부파일 3p ③(매출액)"
           }
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_002": {
@@ -58,20 +58,20 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "매출",
-            "condition": "20억원 미만",
+            "field_name": "업력",
+            "condition": "7년 이하 (신산업 분야 10년 이내)",
             "evidence_source": "첨부파일 3p (공통자격)"
           },
           {
-            "field_name": "업력",
-            "condition": "7년 이하 (신산업 분야 10년 이내)",
+            "field_name": "매출",
+            "condition": "20억원 미만",
             "evidence_source": "첨부파일 3p (공통자격)"
           }
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_003": {
@@ -91,14 +91,14 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "종업원 수",
-            "condition": "3인 이상",
-            "evidence_source": "첨부파일 4p 지원자격 및 조건"
-          },
-          {
             "field_name": "지역",
             "condition": "전북 소재",
             "evidence_source": "첨부파일 5p 사업참여 제한사유 ①"
+          },
+          {
+            "field_name": "종업원 수",
+            "condition": "3인 이상",
+            "evidence_source": "첨부파일 4p 지원자격 및 조건"
           },
           {
             "field_name": "업력",
@@ -108,8 +108,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_004": {
@@ -129,8 +129,8 @@
         "fps": [],
         "fns": [
           {
-            "field_name": "나이",
-            "condition": "만45세 이하",
+            "field_name": "업력",
+            "condition": "7년이내",
             "evidence_source": "첨부파일 1p 사업 개요"
           },
           {
@@ -139,15 +139,15 @@
             "evidence_source": "첨부파일 1p 사업 개요"
           },
           {
-            "field_name": "업력",
-            "condition": "7년이내",
+            "field_name": "나이",
+            "condition": "만45세 이하",
             "evidence_source": "첨부파일 1p 사업 개요"
           }
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_005": {
@@ -179,24 +179,34 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_006": {
       "title": "2026년 광명형 혁신스타트업 스케일업 액셀러레이팅 프로그램 참가기업 모집 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "f1": 0.4
       },
       "counts": {
-        "tp": 0,
-        "fp": 3,
-        "fn": 2
+        "tp": 1,
+        "fp": 2,
+        "fn": 1
       },
       "details": {
-        "tps": [],
+        "tps": [
+          {
+            "field_name": "업력",
+            "condition": "7년 미만",
+            "evidence": {
+              "text": "광명시 소재 7년 미만 스타트업(또는 예비창업자)",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          }
+        ],
         "fps": [
           {
             "field_name": "지역",
@@ -210,22 +220,12 @@
           },
           {
             "field_name": "나이",
-            "condition": "예비창업자",
+            "condition": "2026년 12월까지 사업자등록 필수",
             "evidence": {
               "text": "광명시 창업 계획이 있는 예비창업자(‘26년 12월까지 사업자등록 필수)",
               "location": null
             },
             "processing_path": "text_llm"
-          },
-          {
-            "field_name": "업력",
-            "condition": "3년 미만",
-            "evidence": {
-              "text": "세부항목도 동일한 경우, 업력이 짧은 순으로 선정",
-              "location": null
-            },
-            "processing_path": "vision_llm",
-            "mismatch_target": "7년 미만"
           }
         ],
         "fns": [
@@ -233,17 +233,12 @@
             "field_name": "지역",
             "condition": "광명시",
             "evidence_source": "본문 모집개요 신청자격 ①"
-          },
-          {
-            "field_name": "업력",
-            "condition": "7년 미만",
-            "evidence_source": "본문 모집개요 신청자격 ①"
           }
         ]
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_007": {
@@ -267,13 +262,13 @@
               "text": "전국 소재",
               "location": null
             },
-            "processing_path": "text_llm"
+            "processing_path": "vision_llm"
           },
           {
             "field_name": "업력",
             "condition": "7년 미만",
             "evidence": {
-              "text": "모집대상 : 공고일 기준 창업 후 7년 미만 기술창업기업 / 전국 소재",
+              "text": "공고일 기준 창업 후 7년 미만 기술창업기업",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -283,20 +278,20 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_008": {
       "title": "2026년 지역특화콘텐츠개발지원(대구게임테크허브) 차세대 플랫폼 도약/확장 지원사업 모집 공고",
       "metrics": {
-        "precision": 0.5,
+        "precision": 1.0,
         "recall": 0.5,
-        "f1": 0.5
+        "f1": 0.6666666666666666
       },
       "counts": {
         "tp": 1,
-        "fp": 1,
+        "fp": 0,
         "fn": 1
       },
       "details": {
@@ -311,17 +306,7 @@
             "processing_path": "text_llm"
           }
         ],
-        "fps": [
-          {
-            "field_name": "업력",
-            "condition": "출시 이력이 없는",
-            "evidence": {
-              "text": "출시 이력이 없는 초기 게임 콘텐츠 혹은 아이디어 단계에 있는 게임 콘텐츠",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          }
-        ],
+        "fps": [],
         "fns": [
           {
             "field_name": "업종",
@@ -332,7 +317,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_009": {
@@ -359,8 +344,8 @@
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "업종",
-            "condition": "핀테크",
+            "field_name": "업력",
+            "condition": "3년 이내",
             "evidence": {
               "text": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업",
               "location": null
@@ -368,8 +353,8 @@
             "processing_path": "vision_llm"
           },
           {
-            "field_name": "업력",
-            "condition": "3년 이내",
+            "field_name": "업종",
+            "condition": "핀테크",
             "evidence": {
               "text": "핀테크 분야 사업을 영위하고, 서울에 소재(본사 기준)한 창업 3년 이내 기업",
               "location": null
@@ -381,8 +366,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_010": {
@@ -394,35 +379,17 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 3,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
         "fps": [
           {
-            "field_name": "지역",
-            "condition": "녹색융합클러스터 입주기업",
-            "evidence": {
-              "text": "AI 기술 공급이 가능한 녹색융합클러스터 입주기업",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "업종",
             "condition": "녹색기술 수요가 있는 대·중견기업 및 기관",
             "evidence": {
-              "text": "녹색기술 수요가 있는 대·중견기업 및 기관",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
-            "field_name": "업력",
-            "condition": "신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업",
-            "evidence": {
-              "text": "신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업",
+              "text": "모집대상\n1) OI(기술협력) 트랙 : 신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업 및 공공기관",
               "location": null
             },
             "processing_path": "text_llm"
@@ -432,7 +399,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_011": {
@@ -451,7 +418,7 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "인증",
+            "field_name": "업종",
             "condition": "스마트제조혁신 지원사업에서 '참여제한' 중인 기업은 참여 불가",
             "evidence": {
               "text": "스마트제조혁신 지원사업에서 '참여제한' 중인 기업은 참여 불가",
@@ -463,47 +430,40 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_012": {
       "title": "2026년 중소기업 cbam대응 인프라(mrv)구축 사업 참여기업 모집 수정 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": null
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
       },
       "counts": {
-        "tp": 0,
-        "fp": 1,
-        "fn": 1
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
       },
       "details": {
-        "tps": [],
-        "fps": [
-          {
-            "field_name": "업종",
-            "condition": "사업자등록증 상 업태에 '제조'가 포함되어 있으며, CBAM 대상 품목을 제조하는 중소기업",
-            "evidence": {
-              "text": "사업자등록증 상 업태에 '제조'가 포함되어 있으며, CBAM 대상 품목(붙임1)을 제조하는 중소기업",
-              "location": null
-            },
-            "processing_path": "vision_llm",
-            "mismatch_target": "사업자등록증 상 업태에 '제조' 포함"
-          }
-        ],
-        "fns": [
+        "tps": [
           {
             "field_name": "업종",
             "condition": "사업자등록증 상 업태에 '제조' 포함",
-            "evidence_source": "공고문 4쪽 신청자격"
+            "evidence": {
+              "text": "사업자등록증상업태에‘제조’가포함되어있으며, CBAM 대상 품목(붙임1)을제조하는중소기업",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
-        ]
+        ],
+        "fps": [],
+        "fns": []
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_013": {
@@ -532,9 +492,9 @@
           },
           {
             "field_name": "업종",
-            "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업",
+            "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
             "evidence": {
-              "text": "□ 지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+              "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -543,8 +503,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_014": {
@@ -565,7 +525,7 @@
             "field_name": "업력",
             "condition": "창업 후 7년 이내",
             "evidence": {
-              "text": "창업 후 7년 이내 창업기업(창업(설립)일 기준 : 2019. 4. 29. ~ 2026. 4. 28.)",
+              "text": "창업 후 7년 이내 창업기업(창업(설립)일 기준 : 2019.4.29. ~ 2026.4.28.)",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -585,8 +545,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_015": {
@@ -617,8 +577,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_016": {
@@ -637,19 +597,20 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "지역",
-            "condition": "지역에서 생활서비스 혁신을 주도하는 소상공인",
+            "field_name": "종업원 수",
+            "condition": "상시근로자 수 10명 미만",
             "evidence": {
-              "text": "지역에서 생활서비스 혁신을 주도하는 소상공인",
+              "text": "「소상공인기본법」 제2조에서 소상공인은 「중소기업기본법」 제2조제2항에 따른 소기업 중 상시근로자가 10명 미만인 사업자로서",
               "location": null
             },
-            "processing_path": "text_llm"
+            "processing_path": "text_llm",
+            "mismatch_target": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만"
           },
           {
-            "field_name": "업력",
-            "condition": "신청일 현재 정상적으로 영업 중인 소상공인 또는 로컬창업가",
+            "field_name": "업종",
+            "condition": "지원제외 업종을 영위하는 경우",
             "evidence": {
-              "text": "「소상공인기본법」 제2조에 따른 소상공인으로, 신청일 현재 정상적으로 영업 중인 소상공인 또는 로컬창업가",
+              "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -664,30 +625,40 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_017": {
       "title": "2026년도 스마트공장 공급기업 역량진단 참여기업 1차 모집 공고",
       "metrics": {
-        "precision": null,
+        "precision": 0.0,
         "recall": null,
         "f1": null
       },
       "counts": {
         "tp": 0,
-        "fp": 0,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
-        "fps": [],
+        "fps": [
+          {
+            "field_name": "업력",
+            "condition": "6개월 미만 기업",
+            "evidence": {
+              "text": "공급기업 역량진단(기본‧심화) 후, 6개월 미만 기업",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          }
+        ],
         "fns": []
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_018": {
@@ -708,7 +679,7 @@
             "field_name": "매출",
             "condition": "직전년도(2025) 또는 최근 3개년 연매출 2억원 이상",
             "evidence": {
-              "text": "직전년도(‘25) 또는 최근 3개년 연매출 2억원 이상",
+              "text": "최근 3개년 연매출 2억원 이상",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -729,8 +700,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_019": {
@@ -759,20 +730,20 @@
         ],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "로봇 등 신산업 기술을 보유",
+            "field_name": "지역",
+            "condition": "서울특별시 소재",
             "evidence": {
-              "text": "로봇 등 신산업 기술을 보유하고, 「중소기업창업 지원법」 제2조 제2호부터 제2조제3의2까지 각 호의 정의에 따른 스타트업 대표자로,",
+              "text": "서울특별시 소방재난본부",
               "location": null
             },
-            "processing_path": "vision_llm"
+            "processing_path": "text_llm"
           }
         ],
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_021": {
@@ -792,18 +763,18 @@
         "fps": [
           {
             "field_name": "지역",
-            "condition": "비수도권 소재 기업에 대한 가점",
+            "condition": "비수도권 소재",
             "evidence": {
-              "text": "비수도권소재기업에대한가점신설(2점)",
+              "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
               "location": null
             },
             "processing_path": "text_llm"
           },
           {
             "field_name": "업력",
-            "condition": "창업일로부터 7년 이내의 중소기업",
+            "condition": "창업일로부터 7년 이내",
             "evidence": {
-              "text": "창업일로부터7년이내의중소기업은기존인력인건비현금계상가능",
+              "text": "창업일로부터 7년이내의 중소기업은 기존 인력 인건비 현금계상 가능",
               "location": null
             },
             "processing_path": "text_llm"
@@ -819,39 +790,29 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_022": {
       "title": "2026년「민관협력 오픈이노베이션 지원」 제2차 수요기업‧기관 협업 과제 및 프로그램 모집공고",
       "metrics": {
-        "precision": 0.0,
+        "precision": null,
         "recall": null,
         "f1": null
       },
       "counts": {
         "tp": 0,
-        "fp": 1,
+        "fp": 0,
         "fn": 0
       },
       "details": {
         "tps": [],
-        "fps": [
-          {
-            "field_name": "인증",
-            "condition": "자체 오픈이노베이션 프로그램을 보유한 기관 또는 기업",
-            "evidence": {
-              "text": "자체 오픈이노베이션 프로그램을 보유한 기관 또는 기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          }
-        ],
+        "fps": [],
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_023": {
@@ -863,43 +824,15 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 4,
+        "fp": 1,
         "fn": 1
       },
       "details": {
         "tps": [],
         "fps": [
           {
-            "field_name": "인증",
-            "condition": "NEP, NET, GS, 등",
-            "evidence": {
-              "text": "신청기업 인증보유 현황",
-              "location": null
-            },
-            "processing_path": "text_llm",
-            "mismatch_target": "성능인증 신청 대상제품 근거기술 또는 관련 인증 보유"
-          },
-          {
-            "field_name": "종업원 수",
-            "condition": "종업원수",
-            "evidence": {
-              "text": "종업원수",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
-            "field_name": "매출",
-            "condition": "총 매출 (직전년도)억원",
-            "evidence": {
-              "text": "총 매출 (직전년도)억원",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "업력",
-            "condition": "7년 이내",
+            "condition": "업력 7년 이내 창업기업",
             "evidence": {
               "text": "업력 7년 이내 창업기업이면서, 소기업(또는 소상공인)인 경우에 한해 20% 감면",
               "location": null
@@ -917,35 +850,24 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_024": {
       "title": "2026년 글로벌비즈니스센터(gbc) 입주기업 상시모집 공고",
       "metrics": {
-        "precision": 0.0,
+        "precision": null,
         "recall": 0.0,
         "f1": null
       },
       "counts": {
         "tp": 0,
-        "fp": 1,
+        "fp": 0,
         "fn": 1
       },
       "details": {
         "tps": [],
-        "fps": [
-          {
-            "field_name": "업종",
-            "condition": "지원제외 업종에 해당되지 않는 중소기업",
-            "evidence": {
-              "text": "주 업종*이 지원제외 업종(참고1)에 해당되지 않은 중소기업**",
-              "location": null
-            },
-            "processing_path": "vision_llm",
-            "mismatch_target": "글로벌비즈니스센터 입주지원 제외 대상 업종 제외"
-          }
-        ],
+        "fps": [],
         "fns": [
           {
             "field_name": "업종",
@@ -955,8 +877,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_025": {
@@ -974,10 +896,10 @@
       "details": {
         "tps": [
           {
-            "field_name": "업종",
-            "condition": "바이오헬스 관련 기업",
+            "field_name": "지역",
+            "condition": "강원특별자치도 소재 기업",
             "evidence": {
-              "text": "지원대상 : 강원특별자치도 소재 바이오헬스 관련 기업",
+              "text": "다. 지원대상 : 강원특별자치도 소재 바이오헬스 관련 기업",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -985,27 +907,27 @@
         ],
         "fps": [
           {
-            "field_name": "지역",
-            "condition": "강원도 내 소재",
+            "field_name": "업종",
+            "condition": "바이오헬스 관련 기업",
             "evidence": {
-              "text": "소재지 : 고용관리등록번호 기준 주소지가 강원도 내 소재",
+              "text": "다. 지원대상 : 강원특별자치도 소재 바이오헬스 관련 기업",
               "location": null
             },
             "processing_path": "vision_llm",
-            "mismatch_target": "강원특별자치도 소재 기업"
+            "mismatch_target": "바이오헬스 관련 기업"
           }
         ],
         "fns": [
           {
-            "field_name": "지역",
-            "condition": "강원특별자치도 소재 기업",
+            "field_name": "업종",
+            "condition": "바이오헬스 관련 기업",
             "evidence_source": "공고문 1p, 1. 사업개요 - 지원대상"
           }
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_026": {
@@ -1034,10 +956,10 @@
         ],
         "fps": [
           {
-            "field_name": "인증",
-            "condition": "바이오·헬스케어 분야 혁신기술 보유",
+            "field_name": "지역",
+            "condition": "서울특별시 소재",
             "evidence": {
-              "text": "바이오·헬스케어 분야 혁신기술을 보유한",
+              "text": "서울특별시가 조성하고 한국과학기술연구원과 고려대학교가 운영하는 ‘서울바이오허브’에서",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1052,8 +974,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_027": {
@@ -1074,7 +996,7 @@
             "field_name": "업력",
             "condition": "창업 1년 이내",
             "evidence": {
-              "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
+              "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성기업인 등 창업에 관심 있는 자",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -1085,7 +1007,7 @@
             "field_name": "지역",
             "condition": "전국",
             "evidence": {
-              "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
+              "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성기업인 등 창업에 관심 있는 자",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -1109,8 +1031,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_028": {
@@ -1131,24 +1053,34 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_029": {
       "title": "2026년 k-수출전략품목 육성사업 참여기업 모집 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5
       },
       "counts": {
-        "tp": 0,
+        "tp": 1,
         "fp": 1,
-        "fn": 2
+        "fn": 1
       },
       "details": {
-        "tps": [],
+        "tps": [
+          {
+            "field_name": "인증",
+            "condition": "중소기업확인서(또는 소상공인확인서) 보유",
+            "evidence": {
+              "text": "중소기업확인서(또는 소상공인확인서) 보유",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
         "fps": [
           {
             "field_name": "업종",
@@ -1163,11 +1095,6 @@
         ],
         "fns": [
           {
-            "field_name": "인증",
-            "condition": "중소기업확인서(또는 소상공인확인서) 보유",
-            "evidence_source": "첨부파일 2p <분야별 지원대상> 공통(필수)"
-          },
-          {
             "field_name": "업종",
             "condition": "사업자등록증 상 '제조' 업종",
             "evidence_source": "첨부파일 2p <분야별 지원대상> 공통(필수)"
@@ -1175,30 +1102,40 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_030": {
       "title": "2026년도 대·중소기업 동반진출 지원사업 주관기업 모집공고(2차)",
       "metrics": {
-        "precision": null,
+        "precision": 0.0,
         "recall": null,
         "f1": null
       },
       "counts": {
         "tp": 0,
-        "fp": 0,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
-        "fps": [],
+        "fps": [
+          {
+            "field_name": "업종",
+            "condition": "불건전 영상게임기 제조업",
+            "evidence": {
+              "text": "불건전 영상게임기 제조업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_031": {
@@ -1229,8 +1166,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_032": {
@@ -1261,20 +1198,20 @@
         ],
         "fns": [
           {
-            "field_name": "업종",
-            "condition": "딥테크 5대 분야 (ai·빅데이터, 로봇, 바이오·헬스, 미래 모빌리티, 친환경·에너지)",
+            "field_name": "업력",
+            "condition": "창업 7년 이내",
             "evidence_source": "첨부파일 1p 지원대상"
           },
           {
-            "field_name": "업력",
-            "condition": "창업 7년 이내",
+            "field_name": "업종",
+            "condition": "딥테크 5대 분야 (ai·빅데이터, 로봇, 바이오·헬스, 미래 모빌리티, 친환경·에너지)",
             "evidence_source": "첨부파일 1p 지원대상"
           }
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_033": {
@@ -1304,9 +1241,9 @@
         "fps": [
           {
             "field_name": "업종",
-            "condition": "과학문화 활동",
+            "condition": "비영리법인, 정부 부처로부터 허가받아 설립된 재단법인, 사단법인",
             "evidence": {
-              "text": "과학문화 활동 및 시민 대상 과학문화 프로그램 운영 일부비용",
+              "text": "비영리법인정부 부처로부터 허가받아 설립된 재단법인사단법인",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1316,67 +1253,64 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_034": {
       "title": "2026년도 스마트제조 전문인력 육성사업 참여기관(기업, 사업단) 모집 공고",
       "metrics": {
-        "precision": 0.25,
-        "recall": 1.0,
-        "f1": 0.4
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": null
       },
       "counts": {
-        "tp": 1,
+        "tp": 0,
         "fp": 3,
-        "fn": 0
+        "fn": 1
       },
       "details": {
-        "tps": [
-          {
-            "field_name": "업종",
-            "condition": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업",
-            "evidence": {
-              "text": "스마트공장 솔루션(MES, ERP 등)을 운영하고 있으며, 스마트공장 생산·기술인력 채용계획이 있는 제조 중소기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          }
-        ],
+        "tps": [],
         "fps": [
           {
-            "field_name": "종업원 수",
-            "condition": "상시근로자 수",
-            "evidence": {
-              "text": "상시근로자 수",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
             "field_name": "지역",
-            "condition": "수도권, 충청권, 호남·제주권, 동남권, 대경·강원권",
+            "condition": "서울, 인천, 경기",
             "evidence": {
-              "text": "사업장 소재지가 속한 권역을 확인하여 신청하여야 하며, 권역별 모집규모는 아래 표와 같음",
+              "text": "수도권 • 서울, 인천, 경기",
               "location": null
             },
             "processing_path": "vision_llm"
           },
           {
             "field_name": "업력",
-            "condition": "스마트공장 생산·기술인력 채용 계획이 있는 제조 중소기업",
+            "condition": "체불사업주 제외",
             "evidence": {
-              "text": "스마트공장 생산·기술인력 채용 계획이 있는 제조 중소기업",
+              "text": "근로기준법 제43조의2 및 같은 법 시행령 제23조의3에 따른 체불사업주",
               "location": null
             },
             "processing_path": "text_llm"
+          },
+          {
+            "field_name": "업종",
+            "condition": "제조 중소기업",
+            "evidence": {
+              "text": "스마트공장 솔루션(MES, ERP 등)을 운영하고 있으며, 스마트공장 생산·기술인력 채용계획이 있는 제조 중소기업",
+              "location": null
+            },
+            "processing_path": "vision_llm",
+            "mismatch_target": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업"
           }
         ],
-        "fns": []
+        "fns": [
+          {
+            "field_name": "업종",
+            "condition": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업",
+            "evidence_source": "첨부파일 1p 사업내용, 9p 모집대상"
+          }
+        ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
       }
     },
     "ann_035": {
@@ -1397,7 +1331,7 @@
             "field_name": "종업원 수",
             "condition": "상시근로자 50인 미만",
             "evidence": {
-              "text": "상시근로자 50인 미만 등 소규모 중소기업",
+              "text": "상시근로자50인미만등소규모중소기업",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1405,19 +1339,19 @@
         ],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "건설업 등 전 업종으로 확대",
+            "field_name": "업력",
+            "condition": "창업일로부터 7년 이내",
             "evidence": {
-              "text": "건설업 등 전 업종으로 확대",
+              "text": "창업일로부터 7년 이내의 중소기업은 기존인력 인건비 현금 계상 가능",
               "location": null
             },
             "processing_path": "text_llm"
           },
           {
-            "field_name": "업력",
-            "condition": "창업일로부터 7년 이내",
+            "field_name": "업종",
+            "condition": "건설업 등 전 업종으로 확대",
             "evidence": {
-              "text": "창업일로부터 7년 이내의 중소기업은 기존인력 인건비 현금 계상 가능",
+              "text": "건설업 등 전 업종으로 확대",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1427,7 +1361,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_036": {
@@ -1445,22 +1379,22 @@
       "details": {
         "tps": [
           {
-            "field_name": "나이",
-            "condition": "대표자가 만 39세 이하",
-            "evidence": {
-              "text": "모집대상 : 광주 내 초기 청년창업기업(공고일 기준 창업 3년이내이면서 대표자가 만 39세 이하인 기업)",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "업력",
             "condition": "창업 3년 이내",
             "evidence": {
-              "text": "모집대상 : 광주 내 초기 청년창업기업(공고일 기준 창업 3년이내이면서 대표자가 만 39세 이하인 기업)",
+              "text": "광주 내 초기 청년창업기업(공고일 기준 창업 3년이내이면서 대표자가 만 39세 이하인 기업)",
               "location": null
             },
-            "processing_path": "vision_llm"
+            "processing_path": "text_llm"
+          },
+          {
+            "field_name": "나이",
+            "condition": "대표자가 만 39세 이하",
+            "evidence": {
+              "text": "광주 내 초기 청년창업기업(공고일 기준 창업 3년이내이면서 대표자가 만 39세 이하인 기업)",
+              "location": null
+            },
+            "processing_path": "text_llm"
           }
         ],
         "fps": [],
@@ -1474,7 +1408,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_037": {
@@ -1515,7 +1449,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_038": {
@@ -1546,8 +1480,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_039": {
@@ -1578,8 +1512,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_040": {
@@ -1600,10 +1534,10 @@
             "field_name": "지역",
             "condition": "서울시 거주 및 사업장 소재지 서울",
             "evidence": {
-              "text": "거주지와 사업장 소재지 모두 서울이여함",
+              "text": "대상 : 서울시 거주 중장년(40세 이상 ~ 65세 미만)",
               "location": null
             },
-            "processing_path": "text_llm"
+            "processing_path": "vision_llm"
           }
         ],
         "fps": [
@@ -1627,8 +1561,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_041": {
@@ -1640,7 +1574,7 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 3,
+        "fp": 2,
         "fn": 0
       },
       "details": {
@@ -1648,18 +1582,9 @@
         "fps": [
           {
             "field_name": "지역",
-            "condition": "비수도권 소재 기업",
+            "condition": "비수도권 소재 기업에 대한 가점 신설",
             "evidence": {
               "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-              "location": null
-            },
-            "processing_path": "text_llm"
-          },
-          {
-            "field_name": "매출",
-            "condition": "부채비율 1,000% 미만",
-            "evidence": {
-              "text": "공고 접수마감일 기준 부채비율 1,000% 미만이고 자본전액잠식 상태 해소한 경우 예외",
               "location": null
             },
             "processing_path": "text_llm"
@@ -1678,7 +1603,7 @@
       },
       "routing": {
         "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "cost_usd": 0.001
       }
     },
     "ann_042": {
@@ -1700,7 +1625,7 @@
             "field_name": "매출",
             "condition": "1만달러 이상",
             "evidence": {
-              "text": "‘25년 수출실적 1만달러 이상 중소기업",
+              "text": "'25년 수출실적 1만달러 이상 중소기업",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -1715,8 +1640,8 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_043": {
@@ -1743,36 +1668,40 @@
         ]
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "rule_based",
+        "cost_usd": 0
       }
     },
     "ann_044": {
       "title": "2026년도 조달청 벤처나라 입점 기관추천(7월~12월) 참가기업 모집공고",
       "metrics": {
-        "precision": null,
-        "recall": 0.0,
-        "f1": null
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
       },
       "counts": {
-        "tp": 0,
+        "tp": 1,
         "fp": 0,
-        "fn": 1
+        "fn": 0
       },
       "details": {
-        "tps": [],
-        "fps": [],
-        "fns": [
+        "tps": [
           {
             "field_name": "인증",
             "condition": "창업기업 확인서 보유",
-            "evidence_source": "공고문 2p, 2. 신청자격 및 제외대상 - 신청자격 ①"
+            "evidence": {
+              "text": "벤처나라 지정심사(매월 조달청 심사기간)까지 유효한 확인서만 인정",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
-        ]
+        ],
+        "fps": [],
+        "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "ann_045": {
@@ -1791,10 +1720,10 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업종",
-            "condition": "기술력과 관련 있는 업종일 것",
+            "field_name": "지역",
+            "condition": "국내에서 기술창업을 하고자 하는 합법 체류 외국인",
             "evidence": {
-              "text": "- (업 종) 사업 참여 근거가 되는 기술력과 관련 있는 업종일 것",
+              "text": "국내에서 기술창업을 하고자 하는 합법 체류 외국인",
               "location": null
             },
             "processing_path": "vision_llm"
@@ -1803,35 +1732,59 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "text_llm",
-        "cost_usd": 0.5
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     }
   },
   "fields": {
     "인증": {
-      "tp": 0,
-      "fp": 4,
-      "fn": 5,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "tp": 2,
+      "fp": 0,
+      "fn": 3,
+      "precision": 1.0,
+      "recall": 0.4,
+      "f1": 0.5714285714285715
+    },
+    "지역": {
+      "tp": 7,
+      "fp": 9,
+      "fn": 4,
+      "precision": 0.4375,
+      "recall": 0.6363636363636364,
+      "f1": 0.5185185185185185
     },
     "종업원 수": {
       "tp": 1,
-      "fp": 2,
+      "fp": 1,
       "fn": 3,
-      "precision": 0.3333333333333333,
+      "precision": 0.5,
       "recall": 0.25,
-      "f1": 0.28571428571428575
+      "f1": 0.3333333333333333
     },
-    "지역": {
-      "tp": 6,
-      "fp": 9,
-      "fn": 5,
-      "precision": 0.4,
-      "recall": 0.5454545454545454,
-      "f1": 0.4615384615384615
+    "업력": {
+      "tp": 12,
+      "fp": 7,
+      "fn": 6,
+      "precision": 0.631578947368421,
+      "recall": 0.6666666666666666,
+      "f1": 0.6486486486486486
+    },
+    "매출": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 2,
+      "precision": 0.5,
+      "recall": 0.3333333333333333,
+      "f1": 0.4
+    },
+    "업종": {
+      "tp": 2,
+      "fp": 12,
+      "fn": 11,
+      "precision": 0.14285714285714285,
+      "recall": 0.15384615384615385,
+      "f1": 0.14814814814814817
     },
     "나이": {
       "tp": 1,
@@ -1840,73 +1793,41 @@
       "precision": 0.25,
       "recall": 0.3333333333333333,
       "f1": 0.28571428571428575
-    },
-    "매출": {
-      "tp": 1,
-      "fp": 3,
-      "fn": 2,
-      "precision": 0.25,
-      "recall": 0.3333333333333333,
-      "f1": 0.28571428571428575
-    },
-    "업종": {
-      "tp": 3,
-      "fp": 11,
-      "fn": 10,
-      "precision": 0.21428571428571427,
-      "recall": 0.23076923076923078,
-      "f1": 0.22222222222222224
-    },
-    "업력": {
-      "tp": 11,
-      "fp": 10,
-      "fn": 7,
-      "precision": 0.5238095238095238,
-      "recall": 0.6111111111111112,
-      "f1": 0.5641025641025642
     }
   },
   "processing_paths": {
     "rule_based": {
       "tp": 0,
       "fp": 0,
-      "fn": 0,
+      "fn": 14,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0,
-      "count": 0,
+      "count": 9,
       "cost_usd": 0.0
     },
     "text_llm": {
-      "tp": 23,
-      "fp": 42,
-      "fn": 34,
-      "precision": 0.35384615384615387,
-      "recall": 0.40350877192982454,
-      "f1": 0.3770491803278689,
-      "count": 44,
-      "cost_usd": 22.0
+      "tp": 9,
+      "fp": 12,
+      "fn": 5,
+      "precision": 0.42857142857142855,
+      "recall": 0.6428571428571429,
+      "f1": 0.5142857142857143,
+      "count": 12,
+      "cost_usd": 0.012000000000000004
     },
     "vision_llm": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0,
-      "count": 0,
-      "cost_usd": 0.0
+      "tp": 17,
+      "fp": 21,
+      "fn": 12,
+      "precision": 0.4473684210526316,
+      "recall": 0.5862068965517241,
+      "f1": 0.5074626865671642,
+      "count": 23,
+      "cost_usd": 0.23600000000000007
     }
   },
   "mismatches": [
-    {
-      "announcement_id": "ann_001",
-      "field_name": "매출",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)"
-    },
     {
       "announcement_id": "ann_001",
       "field_name": "업력",
@@ -1916,12 +1837,12 @@
       "target": "6개월 이상"
     },
     {
-      "announcement_id": "ann_002",
+      "announcement_id": "ann_001",
       "field_name": "매출",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
-      "target": "20억원 미만"
+      "target": "연 매출 1,200만원 이상 (또는 최근 2개월 200만원 이상)"
     },
     {
       "announcement_id": "ann_002",
@@ -1932,12 +1853,12 @@
       "target": "7년 이하 (신산업 분야 10년 이내)"
     },
     {
-      "announcement_id": "ann_003",
-      "field_name": "종업원 수",
+      "announcement_id": "ann_002",
+      "field_name": "매출",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
-      "target": "3인 이상"
+      "target": "20억원 미만"
     },
     {
       "announcement_id": "ann_003",
@@ -1949,6 +1870,14 @@
     },
     {
       "announcement_id": "ann_003",
+      "field_name": "종업원 수",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "3인 이상"
+    },
+    {
+      "announcement_id": "ann_003",
       "field_name": "업력",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
@@ -1957,11 +1886,11 @@
     },
     {
       "announcement_id": "ann_004",
-      "field_name": "나이",
+      "field_name": "업력",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
-      "target": "만45세 이하"
+      "target": "7년이내"
     },
     {
       "announcement_id": "ann_004",
@@ -1973,11 +1902,11 @@
     },
     {
       "announcement_id": "ann_004",
-      "field_name": "업력",
+      "field_name": "나이",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
-      "target": "7년이내"
+      "target": "만45세 이하"
     },
     {
       "announcement_id": "ann_005",
@@ -2010,7 +1939,7 @@
       "announcement_id": "ann_006",
       "field_name": "나이",
       "type": "FP (과추출/오인식)",
-      "condition": "예비창업자",
+      "condition": "2026년 12월까지 사업자등록 필수",
       "evidence": {
         "text": "광명시 창업 계획이 있는 예비창업자(‘26년 12월까지 사업자등록 필수)",
         "location": null
@@ -2019,41 +1948,11 @@
     },
     {
       "announcement_id": "ann_006",
-      "field_name": "업력",
-      "type": "FP (과추출/오인식)",
-      "condition": "3년 미만",
-      "evidence": {
-        "text": "세부항목도 동일한 경우, 업력이 짧은 순으로 선정",
-        "location": null
-      },
-      "target": "7년 미만"
-    },
-    {
-      "announcement_id": "ann_006",
       "field_name": "지역",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "광명시"
-    },
-    {
-      "announcement_id": "ann_006",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "7년 미만"
-    },
-    {
-      "announcement_id": "ann_008",
-      "field_name": "업력",
-      "type": "FP (과추출/오인식)",
-      "condition": "출시 이력이 없는",
-      "evidence": {
-        "text": "출시 이력이 없는 초기 게임 콘텐츠 혹은 아이디어 단계에 있는 게임 콘텐츠",
-        "location": null
-      },
-      "target": "N/A"
     },
     {
       "announcement_id": "ann_008",
@@ -2065,40 +1964,18 @@
     },
     {
       "announcement_id": "ann_010",
-      "field_name": "지역",
-      "type": "FP (과추출/오인식)",
-      "condition": "녹색융합클러스터 입주기업",
-      "evidence": {
-        "text": "AI 기술 공급이 가능한 녹색융합클러스터 입주기업",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_010",
       "field_name": "업종",
       "type": "FP (과추출/오인식)",
       "condition": "녹색기술 수요가 있는 대·중견기업 및 기관",
       "evidence": {
-        "text": "녹색기술 수요가 있는 대·중견기업 및 기관",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_010",
-      "field_name": "업력",
-      "type": "FP (과추출/오인식)",
-      "condition": "신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업",
-      "evidence": {
-        "text": "신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업",
+        "text": "모집대상\n1) OI(기술협력) 트랙 : 신기술 도입, 공동연구를 희망하는 대ㆍ중견 기업 및 공공기관",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "ann_011",
-      "field_name": "인증",
+      "field_name": "업종",
       "type": "FP (과추출/오인식)",
       "condition": "스마트제조혁신 지원사업에서 '참여제한' 중인 기업은 참여 불가",
       "evidence": {
@@ -2106,25 +1983,6 @@
         "location": null
       },
       "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_012",
-      "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "사업자등록증 상 업태에 '제조'가 포함되어 있으며, CBAM 대상 품목을 제조하는 중소기업",
-      "evidence": {
-        "text": "사업자등록증 상 업태에 '제조'가 포함되어 있으며, CBAM 대상 품목(붙임1)을 제조하는 중소기업",
-        "location": null
-      },
-      "target": "사업자등록증 상 업태에 '제조' 포함"
-    },
-    {
-      "announcement_id": "ann_012",
-      "field_name": "업종",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "사업자등록증 상 업태에 '제조' 포함"
     },
     {
       "announcement_id": "ann_013",
@@ -2141,9 +1999,9 @@
       "announcement_id": "ann_013",
       "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업",
+      "condition": "중소기업기본법 제2조 및 같은 법 시행령 제3조에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
       "evidence": {
-        "text": "□ 지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
+        "text": "지원대상: 「중소기업기본법 제2조 및 같은 법 시행령 제3조」에 따른 중소기업으로, 아래의 지원제외 대상에 해당되지 않은 기업",
         "location": null
       },
       "target": "N/A"
@@ -2161,22 +2019,22 @@
     },
     {
       "announcement_id": "ann_016",
-      "field_name": "지역",
+      "field_name": "종업원 수",
       "type": "FP (과추출/오인식)",
-      "condition": "지역에서 생활서비스 혁신을 주도하는 소상공인",
+      "condition": "상시근로자 수 10명 미만",
       "evidence": {
-        "text": "지역에서 생활서비스 혁신을 주도하는 소상공인",
+        "text": "「소상공인기본법」 제2조에서 소상공인은 「중소기업기본법」 제2조제2항에 따른 소기업 중 상시근로자가 10명 미만인 사업자로서",
         "location": null
       },
-      "target": "N/A"
+      "target": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만"
     },
     {
       "announcement_id": "ann_016",
-      "field_name": "업력",
+      "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "신청일 현재 정상적으로 영업 중인 소상공인 또는 로컬창업가",
+      "condition": "지원제외 업종을 영위하는 경우",
       "evidence": {
-        "text": "「소상공인기본법」 제2조에 따른 소상공인으로, 신청일 현재 정상적으로 영업 중인 소상공인 또는 로컬창업가",
+        "text": "소상공인 정책자금 지원제외 업종을 영위하는 경우",
         "location": null
       },
       "target": "N/A"
@@ -2188,6 +2046,17 @@
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "광업·제조·건설·운수업 10인 미만 / 그 외 업종 5인 미만"
+    },
+    {
+      "announcement_id": "ann_017",
+      "field_name": "업력",
+      "type": "FP (과추출/오인식)",
+      "condition": "6개월 미만 기업",
+      "evidence": {
+        "text": "공급기업 역량진단(기본‧심화) 후, 6개월 미만 기업",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_018",
@@ -2207,11 +2076,11 @@
     },
     {
       "announcement_id": "ann_019",
-      "field_name": "업종",
+      "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "로봇 등 신산업 기술을 보유",
+      "condition": "서울특별시 소재",
       "evidence": {
-        "text": "로봇 등 신산업 기술을 보유하고, 「중소기업창업 지원법」 제2조 제2호부터 제2조제3의2까지 각 호의 정의에 따른 스타트업 대표자로,",
+        "text": "서울특별시 소방재난본부",
         "location": null
       },
       "target": "N/A"
@@ -2220,9 +2089,9 @@
       "announcement_id": "ann_021",
       "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "비수도권 소재 기업에 대한 가점",
+      "condition": "비수도권 소재",
       "evidence": {
-        "text": "비수도권소재기업에대한가점신설(2점)",
+        "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
         "location": null
       },
       "target": "N/A"
@@ -2231,9 +2100,9 @@
       "announcement_id": "ann_021",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "창업일로부터 7년 이내의 중소기업",
+      "condition": "창업일로부터 7년 이내",
       "evidence": {
-        "text": "창업일로부터7년이내의중소기업은기존인력인건비현금계상가능",
+        "text": "창업일로부터 7년이내의 중소기업은 기존 인력 인건비 현금계상 가능",
         "location": null
       },
       "target": "N/A"
@@ -2247,54 +2116,10 @@
       "target": "기업부설연구소 보유"
     },
     {
-      "announcement_id": "ann_022",
-      "field_name": "인증",
-      "type": "FP (과추출/오인식)",
-      "condition": "자체 오픈이노베이션 프로그램을 보유한 기관 또는 기업",
-      "evidence": {
-        "text": "자체 오픈이노베이션 프로그램을 보유한 기관 또는 기업",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_023",
-      "field_name": "인증",
-      "type": "FP (과추출/오인식)",
-      "condition": "NEP, NET, GS, 등",
-      "evidence": {
-        "text": "신청기업 인증보유 현황",
-        "location": null
-      },
-      "target": "성능인증 신청 대상제품 근거기술 또는 관련 인증 보유"
-    },
-    {
-      "announcement_id": "ann_023",
-      "field_name": "종업원 수",
-      "type": "FP (과추출/오인식)",
-      "condition": "종업원수",
-      "evidence": {
-        "text": "종업원수",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_023",
-      "field_name": "매출",
-      "type": "FP (과추출/오인식)",
-      "condition": "총 매출 (직전년도)억원",
-      "evidence": {
-        "text": "총 매출 (직전년도)억원",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
       "announcement_id": "ann_023",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "7년 이내",
+      "condition": "업력 7년 이내 창업기업",
       "evidence": {
         "text": "업력 7년 이내 창업기업이면서, 소기업(또는 소상공인)인 경우에 한해 20% 감면",
         "location": null
@@ -2312,48 +2137,37 @@
     {
       "announcement_id": "ann_024",
       "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "지원제외 업종에 해당되지 않는 중소기업",
-      "evidence": {
-        "text": "주 업종*이 지원제외 업종(참고1)에 해당되지 않은 중소기업**",
-        "location": null
-      },
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
       "target": "글로벌비즈니스센터 입주지원 제외 대상 업종 제외"
     },
     {
-      "announcement_id": "ann_024",
+      "announcement_id": "ann_025",
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "바이오헬스 관련 기업",
+      "evidence": {
+        "text": "다. 지원대상 : 강원특별자치도 소재 바이오헬스 관련 기업",
+        "location": null
+      },
+      "target": "바이오헬스 관련 기업"
+    },
+    {
+      "announcement_id": "ann_025",
       "field_name": "업종",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
-      "target": "글로벌비즈니스센터 입주지원 제외 대상 업종 제외"
-    },
-    {
-      "announcement_id": "ann_025",
-      "field_name": "지역",
-      "type": "FP (과추출/오인식)",
-      "condition": "강원도 내 소재",
-      "evidence": {
-        "text": "소재지 : 고용관리등록번호 기준 주소지가 강원도 내 소재",
-        "location": null
-      },
-      "target": "강원특별자치도 소재 기업"
-    },
-    {
-      "announcement_id": "ann_025",
-      "field_name": "지역",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "강원특별자치도 소재 기업"
+      "target": "바이오헬스 관련 기업"
     },
     {
       "announcement_id": "ann_026",
-      "field_name": "인증",
+      "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "바이오·헬스케어 분야 혁신기술 보유",
+      "condition": "서울특별시 소재",
       "evidence": {
-        "text": "바이오·헬스케어 분야 혁신기술을 보유한",
+        "text": "서울특별시가 조성하고 한국과학기술연구원과 고려대학교가 운영하는 ‘서울바이오허브’에서",
         "location": null
       },
       "target": "N/A"
@@ -2372,7 +2186,7 @@
       "type": "FP (과추출/오인식)",
       "condition": "전국",
       "evidence": {
-        "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성 기업인 등 창업에 관심 있는 자",
+        "text": "공고일[‘26. 6. 1.] 기준 전국의 여성 예비창업자, 창업 1년이내 여성기업인 등 창업에 관심 있는 자",
         "location": null
       },
       "target": "N/A"
@@ -2409,19 +2223,22 @@
     },
     {
       "announcement_id": "ann_029",
-      "field_name": "인증",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "중소기업확인서(또는 소상공인확인서) 보유"
-    },
-    {
-      "announcement_id": "ann_029",
       "field_name": "업종",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "사업자등록증 상 '제조' 업종"
+    },
+    {
+      "announcement_id": "ann_030",
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "불건전 영상게임기 제조업",
+      "evidence": {
+        "text": "불건전 영상게임기 제조업",
+        "location": null
+      },
+      "target": "N/A"
     },
     {
       "announcement_id": "ann_032",
@@ -2436,14 +2253,6 @@
     },
     {
       "announcement_id": "ann_032",
-      "field_name": "업종",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "딥테크 5대 분야 (ai·빅데이터, 로봇, 바이오·헬스, 미래 모빌리티, 친환경·에너지)"
-    },
-    {
-      "announcement_id": "ann_032",
       "field_name": "업력",
       "type": "FN (미추출/누락)",
       "condition": "N/A",
@@ -2451,23 +2260,20 @@
       "target": "창업 7년 이내"
     },
     {
+      "announcement_id": "ann_032",
+      "field_name": "업종",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "딥테크 5대 분야 (ai·빅데이터, 로봇, 바이오·헬스, 미래 모빌리티, 친환경·에너지)"
+    },
+    {
       "announcement_id": "ann_033",
       "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "과학문화 활동",
+      "condition": "비영리법인, 정부 부처로부터 허가받아 설립된 재단법인, 사단법인",
       "evidence": {
-        "text": "과학문화 활동 및 시민 대상 과학문화 프로그램 운영 일부비용",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_034",
-      "field_name": "종업원 수",
-      "type": "FP (과추출/오인식)",
-      "condition": "상시근로자 수",
-      "evidence": {
-        "text": "상시근로자 수",
+        "text": "비영리법인정부 부처로부터 허가받아 설립된 재단법인사단법인",
         "location": null
       },
       "target": "N/A"
@@ -2476,9 +2282,9 @@
       "announcement_id": "ann_034",
       "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "수도권, 충청권, 호남·제주권, 동남권, 대경·강원권",
+      "condition": "서울, 인천, 경기",
       "evidence": {
-        "text": "사업장 소재지가 속한 권역을 확인하여 신청하여야 하며, 권역별 모집규모는 아래 표와 같음",
+        "text": "수도권 • 서울, 인천, 경기",
         "location": null
       },
       "target": "N/A"
@@ -2487,9 +2293,39 @@
       "announcement_id": "ann_034",
       "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "스마트공장 생산·기술인력 채용 계획이 있는 제조 중소기업",
+      "condition": "체불사업주 제외",
       "evidence": {
-        "text": "스마트공장 생산·기술인력 채용 계획이 있는 제조 중소기업",
+        "text": "근로기준법 제43조의2 및 같은 법 시행령 제23조의3에 따른 체불사업주",
+        "location": null
+      },
+      "target": "N/A"
+    },
+    {
+      "announcement_id": "ann_034",
+      "field_name": "업종",
+      "type": "FP (과추출/오인식)",
+      "condition": "제조 중소기업",
+      "evidence": {
+        "text": "스마트공장 솔루션(MES, ERP 등)을 운영하고 있으며, 스마트공장 생산·기술인력 채용계획이 있는 제조 중소기업",
+        "location": null
+      },
+      "target": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업"
+    },
+    {
+      "announcement_id": "ann_034",
+      "field_name": "업종",
+      "type": "FN (미추출/누락)",
+      "condition": "N/A",
+      "evidence": "N/A (미추출)",
+      "target": "제조 중소기업 또는 제조 ai솔루션 공급 중소기업"
+    },
+    {
+      "announcement_id": "ann_035",
+      "field_name": "업력",
+      "type": "FP (과추출/오인식)",
+      "condition": "창업일로부터 7년 이내",
+      "evidence": {
+        "text": "창업일로부터 7년 이내의 중소기업은 기존인력 인건비 현금 계상 가능",
         "location": null
       },
       "target": "N/A"
@@ -2501,17 +2337,6 @@
       "condition": "건설업 등 전 업종으로 확대",
       "evidence": {
         "text": "건설업 등 전 업종으로 확대",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_035",
-      "field_name": "업력",
-      "type": "FP (과추출/오인식)",
-      "condition": "창업일로부터 7년 이내",
-      "evidence": {
-        "text": "창업일로부터 7년 이내의 중소기업은 기존인력 인건비 현금 계상 가능",
         "location": null
       },
       "target": "N/A"
@@ -2558,20 +2383,9 @@
       "announcement_id": "ann_041",
       "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "비수도권 소재 기업",
+      "condition": "비수도권 소재 기업에 대한 가점 신설",
       "evidence": {
         "text": "비수도권 소재 기업에 대한 가점 신설(2점)",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "ann_041",
-      "field_name": "매출",
-      "type": "FP (과추출/오인식)",
-      "condition": "부채비율 1,000% 미만",
-      "evidence": {
-        "text": "공고 접수마감일 기준 부채비율 1,000% 미만이고 자본전액잠식 상태 해소한 경우 예외",
         "location": null
       },
       "target": "N/A"
@@ -2593,7 +2407,7 @@
       "type": "FP (과추출/오인식)",
       "condition": "1만달러 이상",
       "evidence": {
-        "text": "‘25년 수출실적 1만달러 이상 중소기업",
+        "text": "'25년 수출실적 1만달러 이상 중소기업",
         "location": null
       },
       "target": "N/A"
@@ -2615,20 +2429,12 @@
       "target": "해상풍력 발전사업자"
     },
     {
-      "announcement_id": "ann_044",
-      "field_name": "인증",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "창업기업 확인서 보유"
-    },
-    {
       "announcement_id": "ann_045",
-      "field_name": "업종",
+      "field_name": "지역",
       "type": "FP (과추출/오인식)",
-      "condition": "기술력과 관련 있는 업종일 것",
+      "condition": "국내에서 기술창업을 하고자 하는 합법 체류 외국인",
       "evidence": {
-        "text": "- (업 종) 사업 참여 근거가 되는 기술력과 관련 있는 업종일 것",
+        "text": "국내에서 기술창업을 하고자 하는 합법 체류 외국인",
         "location": null
       },
       "target": "N/A"
@@ -2655,9 +2461,9 @@
       "announcement_id": "ann_012",
       "title": "2026년 중소기업 cbam대응 인프라(mrv)구축 사업 참여기업 모집 수정 공고",
       "gt_fields_count": 1,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": null
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
     },
     {
       "announcement_id": "ann_013",
@@ -2695,7 +2501,7 @@
       "announcement_id": "ann_017",
       "title": "2026년도 스마트공장 공급기업 역량진단 참여기업 1차 모집 공고",
       "gt_fields_count": 0,
-      "precision": null,
+      "precision": 0.0,
       "recall": null,
       "f1": null
     },
@@ -2719,7 +2525,7 @@
       "announcement_id": "ann_022",
       "title": "2026년「민관협력 오픈이노베이션 지원」 제2차 수요기업‧기관 협업 과제 및 프로그램 모집공고",
       "gt_fields_count": 0,
-      "precision": 0.0,
+      "precision": null,
       "recall": null,
       "f1": null
     },
@@ -2735,7 +2541,7 @@
       "announcement_id": "ann_024",
       "title": "2026년 글로벌비즈니스센터(gbc) 입주기업 상시모집 공고",
       "gt_fields_count": 1,
-      "precision": 0.0,
+      "precision": null,
       "recall": 0.0,
       "f1": null
     },
@@ -2751,7 +2557,7 @@
       "announcement_id": "ann_030",
       "title": "2026년도 대·중소기업 동반진출 지원사업 주관기업 모집공고(2차)",
       "gt_fields_count": 0,
-      "precision": null,
+      "precision": 0.0,
       "recall": null,
       "f1": null
     },
@@ -2775,9 +2581,9 @@
       "announcement_id": "ann_034",
       "title": "2026년도 스마트제조 전문인력 육성사업 참여기관(기업, 사업단) 모집 공고",
       "gt_fields_count": 1,
-      "precision": 0.25,
-      "recall": 1.0,
-      "f1": 0.4
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": null
     },
     {
       "announcement_id": "ann_035",
@@ -2831,9 +2637,9 @@
       "announcement_id": "ann_044",
       "title": "2026년도 조달청 벤처나라 입점 기관추천(7월~12월) 참가기업 모집공고",
       "gt_fields_count": 1,
-      "precision": null,
-      "recall": 0.0,
-      "f1": null
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
     },
     {
       "announcement_id": "ann_045",
@@ -2844,10 +2650,19 @@
       "f1": null
     }
   ],
-  "total_cost_usd": 22.0,
+  "total_cost_usd": 0.24800000000000008,
   "coverage": {
     "non_standard_announcement_count": 0,
     "total_announcement_count": 44,
     "non_standard_ratio": 0.0
+  },
+  "grounding": {
+    "total_fields": 59,
+    "evidence_present_rate": 1.0,
+    "evidence_verbatim_rate": 1.0,
+    "verbatim_checkable": 59,
+    "value_grounded_rate": 0.8772,
+    "value_checkable": 57,
+    "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음"
   }
 }

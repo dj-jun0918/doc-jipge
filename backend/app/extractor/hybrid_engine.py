@@ -230,17 +230,36 @@ def _get_attachment_pdf_path(announcement: dict[str, Any]) -> str | None:
     return None
 
 
+def _condition_completeness(f: EligibilityField) -> int:
+    """조건의 완전성 점수 — operator·value·evidence가 채워질수록 높음."""
+    score = 0
+    if f.condition.operator:
+        score += 1
+    if f.condition.value is not None:
+        score += 1
+    if f.evidence and f.evidence.text:
+        score += 1
+    return score
+
+
 def _merge_results(
     text_result: ExtractionResult | None,
     vision_result: ExtractionResult,
 ) -> ExtractionResult:
-    """텍스트 LLM + Vision LLM 결과 병합. 같은 field_name은 vision 우선."""
+    """텍스트 LLM + Vision LLM 결과 병합.
+
+    같은 field_name이 양쪽에 있으면 더 완전한 쪽(operator·value·evidence 충실도)을 유지한다
+    — vision이 무조건 덮어쓰면 텍스트 경로의 명확한 조건이 빈 조건으로 대체될 수 있음.
+    동점이면 vision 우선 (표 기반 조건이 본문 요약보다 구체적인 경우가 많음).
+    """
     if text_result is None:
         return vision_result
 
     by_name: dict[str, EligibilityField] = {f.field_name: f for f in text_result.fields}
     for vf in vision_result.fields:
-        by_name[vf.field_name] = vf
+        existing = by_name.get(vf.field_name)
+        if existing is None or _condition_completeness(vf) >= _condition_completeness(existing):
+            by_name[vf.field_name] = vf
 
     merged_exclusions = list(dict.fromkeys(text_result.exclusions + vision_result.exclusions))
 

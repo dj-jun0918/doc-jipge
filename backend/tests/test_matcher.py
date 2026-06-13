@@ -614,8 +614,8 @@ class TestComputeFieldScore:
     def test_충족이면_1(self):
         assert compute_field_score("충족") == 1.0
 
-    def test_확인필요면_0_3(self):
-        assert compute_field_score("확인필요") == 0.3
+    def test_확인필요면_0_45(self):
+        assert compute_field_score("확인필요") == 0.45
 
     def test_해당없음이면_None(self):
         assert compute_field_score("해당없음") is None
@@ -628,17 +628,16 @@ class TestComputeFieldScore:
         assert compute_field_score("미충족", 2.5) == 0.0
 
     def test_미충족_거리_작으면_점수_높음(self):
-        # distance 0.2 → score 0.5 * (1 - 0.2) = 0.4
-        assert compute_field_score("미충족", 0.2) == pytest.approx(0.4, abs=0.01)
+        # distance 0.2 → score 0.3 * (1 - 0.2) = 0.24
+        assert compute_field_score("미충족", 0.2) == pytest.approx(0.24, abs=0.01)
 
     def test_미충족_거리_경계_0이면_최대(self):
-        # distance 0 → score 0.5 (충족과 명확히 구분)
-        assert compute_field_score("미충족", 0.0) == 0.5
+        # distance 0 → score 0.3 (상한)
+        assert compute_field_score("미충족", 0.0) == pytest.approx(0.3)
 
-    def test_미충족_최대_0_5_보장(self):
-        # 어떤 distance여도 미충족은 최대 0.5
-        score = compute_field_score("미충족", 0.0)
-        assert score <= 0.5
+    def test_미충족은_항상_확인필요보다_낮음(self):
+        # "확실한 탈락"이 "미지(확인필요)"보다 위에 랭크되지 않는다 — 설계 순서 보장
+        assert compute_field_score("미충족", 0.0) < compute_field_score("확인필요")
 
 
 # ──────────────────────────────────────────────
@@ -663,8 +662,8 @@ class TestMatchAnnouncementWithScoreDistance:
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "미충족"
         assert results[0].distance == pytest.approx(0.2, abs=0.01)
-        # score: 0.5 * (1 - 0.2) = 0.4
-        assert results[0].score == pytest.approx(0.4, abs=0.01)
+        # score: 0.3 * (1 - 0.2) = 0.24
+        assert results[0].score == pytest.approx(0.24, abs=0.01)
         assert results[0].constraint_type == "hard"
 
     def test_미충족_지역_필드_distance_None(self):
@@ -677,12 +676,12 @@ class TestMatchAnnouncementWithScoreDistance:
         assert results[0].score == 0.0
         assert results[0].constraint_type == "hard"
 
-    def test_확인필요_score_0_3(self):
+    def test_확인필요_score_0_45(self):
         company = make_company(founded_date=None)
         fields = [field("업력", "미만", 3, "3년 미만")]
         results = match_announcement(company, fields, uuid.uuid4())
         assert results[0].status == "확인필요"
-        assert results[0].score == 0.3
+        assert results[0].score == 0.45
         assert results[0].distance is None
 
     def test_constraint_type_기본_hard(self):

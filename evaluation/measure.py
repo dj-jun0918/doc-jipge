@@ -23,6 +23,7 @@ from sqlalchemy import select
 from app.database import SessionLocal
 from app.models.announcement import Announcement
 from app.extractor import hybrid_engine
+from app.extractor.cost_router import PATH_COST
 from app.schemas.eligibility import AnnouncementEligibility
 from evaluation.adversarial_loader import load_adversarial_labels
 
@@ -499,6 +500,100 @@ def calculate_metrics(tp: int, fp: int, fn: int) -> Tuple[float, float, float]:
     return precision, recall, f1
 
 
+def _grounding_value_tokens(value) -> List[str]:
+    """value가 evidence 안에서 발견될 수 있는 표기 후보들 (억/만/콤마 단위 변환 포함)."""
+    if isinstance(value, bool) or value is None:
+        return []
+    if isinstance(value, (int, float)):
+        v = int(value)
+        cands = [str(v), f"{v:,}"]
+        if v >= 100_000_000 and v % 100_000_000 == 0:
+            cands.append(f"{v // 100_000_000}억")
+        if v >= 10_000 and v % 10_000 == 0:
+            cands.append(f"{v // 10_000}만")
+        return cands
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(x) for x in value]
+    if isinstance(value, dict):
+        return [str(x) for x in value.values() if x is not None]
+    return []
+
+
+def compute_grounding_stats(
+    gt_list: List[Dict[str, Any]],
+    predictions: Dict[str, AnnouncementEligibility],
+) -> Dict[str, Any]:
+    """근거(evidence) 품질 실측 — verbatim 차별축을 숫자로 만드는 지표.
+
+    - evidence_present: 추출 필드 중 evidence가 비어있지 않은 비율
+    - evidence_verbatim: evidence가 원문에 (정규화 후) 그대로 존재하는 비율 (원문 확보 가능 공고 한정)
+    - value_grounded: 추출 value의 표기 후보가 evidence 문장 안에서 발견되는 비율
+      (인용은 진짜인데 값은 다른 문장에서 가져온 '반환각'을 잡는 지표)
+    캐시된 예측에도 동작 (원문은 GT 디렉토리 PDF에서 재추출).
+    """
+    from app.extractor.llm_response_parser import _normalize_for_match
+
+    def load_source_text(ann_id: str) -> str:
+        if ann_id.startswith("adv_"):
+            ann_dir = Path(project_root) / "evaluation" / "ground_truth" / "adversarial" / ann_id
+        else:
+            ann_dir = Path(project_root) / "evaluation" / "ground_truth" / ann_id
+        pdf_files = list(ann_dir.glob("*.pdf"))
+        if not pdf_files:
+            return ""
+        try:
+            import fitz
+            doc = fitz.open(str(pdf_files[0]))
+            text = "\n".join(pg.get_text() for pg in doc)
+            doc.close()
+            return text
+        except Exception:
+            return ""
+
+    total = present = verbatim = verbatim_checkable = value_ok = value_checkable = 0
+    per_ann = {}
+
+    for gt in gt_list:
+        ann_id = gt["announcement_id"]
+        pred = predictions.get(ann_id)
+        if pred is None:
+            continue
+        source = load_source_text(ann_id)
+        norm_source = _normalize_for_match(source) if source else ""
+
+        for f in pred.fields:
+            total += 1
+            ev = (f.evidence.text if f.evidence else "") or ""
+            if ev.strip():
+                present += 1
+                if norm_source:
+                    verbatim_checkable += 1
+                    if _normalize_for_match(ev) in norm_source:
+                        verbatim += 1
+                tokens = _grounding_value_tokens(f.condition.value)
+                if tokens:
+                    value_checkable += 1
+                    norm_ev = _normalize_for_match(ev)
+                    if any(_normalize_for_match(t) in norm_ev for t in tokens):
+                        value_ok += 1
+        per_ann[ann_id] = len(pred.fields)
+
+    def rate(n, d):
+        return round(n / d, 4) if d else None
+
+    return {
+        "total_fields": total,
+        "evidence_present_rate": rate(present, total),
+        "evidence_verbatim_rate": rate(verbatim, verbatim_checkable),
+        "verbatim_checkable": verbatim_checkable,
+        "value_grounded_rate": rate(value_ok, value_checkable),
+        "value_checkable": value_checkable,
+        "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음",
+    }
+
+
 def aggregate_metrics(
     gt_list: List[Dict[str, Any]],
     predictions: Dict[str, AnnouncementEligibility],
@@ -545,28 +640,35 @@ def aggregate_metrics(
         all_fns += fn_c
 
         # 라우팅 메타데이터 분석 및 비용 누적
-        chosen_path = "rule_based"
-        cost_usd = 0.0
-        
+        chosen_path = None
+        cost_usd = None
+
         # DB 세션이 활성화된 경우 ORM에서 메타데이터 읽어오기
         if db_session:
             try:
                 ann_orm = db_session.get(Announcement, ann_id)
                 if ann_orm and ann_orm.routing_metadata:
-                    chosen_path = ann_orm.routing_metadata.get("chosen_path", "rule_based")
-                    cost_usd = ann_orm.routing_metadata.get("cost_estimate_usd", 0.0)
+                    chosen_path = ann_orm.routing_metadata.get("chosen_path")
+                    cost_usd = ann_orm.routing_metadata.get("cost_estimate_usd")
             except Exception as e:
                 logger.warning(f"[{ann_id}] DB routing_metadata 읽기 오류: {e}")
 
-        # 로컬 폴더 Fallback 시 또는 기본값 누적
-        if ann_id.startswith("adv_001") or ann_id.startswith("adv_009"):
-            chosen_path = "vision_llm"
-            cost_usd = 2.86
-        elif ann_id.startswith("adv_") or ann_id.startswith("ann_"):
-            # Mock / 추정 룰
-            chosen_path = "text_llm"
-            cost_usd = 0.50
-            
+        # 메타데이터가 없으면 최종 필드의 processing_path로 경로·비용 추정.
+        # 실제 청구액이 아니라 경로별 단가(PATH_COST) 합산 추정치이며,
+        # cascade 중간 호출(필드 미기여 경로)은 누락될 수 있어 하한 추정이다.
+        if chosen_path is None or cost_usd is None:
+            field_paths = {
+                f.processing_path for f in pred.fields
+                if getattr(f, "processing_path", None)
+            }
+            if "vision_llm" in field_paths:
+                chosen_path = "vision_llm"
+            elif "text_llm" in field_paths:
+                chosen_path = "text_llm"
+            else:
+                chosen_path = "rule_based"
+            cost_usd = sum(PATH_COST.get(p, 0.0) for p in field_paths)
+
         total_cost_usd += cost_usd
         path_metrics.setdefault(chosen_path, {"tp": 0, "fp": 0, "fn": 0, "count": 0, "cost_usd": 0.0})
         path_metrics[chosen_path]["count"] += 1
@@ -773,6 +875,11 @@ async def main():
     # 4. 메트릭 계산 및 집계
     results_gt = aggregate_metrics(gt_list, predictions_gt)
     results_adv = aggregate_metrics(adv_list, predictions_adv)
+
+    # 4-1. 근거 품질(grounding) 실측 — verbatim 차별축 지표
+    results_gt["grounding"] = compute_grounding_stats(gt_list, predictions_gt)
+    results_adv["grounding"] = compute_grounding_stats(adv_list, predictions_adv)
+    logger.info(f"grounding (일반 GT): {results_gt['grounding']}")
 
     # 5. 결과 저장 디렉토리 생성
     results_dir = Path(project_root) / "evaluation" / "results"

@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.append(str(REPO_ROOT))
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.schemas.evaluation import (
     EvaluationMetricsResponse,
     AblationResponse,
@@ -41,25 +41,10 @@ def get_evaluation_metrics() -> dict:
     """종합 평가 메트릭 조회 API."""
     data = _load_json_data("pr6_measurement_general.json")
     if not data:
-        # Fallback Mock 데이터
-        return {
-            "overall": {"precision": 0.885, "recall": 0.852, "f1": 0.868},
-            "by_field": {
-                "age": {"precision": 0.921, "recall": 0.895, "f1": 0.908},
-                "location": {"precision": 0.943, "recall": 0.912, "f1": 0.927},
-                "company_scale": {"precision": 0.875, "recall": 0.844, "f1": 0.859},
-                "is_small_business": {"precision": 0.950, "recall": 0.931, "f1": 0.940},
-                "constraint": {"precision": 0.812, "recall": 0.785, "f1": 0.798},
-                "certification": {"precision": 0.856, "recall": 0.810, "f1": 0.832}
-            },
-            "by_path": {
-                "rule_based": {"precision": 0.985, "recall": 0.712, "f1": 0.827, "count": 15, "cost_usd": 0.0},
-                "text_llm": {"precision": 0.892, "recall": 0.861, "f1": 0.876, "count": 25, "cost_usd": 12.45},
-                "vision_llm": {"precision": 0.824, "recall": 0.805, "f1": 0.814, "count": 10, "cost_usd": 28.60}
-            },
-            "total_cost_usd": 41.05
-        }
-        
+        # 실측 결과 파일이 없으면 가짜 숫자 대신 명시적 404 — 측정 공개 원칙
+        raise HTTPException(status_code=404, detail="측정 결과 파일이 없습니다. evaluation/measure.py를 먼저 실행하세요.")
+
+
     # 데이터 매핑 조립
     overall = data.get("overall", {})
     by_field = {}
@@ -139,44 +124,7 @@ def get_ablation_results() -> dict:
                 "cost_estimate_usd": data.get("cost_usd", 0.0)
             })
             
-    if not conditions:
-        # Fallback Mock 데이터
-        return {
-            "conditions": [
-                {
-                    "condition_id": "C1",
-                    "name": "Rule Parser Baseline",
-                    "components": ["rule_parser"],
-                    "description": "정규표현식 및 하드코딩 룰 기반 파싱. 정밀도는 높으나 재현율이 극히 낮음.",
-                    "metrics": {"precision": 0.985, "recall": 0.354, "f1": 0.521},
-                    "cost_estimate_usd": 0.0
-                },
-                {
-                    "condition_id": "C2",
-                    "name": "Rule + Text LLM",
-                    "components": ["rule_parser", "text_llm_extractor"],
-                    "description": "본문 텍스트 추출에 LLM을 결합하여 정형 규칙이 놓친 자격 요건 식별.",
-                    "metrics": {"precision": 0.902, "recall": 0.815, "f1": 0.856},
-                    "cost_estimate_usd": 15.50
-                },
-                {
-                    "condition_id": "C3",
-                    "name": "Rule + Text + Vision LLM",
-                    "components": ["rule_parser", "text_llm_extractor", "vision_llm_extractor"],
-                    "description": "공고문 내 표 이미지나 외부 이미지 박스 내 자격요건까지 Vision LLM으로 다각화 파싱.",
-                    "metrics": {"precision": 0.885, "recall": 0.852, "f1": 0.868},
-                    "cost_estimate_usd": 41.05
-                },
-                {
-                    "condition_id": "C4",
-                    "name": "Hybrid Engine with Verifier",
-                    "components": ["rule_parser", "text_llm_extractor", "vision_llm_extractor", "fact_verifier"],
-                    "description": "모든 오추출 및 불일치 항목을 교차 검증하는 Verifier 모듈이 포함된 완성형 파이프라인.",
-                    "metrics": {"precision": 0.923, "recall": 0.864, "f1": 0.893},
-                    "cost_estimate_usd": 48.20
-                }
-            ]
-        }
+    # ablation 실측 파일이 없으면 빈 목록 — 창작 숫자를 서빙하지 않는다 (측정 공개 원칙)
     return {"conditions": conditions}
 
 
@@ -241,13 +189,8 @@ def get_bootstrap_ci() -> dict:
                 "resampling_iterations": 1000
             }
             
-    # Fallback Mock 데이터
-    return {
-        "precision": {"point_estimate": 0.885, "ci_low": 0.832, "ci_high": 0.927},
-        "recall": {"point_estimate": 0.852, "ci_low": 0.798, "ci_high": 0.899},
-        "f1": {"point_estimate": 0.868, "ci_low": 0.817, "ci_high": 0.911},
-        "resampling_iterations": 1000
-    }
+    # 실측 결과 파일이 없으면 가짜 CI 대신 명시적 404 — 측정 공개 원칙
+    raise HTTPException(status_code=404, detail="측정 결과 파일이 없습니다. evaluation/measure.py를 먼저 실행하세요.")
 
 
 @router.get("/errors", response_model=ErrorAnalysisResponse)

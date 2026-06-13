@@ -78,14 +78,16 @@ def get_matching_results(
     for ann_id, field_name, status, score in rows:
         by_ann.setdefault(ann_id, []).append((field_name, status, score))
 
-    summaries: list[tuple[uuid.UUID, float, int, int]] = []
+    summaries: list[tuple[uuid.UUID, float, int, int, int]] = []
     for ann_id, fields in by_ann.items():
         agg_score = compute_aggregate_score(fields)
         fulfilled = sum(1 for _, status, _ in fields if status == "충족")
+        unmet = sum(1 for _, status, _ in fields if status == "미충족")
         total = len(fields)
-        summaries.append((ann_id, agg_score, fulfilled, total))
+        summaries.append((ann_id, agg_score, fulfilled, total, unmet))
 
-    summaries.sort(key=lambda x: (-x[1], -x[3]))
+    # 확정 미충족이 적은 공고 우선 — "확실한 탈락"이 "확인하면 될 수도 있는 공고"보다 위에 오지 않도록
+    summaries.sort(key=lambda x: (x[4], -x[1], -x[3]))
     top = summaries[:limit]
 
     ann_ids = [s[0] for s in top]
@@ -102,7 +104,7 @@ def get_matching_results(
             fulfilled_count=fulfilled,
             total_fields=total,
         )
-        for ann_id, score, fulfilled, total in top
+        for ann_id, score, fulfilled, total, _unmet in top
     ]
 
     return CompanyMatchListResponse(
