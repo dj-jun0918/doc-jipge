@@ -452,12 +452,12 @@ export default function EvaluationDashboardPage() {
                     <div key={f.field_name} className="flex items-center justify-between p-4 rounded-xl border hover:border-blue-200 hover:bg-blue-50/5 transition">
                       <div className="space-y-1">
                         <h4 className="text-sm font-bold text-gray-900">{fieldNamesKo[f.field_name] || f.field_name}</h4>
-                        <p className="text-[10px] text-gray-400 font-semibold">{f.agreement_level}</p>
+                        <p className="text-[10px] text-gray-400 font-semibold">{kappaLabel(f.kappa)}</p>
                       </div>
                       <div className="text-right">
                         <span className="text-xl font-black text-blue-600">{f.kappa.toFixed(3)}</span>
                         <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shadow-inner mt-1.5">
-                          <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.round(f.kappa * 100)}%` }} />
+                          <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.max(0, Math.round(f.kappa * 100))}%` }} />
                         </div>
                       </div>
                     </div>
