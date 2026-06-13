@@ -101,9 +101,10 @@ class TestCalculateAge:
     def test_None_반환_None(self):
         assert calculate_age(None) is None
 
-    def test_만나이_생일_전(self):
-        # 1986-04-12 → 2026-05-09 기준 생일 지남 → 만 40세
-        assert calculate_age(date(1986, 4, 12)) == 40
+    def test_만나이_생일_지남(self):
+        # 생일이 이미 지난 사람 → 만 40세 (절대연도 하드코딩 제거 — 매년 통과)
+        birth = date.today() - relativedelta(years=40, days=1)
+        assert calculate_age(birth) == 40
 
     def test_만나이_생일_당일(self):
         # 오늘 생일 → 만 나이 증가
@@ -111,9 +112,10 @@ class TestCalculateAge:
         age = calculate_age(date(today.year - 30, today.month, today.day))
         assert age == 30
 
-    def test_만나이_생일_후(self):
-        # 1990-01-01 → 2026-05-09 기준 생일 지남 → 만 36세
-        assert calculate_age(date(1990, 1, 1)) == 36
+    def test_만나이_생일_아직(self):
+        # 생일이 아직 안 온 사람 → 만 나이 1 적음 (36세 아닌 35세)
+        birth = date.today() - relativedelta(years=36) + relativedelta(days=1)
+        assert calculate_age(birth) == 35
 
 
 # ──────────────────────────────────────────────
