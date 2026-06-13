@@ -46,6 +46,16 @@ interface IaaData {
   evaluated_count: number;
 }
 
+// Landis & Koch κ 해석 — 하드코딩 금지, 실제 κ값에 따라 라벨 산출
+function kappaLabel(k: number): string {
+  if (k < 0.0) return "음의 일치 (Poor)";
+  if (k < 0.21) return "약한 일치 (Slight)";
+  if (k < 0.41) return "어느 정도 일치 (Fair)";
+  if (k < 0.61) return "보통 일치 (Moderate)";
+  if (k < 0.81) return "상당한 합의 (Substantial)";
+  return "거의 완벽한 합의 (Almost Perfect)";
+}
+
 interface CiBound {
   point_estimate: number;
   ci_low: number;
@@ -410,7 +420,7 @@ export default function EvaluationDashboardPage() {
                 <div className="flex gap-4 text-xs text-gray-500 pt-2">
                   <span>📊 교차 평가 공고 수: <strong className="text-gray-900">{iaa.evaluated_count}개</strong></span>
                   <span>•</span>
-                  <span>📝 Cohen's κ 일치 평가 규모: <strong className="text-gray-900">상당한 합의수준</strong></span>
+                  <span>📝 Cohen's κ 일치 평가 규모: <strong className="text-gray-900">{kappaLabel(iaa.overall_kappa)}</strong></span>
                 </div>
               </div>
 
@@ -418,7 +428,7 @@ export default function EvaluationDashboardPage() {
                 <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">종합 Cohen's κ 수치</p>
                 <h2 className="text-5xl font-black text-blue-600 mt-2">{iaa.overall_kappa.toFixed(3)}</h2>
                 <span className="inline-block mt-3 text-xs bg-blue-600 text-white font-bold px-3 py-1 rounded-full shadow-sm">
-                  상당한 합의 (Substantial)
+                  {kappaLabel(iaa.overall_kappa)}
                 </span>
               </div>
             </div>
