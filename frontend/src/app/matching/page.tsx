@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BucketBadge, type EligibilityBucket } from "@/components/BucketBadge";
 
 interface Company {
   id: string;
@@ -10,18 +11,26 @@ interface Company {
   region: string;
 }
 
+interface BucketCounts {
+  신청가능: number;
+  조건확인: number;
+  자격미달: number;
+}
+
 interface CompanyMatchSummary {
   announcement_id: string;
   title: string;
   match_score: number;
   fulfilled_count: number;
   total_fields: number;
+  bucket: EligibilityBucket;
 }
 
 interface CompanyMatchListResponse {
   company_id: string;
   items: CompanyMatchSummary[];
   total: number;
+  bucket_counts: BucketCounts;
 }
 
 interface MatchStats {
@@ -45,6 +54,12 @@ export default function MatchingDashboardPage() {
     highestScore: 0,
     perfectMatches: 0,
   });
+  const [bucketCounts, setBucketCounts] = useState<BucketCounts>({
+    신청가능: 0,
+    조건확인: 0,
+    자격미달: 0,
+  });
+  const [showRejected, setShowRejected] = useState<boolean>(false);
 
   // 1. 기업 목록 가져오기
   useEffect(() => {
@@ -87,6 +102,10 @@ export default function MatchingDashboardPage() {
         if (cancelled) return;
         const items = data.items || [];
         setMatchResults(items);
+        setBucketCounts(
+          data.bucket_counts || { 신청가능: 0, 조건확인: 0, 자격미달: 0 }
+        );
+        setShowRejected(false);
 
         // 임의 점수 분류 제거 -> 객관적인 종합 지표 집계
         let totalScore = 0;
@@ -130,6 +149,76 @@ export default function MatchingDashboardPage() {
   }, [selectedCompanyId, retryNonce]);
 
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId);
+
+  const renderCard = (item: CompanyMatchSummary) => {
+    const scorePct = Math.round(item.match_score * 100);
+    const isRejected = item.bucket === "자격미달";
+    return (
+      <div
+        key={item.announcement_id}
+        className={`flex flex-col md:flex-row md:items-center justify-between p-5 rounded-xl border transition-all duration-300 hover:-translate-x-1 group relative ${
+          isRejected
+            ? "border-gray-200 bg-gray-50/40"
+            : "border-gray-200 hover:border-blue-200 bg-white hover:bg-blue-50/5"
+        }`}
+      >
+        <div className="flex items-center gap-4 mb-3 md:mb-0">
+          <BucketBadge bucket={item.bucket} />
+          <div>
+            <h4
+              className={`font-bold text-base tracking-tight pr-4 ${
+                isRejected
+                  ? "text-gray-600"
+                  : "text-gray-900 group-hover:text-blue-600 transition-colors"
+              }`}
+            >
+              {item.title}
+            </h4>
+            <p className="text-gray-500 text-xs mt-1">
+              총 {item.total_fields}개 요건 중 {item.fulfilled_count}개 충족
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 min-w-[200px] justify-between md:justify-end">
+          <div className="flex flex-col items-end gap-0.5">
+            <span
+              className={`text-lg font-black tracking-tight ${
+                isRejected ? "text-gray-400" : "text-blue-600"
+              }`}
+            >
+              {scorePct}%
+            </span>
+            <span className="text-[10px] text-gray-400 font-semibold">매칭 점수</span>
+          </div>
+
+          <div className="w-24 h-2 rounded-full bg-gray-200 overflow-hidden shadow-inner">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                isRejected ? "bg-gray-300" : "bg-blue-600"
+              }`}
+              style={{ width: `${scorePct}%` }}
+            />
+          </div>
+
+          {selectedCompany && (
+            <Link
+              href={`/matching/${selectedCompany.id}?announcement_id=${item.announcement_id}`}
+              className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const appItems = matchResults.filter((i) => i.bucket === "신청가능");
+  const condItems = matchResults.filter((i) => i.bucket === "조건확인");
+  const rejItems = matchResults.filter((i) => i.bucket === "자격미달");
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 px-6 py-10">
@@ -228,9 +317,9 @@ export default function MatchingDashboardPage() {
 
               <div className="relative overflow-hidden group rounded-2xl border border-green-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-bl-full pointer-events-none" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-green-700">✅ 100% 매칭 공고</p>
-                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{stats.perfectMatches}</h3>
-                <p className="text-xs text-gray-500 mt-2">자격요건을 완벽히 충족하는 사업</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-green-700">🟢 신청가능 공고</p>
+                <h3 className="text-3xl font-extrabold mt-2 text-gray-900">{bucketCounts.신청가능}</h3>
+                <p className="text-xs text-gray-500 mt-2">하드 요건 전부 충족 — 바로 신청 가능</p>
               </div>
             </div>
 
@@ -239,10 +328,10 @@ export default function MatchingDashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b pb-5">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
-                    🔥 추천 공고 TOP 10
+                    🔥 추천 공고
                   </h2>
                   <p className="text-gray-500 text-xs sm:text-sm mt-1">
-                    매칭 점수 기준 상위 10개 추천 정부지원사업입니다.
+                    적합도(신청가능 → 조건확인 → 자격미달) 순, 그 안에서 점수 순입니다.
                   </p>
                 </div>
                 
@@ -265,72 +354,49 @@ export default function MatchingDashboardPage() {
                   <p className="text-gray-400 text-xs mt-2">"기업 관리" 메뉴에서 프로필을 입력하거나 백엔드 파이프라인을 실행해 주세요.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {matchResults.slice(0, 10).map((item, index) => {
-                    const scorePercentage = Math.round(item.match_score * 100);
-                    
-                    // 💡 임의 점수 분류 제거 및 표준 블루 테마 적용
-                    const borderClass = "border-gray-200 hover:border-blue-200";
-                    const bgClass = "bg-white hover:bg-blue-50/5";
-                    const textClass = "text-blue-600";
-                    const fillClass = "bg-blue-600";
+                <div className="space-y-6">
+                  {appItems.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
+                        <BucketBadge bucket="신청가능" /> {bucketCounts.신청가능}건
+                      </h3>
+                      <div className="space-y-3">{appItems.map(renderCard)}</div>
+                    </div>
+                  )}
 
-                    return (
-                      <div
-                        key={item.announcement_id}
-                        className={`flex flex-col md:flex-row md:items-center justify-between p-5 rounded-xl border ${borderClass} ${bgClass} transition-all duration-300 hover:-translate-x-1 group relative`}
+                  {condItems.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-700">
+                        <BucketBadge bucket="조건확인" /> {bucketCounts.조건확인}건
+                      </h3>
+                      <div className="space-y-3">{condItems.map(renderCard)}</div>
+                    </div>
+                  )}
+
+                  {bucketCounts.자격미달 > 0 && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowRejected((v) => !v)}
+                        className="flex w-full items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
                       >
-                        {/* 랭킹 뱃지 */}
-                        <div className="flex items-center gap-4 mb-3 md:mb-0">
-                          <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shadow-sm ${
-                            index === 0 ? "bg-amber-400 text-amber-950" : 
-                            index === 1 ? "bg-gray-300 text-gray-900" : 
-                            index === 2 ? "bg-amber-700 text-amber-50" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {index + 1}
-                          </span>
-                          <div>
-                            <h4 className="font-bold text-gray-900 text-base tracking-tight group-hover:text-blue-600 transition-colors pr-4">
-                              {item.title}
-                            </h4>
-                            <p className="text-gray-500 text-xs mt-1">
-                              총 자격 요건 필드: {item.total_fields}개 중 {item.fulfilled_count}개 충족
-                            </p>
-                          </div>
+                        <BucketBadge bucket="자격미달" /> {bucketCounts.자격미달}건
+                        <span className="text-xs font-medium text-gray-400">
+                          {showRejected ? "▲ 접기" : "▼ 펼치기"}
+                        </span>
+                      </button>
+                      {showRejected && (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs text-gray-400">
+                            점수순 — 위쪽이 충족에 가깝습니다. 상세에서 What-if로 무엇을 바꾸면 되는지 확인하세요.
+                            {rejItems.length < bucketCounts.자격미달 &&
+                              ` (충족에 가까운 상위 ${rejItems.length}건 표시)`}
+                          </p>
+                          {rejItems.map(renderCard)}
                         </div>
-
-                        {/* 매칭 충족률 게이지 바 */}
-                        <div className="flex items-center gap-6 min-w-[200px] justify-between md:justify-end">
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span className={`text-lg font-black tracking-tight ${textClass}`}>
-                              {scorePercentage}%
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-semibold">
-                              매칭 점수
-                            </span>
-                          </div>
-
-                          <div className="w-24 h-2 rounded-full bg-gray-200 overflow-hidden shadow-inner">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${fillClass}`}
-                              style={{ width: `${scorePercentage}%` }}
-                            />
-                          </div>
-
-                          {selectedCompany && (
-                            <Link
-                              href={`/matching/${selectedCompany.id}?announcement_id=${item.announcement_id}`}
-                              className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
-                            >
-                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

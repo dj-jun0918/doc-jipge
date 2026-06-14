@@ -8,6 +8,7 @@ import ConfirmRequiredTab from "@/components/ConfirmRequiredTab";
 import HwpxTableViewer from "@/components/HwpxTableViewer";
 import RawTextDisplay from "@/components/RawTextDisplay";
 import CounterfactualPanel from "@/components/CounterfactualPanel";
+import { BucketBadge, type EligibilityBucket } from "@/components/BucketBadge";
 
 // SSR 렌더링 시 브라우저 전용 객체(window, canvas 등) 사용으로 인한 ReferenceError를 원천 차단합니다.
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -56,6 +57,7 @@ interface CompanyMatchSummary {
   match_score: number;
   fulfilled_count: number;
   total_fields: number;
+  bucket?: EligibilityBucket;
 }
 
 type MatchValue = string | number | boolean | null;
@@ -84,6 +86,7 @@ interface MatchResultDetailResponse {
   };
   matched_at: string | null;
   match_score?: number | null;
+  bucket?: EligibilityBucket | null;
 }
 
 interface AttachmentInfo {
@@ -430,6 +433,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     }
     return selectedAnnSummary ? Math.round(selectedAnnSummary.match_score * 100) : 0;
   };
+
+  const currentBucket: EligibilityBucket | null = isSimulatedActive
+    ? simResult?.bucket ?? null
+    : selectedAnnSummary?.bucket ?? null;
   const matchScorePercentage = getMatchScorePct();
 
   const mainAttachment = selectedAnnDetail ? pickMainAttachment(selectedAnnDetail.attachments) : null;
@@ -502,9 +509,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
 
           {/* 종합 매칭 점수 게이지 보드 (백엔드 점수 반영) */}
           <div className="bg-gray-50 border p-4 rounded-xl flex items-center gap-4 min-w-[240px]">
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
               <span className="text-xs font-semibold text-gray-400">종합 매칭 점수</span>
-              <span className="text-2xl font-black text-blue-600 mt-1">{matchScorePercentage}%</span>
+              <span className="text-2xl font-black text-blue-600">{matchScorePercentage}%</span>
+              {currentBucket && <BucketBadge bucket={currentBucket} />}
             </div>
             <div className="flex-1">
               <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden shadow-inner mb-1">
@@ -527,9 +535,12 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
                 🤝 [{company.industry || "기업"}] vs {selectedAnnDetail.title}
               </h2>
-              <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-bold">
-                매칭 점수: {matchScorePercentage}%
-              </span>
+              <div className="flex items-center gap-2">
+                {currentBucket && <BucketBadge bucket={currentBucket} />}
+                <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-bold">
+                  매칭 점수: {matchScorePercentage}%
+                </span>
+              </div>
             </div>
 
             <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -611,9 +622,10 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                           <span className="text-gray-400">
                             요건 필드: {ann.total_fields}개
                           </span>
-                          <span className="font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                            매칭 점수 {scorePct}%
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {ann.bucket && <BucketBadge bucket={ann.bucket} />}
+                            <span className="font-bold text-gray-400">{scorePct}%</span>
+                          </div>
                         </div>
                       </button>
                     );

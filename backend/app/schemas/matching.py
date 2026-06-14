@@ -12,6 +12,15 @@ from pydantic import BaseModel
 from app.schemas.eligibility import Evidence
 
 MatchStatus = Literal["충족", "미충족", "확인필요", "해당없음"]
+EligibilityBucket = Literal["신청가능", "조건확인", "자격미달"]
+
+
+class BucketCounts(BaseModel):
+    """공고 단위 적합도 버킷 집계 (전체 매칭 결과 기준)."""
+
+    신청가능: int = 0
+    조건확인: int = 0
+    자격미달: int = 0
 
 
 class MatchResultItem(BaseModel):
@@ -45,6 +54,7 @@ class MatchResultDetailResponse(BaseModel):
     items: list[MatchResultItem]
     stats: MatchResultStats
     match_score: float | None = None  # 공고 단위 총점 (0~1) — 매칭 목록과 동일 공식
+    bucket: EligibilityBucket | None = None  # 신청가능/조건확인/자격미달 (status에서 파생)
     matched_at: datetime | None = None
 
 
@@ -56,6 +66,7 @@ class CompanyMatchSummary(BaseModel):
     match_score: float
     fulfilled_count: int
     total_fields: int
+    bucket: EligibilityBucket  # 신청가능/조건확인/자격미달 (status에서 파생)
 
 
 class CompanyMatchListResponse(BaseModel):
@@ -64,6 +75,7 @@ class CompanyMatchListResponse(BaseModel):
     company_id: uuid.UUID
     items: list[CompanyMatchSummary]
     total: int
+    bucket_counts: BucketCounts = BucketCounts()  # 전체 결과의 버킷별 건수
 
 
 class TriggerResponse(BaseModel):
