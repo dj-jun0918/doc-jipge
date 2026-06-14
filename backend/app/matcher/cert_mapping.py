@@ -3,6 +3,8 @@
 가이드라인 인증 매핑표와 1:1 동기화 필요 (한쪽 변경 시 양쪽 같이).
 """
 
+import re
+
 CERT_MAPPING: dict[str, list[str]] = {
     "venture_company": ["벤처기업", "벤처기업 인증", "벤처기업 확인서"],
     "inno_biz": ["이노비즈", "기술혁신형 중소기업"],
@@ -25,6 +27,16 @@ CERT_MAPPING: dict[str, list[str]] = {
 }
 
 
+def _kw_in_text(kw: str, text: str) -> bool:
+    """키워드 매칭. 짧은 영문 약어(CE/KC/NET/NEP/GMP 등)는 단어경계로 매칭해
+    'ACE'·'INTERNET'·'PLACE' 같은 부분문자열 오탐을 막는다. 한글/긴 키워드는 부분문자열.
+    """
+    s = kw.strip()
+    if s.isascii() and len(s) <= 4 and re.fullmatch(r"[A-Za-z0-9 ]+", s):
+        return re.search(rf"(?<![A-Za-z]){re.escape(s)}(?![A-Za-z])", text, re.IGNORECASE) is not None
+    return kw in text
+
+
 def match_cert(company_certs: list[str], required_cert_key: str) -> bool:
     """회사 인증에 required_cert_key의 한글 키워드가 포함되는지 검사.
 
@@ -33,7 +45,7 @@ def match_cert(company_certs: list[str], required_cert_key: str) -> bool:
     keywords = CERT_MAPPING.get(required_cert_key, [])
     if not keywords:
         return False
-    return any(kw in cert for cert in company_certs for kw in keywords)
+    return any(_kw_in_text(kw, cert) for cert in company_certs for kw in keywords)
 
 
 def extract_cert_keys(text: str) -> list[str]:
@@ -43,6 +55,6 @@ def extract_cert_keys(text: str) -> list[str]:
     """
     matched = []
     for key, keywords in CERT_MAPPING.items():
-        if any(kw in text for kw in keywords):
+        if any(_kw_in_text(kw, text) for kw in keywords):
             matched.append(key)
     return matched

@@ -9,6 +9,13 @@ import httpx
 from app.collectors.base import BaseCollector
 from app.config import settings
 
+# 제목의 [대괄호]에서 지역만 추출하기 위한 화이트리스트 (17개 광역).
+# [모집공고]·[재공고]·[2026년] 같은 비지역 대괄호가 region 컬럼을 오염시키는 것 방지.
+_REGION_KEYWORDS = {
+    "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종",
+    "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
+}
+
 
 class BizinfoCollector(BaseCollector):
     """기업마당(bizinfo.go.kr) 지원사업정보 API 수집기."""
@@ -70,10 +77,13 @@ class BizinfoCollector(BaseCollector):
                 "download_url": url,
             })
 
-        # 지역명: API에 별도 필드 없어서 제목의 [지역] 패턴에서 추출
+        # 지역명: API에 별도 필드 없어서 제목의 [지역] 패턴에서 추출.
+        # 화이트리스트 검사로 [모집공고]·[재공고]·[2026년] 등 비지역 대괄호는 region에서 제외.
         title = raw.get("pblancNm", "")
+        region = None
         m = re.search(r"\[(.+?)\]", title)
-        region = m.group(1) if m else None
+        if m and any(kw in m.group(1) for kw in _REGION_KEYWORDS):
+            region = m.group(1)
 
         def extract_date(val: str | None) -> str | None:
             if not val:

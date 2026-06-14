@@ -26,30 +26,37 @@ _REGION_MAP: dict[str, str] = {
     "전국": "전국",
 }
 
-# 연산자 패턴
-_OPERATORS = r"(미만|이하|이상|초과)"
+# 연산자 패턴 ('이내'=이하 동치 — match_numeric/verifier가 이내를 이하로 처리하므로 규칙도 포함)
+_OPERATORS = r"(미만|이하|이내|이상|초과)"
+
+
+def _num(s: str) -> int | float:
+    """'7'→7, '1.5'→1.5 (정수면 int)."""
+    v = float(s)
+    return int(v) if v.is_integer() else v
 
 
 def parse_biz_enyy(text: str) -> ParsedCondition | None:
     """업력 필드 파싱.
 
-    "3년 미만", "업력 5년 이상", "창업 후 7년 이하" 등에서 수치 + 연산자 추출.
+    "3년 미만", "업력 5년 이상", "창업 후 7년 이내", "1.5년 이하" 등에서 수치 + 연산자 추출.
     """
     if not text:
         return None
 
-    match = re.search(rf"(\d+)\s*년\s*{_OPERATORS}", text)
+    # 좌측 경계(?<![\d.])로 '1.5년'에서 '5년'만 잘못 캡처하는 것 방지, 소수 지원
+    match = re.search(rf"(?<![\d.])(\d+(?:\.\d+)?)\s*년\s*{_OPERATORS}", text)
     if match:
         return ParsedCondition(
-            value=int(match.group(1)),
+            value=_num(match.group(1)),
             operator=match.group(2),
             raw_text=match.group(0).strip(),
         )
 
-    range_match = re.search(r"(\d+)\s*년\s*[~∼～]\s*(\d+)\s*년", text)
+    range_match = re.search(r"(?<![\d.])(\d+(?:\.\d+)?)\s*년\s*[~∼～]\s*(\d+(?:\.\d+)?)\s*년", text)
     if range_match:
         return ParsedCondition(
-            value={"min": int(range_match.group(1)), "max": int(range_match.group(2))},
+            value={"min": _num(range_match.group(1)), "max": _num(range_match.group(2))},
             operator="범위",
             raw_text=range_match.group(0).strip(),
         )

@@ -52,40 +52,15 @@ def run_ablation(condition: str, gt_list: List[Dict[str, Any]], adv_list: List[D
     실제 R&D 파이프라인 구동 및 대규모 LLM 비용 발생 처리는 PR#6에서 수행하며,
     PR#5에서는 조건 분기 및 인터페이스 구조를 정의하여 json 스토리지 구조를 생성합니다.
     """
-    config = get_ablation_config(condition)
-    project_root = Path(__file__).resolve().parents[1]
-    results_dir = project_root / "evaluation" / "results"
-    os.makedirs(results_dir, exist_ok=True)
-    
-    # C1~C4 조건별 Mock/Baseline 평가 결과 구조 정의 (PR#6 본격 연동)
-    mock_metrics = {
-        "C1": {"precision": 0.985, "recall": 0.354, "f1": 0.521, "cost_usd": 0.0},
-        "C2": {"precision": 0.902, "recall": 0.815, "f1": 0.856, "cost_usd": 15.50},
-        "C3": {"precision": 0.885, "recall": 0.852, "f1": 0.868, "cost_usd": 41.05},
-        "C4": {"precision": 0.923, "recall": 0.864, "f1": 0.893, "cost_usd": 48.20}
-    }
-    
-    selected_metric = mock_metrics.get(condition, {"precision": 0.0, "recall": 0.0, "f1": 0.0, "cost_usd": 0.0})
-    
-    summary = {
-        "condition_id": condition,
-        "config": config,
-        "metrics": {
-            "precision": selected_metric["precision"],
-            "recall": selected_metric["recall"],
-            "f1": selected_metric["f1"]
-        },
-        "cost_usd": selected_metric["cost_usd"],
-        "evaluated_gt_count": len(gt_list),
-        "evaluated_adv_count": len(adv_list) if adv_list else 0
-    }
-    
-    # 결과를 json으로 저장
-    result_file = os.path.join(results_dir, f"ablation_{condition}.json")
-    with open(result_file, "w", encoding="utf-8") as f:
-        json.dump(summary, f, ensure_ascii=False, indent=2)
-        
-    return summary
+    # 실측 ablation 미구현 — 가짜(mock) 메트릭 생성 차단.
+    # 이전 버전은 하드코딩된 수치(C4 f1=0.893 등)를 ablation_{condition}.json에 그대로 기록해,
+    # 실측(~0.59)과 모순되는 가짜 결과를 산출 경로에 양산하는 위험이 있었다. 실측 ablation은
+    # 각 조건(C1~C4)의 추출 파이프라인을 GT에 구동 + measure 채점이 필요하며(대규모 LLM 비용)
+    # 아직 구현되지 않았다. 가짜 수치가 결과 폴더에 남지 않도록 명시적으로 미구현을 알린다.
+    raise NotImplementedError(
+        f"ablation 실측 미구현 (condition={condition}): 조건별 파이프라인 실구동 + measure "
+        "채점이 필요합니다. mock 메트릭을 기록하지 않습니다."
+    )
 
 
 if __name__ == "__main__":

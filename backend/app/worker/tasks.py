@@ -13,7 +13,7 @@ from pathlib import Path
 import httpx
 from celery import chain, group
 from sqlalchemy import delete, select
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential, before_sleep_log
+from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential, before_sleep_log
 import logging
 
 from app.collectors.bizinfo import BizinfoCollector
@@ -102,42 +102,49 @@ def collect_source(self, source: str) -> list[str]:
         skip_count = 0
 
         from sqlalchemy import select
+        error_count = 0
         for item in items:
             attachments_data = item.pop("attachments", [])
-
-            # 1. 완전 동일 공고(이미 수집됨) 확인 -> 스킵
-            existing = db.scalar(
-                select(Announcement).where(
-                    Announcement.source == item["source"],
-                    Announcement.source_id == item["source_id"],
+            try:
+                # 1. 완전 동일 공고(이미 수집됨) 확인 -> 스킵
+                existing = db.scalar(
+                    select(Announcement).where(
+                        Announcement.source == item["source"],
+                        Announcement.source_id == item["source_id"],
+                    )
                 )
-            )
-            if existing:
-                skip_count += 1
+                if existing:
+                    skip_count += 1
+                    continue
+
+                # 2. 타 소스 중복 탐지 (제목 유사도 등)
+                dup_id = find_duplicate(item, db)
+                if dup_id:
+                    item["duplicate_of"] = uuid.UUID(dup_id)
+                    # 타 소스 중복은 DB에 넣되 duplicate_of만 표시 (프론트 필터링용)
+
+                # 항목별 savepoint — 한 항목의 INSERT 실패가 배치 전체를 롤백시키지 않도록
+                with db.begin_nested():
+                    ann = Announcement(**item)
+                    db.add(ann)
+                    db.flush()  # ID 확보 (Attachment FK 필요)
+                    for att in attachments_data:
+                        db.add(Attachment(announcement_id=ann.id, **att))
+                new_ann_ids.append(str(ann.id))
+            except Exception as item_err:
+                error_count += 1
+                logger.warning(
+                    f"[{source}] 항목 처리 실패(스킵): source_id={item.get('source_id')!r}, {item_err}"
+                )
                 continue
-
-            # 2. 타 소스 중복 탐지 (제목 유사도 등)
-            dup_id = find_duplicate(item, db)
-            if dup_id:
-                item["duplicate_of"] = uuid.UUID(dup_id)
-                # 타 소스 중복은 DB에 넣되 duplicate_of만 표시
-                # (프론트에서 필터링용)
-
-            ann = Announcement(**item)
-            db.add(ann)
-            db.flush()  # ID 확보 (Attachment FK 필요)
-
-            # 첨부파일 INSERT
-            for att in attachments_data:
-                db.add(Attachment(announcement_id=ann.id, **att))
-
-            new_ann_ids.append(str(ann.id))
 
         db.commit()
 
         job.total_count = len(items)
-        job.success_count = len(items) - skip_count
+        job.success_count = len(new_ann_ids)
         job.skip_count = skip_count
+        if error_count:
+            logger.warning(f"[{source}] 항목 실패 {error_count}건 스킵 (배치 전체 롤백 방지)")
         _finish_job(db, job, status="done")
 
         logger.info(f"[{source}] DB 저장 완료: {len(new_ann_ids)}건 (중복 {skip_count}건)")
@@ -156,10 +163,24 @@ def collect_source(self, source: str) -> list[str]:
 # 태스크 2: 첨부파일 다운로드
 # ---------------------------------------------------------------------------
 
+def _is_retryable_download_error(exc: BaseException) -> bool:
+    """일시적 오류만 재시도 — 연결/타임아웃 + 일시적 HTTP 상태(429/5xx).
+
+    resp.raise_for_status()는 HTTPStatusError를 던지는데 이는 RequestError의
+    하위가 아니라, 기존 retry 조건이 정부 파일서버의 일시적 503/429를 놓쳤다.
+    404 등 비일시적 상태는 재시도하지 않는다.
+    """
+    if isinstance(exc, (httpx.RequestError, httpx.TimeoutException)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (429, 500, 502, 503, 504)
+    return False
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=2, min=2, max=30),
-    retry=retry_if_exception_type((httpx.RequestError, httpx.TimeoutException)),
+    retry=retry_if_exception(_is_retryable_download_error),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True
 )
