@@ -116,7 +116,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
         }
 
         if (active) {
-          setSearchError("원문에서 위치를 찾을 수 없습니다. 전체 PDF를 표시합니다.");
+          setSearchError("원문에서 근거 위치를 찾지 못했습니다. 페이지를 직접 넘겨 확인하세요.");
         }
       }
 
@@ -294,6 +294,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
         ) : evidenceText ? (
           <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium">
             🔍 근거: &quot;{evidenceText}&quot;
+            {!loading && <span className="ml-1 font-bold">({pageNumber}페이지)</span>}
           </div>
         ) : null}
       </div>
