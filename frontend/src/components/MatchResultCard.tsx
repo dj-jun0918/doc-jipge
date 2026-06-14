@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface EvidenceLocation {
   location_type: "pdf_page" | "hwpx_table" | "hwpx_paragraph" | "raw_text";
   page?: number;
@@ -33,6 +35,9 @@ interface MatchResultCardProps {
 
 export default function MatchResultCard({ field, onEvidenceClick }: MatchResultCardProps) {
   const { field_name, status, criterion, current_value, reason, evidence_source, score, distance, constraint_type } = field;
+
+  // 처리 경로는 내부 메타데이터 — 기본 숨김, 토글로 펼침
+  const [showPath, setShowPath] = useState(false);
 
   // 상태별 다이내믹 컬러/뱃지 스타일 맵
   const statusStyles = {
@@ -113,23 +118,32 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
         </div>
       </div>
 
-      {/* 처리 경로 */}
+      {/* 처리 경로 (내부 메타데이터 — 기본 숨김, 토글) */}
       <div className="mt-4">
-        <span className="block text-[11px] text-gray-400 font-semibold mb-1">⚙️ 처리 경로</span>
-        <p className="text-sm text-gray-700 leading-relaxed font-medium">
-          {(() => {
-            switch (reason) {
-              case "rule_base":
-                return "규칙 기반";
-              case "text_llm":
-                return "텍스트 LLM";
-              case "vision_llm":
-                return "비전 LLM";
-              default:
-                return reason || "조건 평가 완료";
-            }
-          })()}
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowPath((v) => !v)}
+          className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 font-semibold cursor-pointer"
+        >
+          <span className="text-[9px]">{showPath ? "▴" : "▾"}</span>
+          ⚙️ 처리 경로 {showPath ? "숨기기" : "보기"}
+        </button>
+        {showPath && (
+          <p className="mt-1 text-sm text-gray-700 leading-relaxed font-medium">
+            {(() => {
+              switch (reason) {
+                case "rule_base":
+                  return "규칙 기반";
+                case "text_llm":
+                  return "텍스트 LLM";
+                case "vision_llm":
+                  return "비전 LLM";
+                default:
+                  return reason || "조건 평가 완료";
+              }
+            })()}
+          </p>
+        )}
       </div>
 
       {/* 하단 제어부 (원문 근거 및 수동 판정 액션) */}
