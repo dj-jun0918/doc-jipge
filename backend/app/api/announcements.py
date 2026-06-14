@@ -45,6 +45,7 @@ def list_announcements(
     q: str | None = Query(None, description="키워드 검색 (제목)"),
     from_date: str | None = Query(None, description="접수 시작일 이후 (YYYY-MM-DD)"),
     to_date: str | None = Query(None, description="접수 종료일 이전 (YYYY-MM-DD)"),
+    sort: str = Query("recent", pattern="^(recent|deadline)$", description="recent(최신순)/deadline(마감임박순)"),
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -63,8 +64,19 @@ def list_announcements(
     if to_date_obj:
         stmt = stmt.where(Announcement.period_end <= to_date_obj)
 
+    if sort == "deadline":
+        # 마감 임박순 — 이미 마감된 공고는 제외(미정 NULL은 표시), 마감 가까운 순.
+        stmt = stmt.where(
+            (Announcement.period_end.is_(None))
+            | (Announcement.period_end >= date.today())
+        )
+        # Postgres ASC는 NULL을 맨 뒤로 정렬 → 마감일 미정 공고가 임박 공고 뒤에 온다
+        order_by = Announcement.period_end.asc()
+    else:
+        order_by = Announcement.created_at.desc()
+
     total = db.scalar(select(func.count()).select_from(stmt.subquery()))
-    items = db.scalars(stmt.order_by(Announcement.created_at.desc()).offset(offset).limit(limit)).all()
+    items = db.scalars(stmt.order_by(order_by).offset(offset).limit(limit)).all()
 
     return AnnouncementListResponse(
         items=[AnnouncementResponse.model_validate(a) for a in items],
