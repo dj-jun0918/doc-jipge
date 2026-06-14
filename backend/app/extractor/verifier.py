@@ -4,6 +4,7 @@ LLM 출력의 필드 완전성/일관성 검사 + 중복 필드 병합 + 인증 
 """
 
 import logging
+import re
 
 from app.extractor.llm_response_parser import (
     VALID_FIELD_NAMES,
@@ -19,16 +20,64 @@ logger = logging.getLogger(__name__)
 # 우대·가점·감면·면제는 가산 요소 — 자격요건이 아니므로 추출됐어도 자격 판정에서 제외.
 # 원칙적 카테고리만 (특정 공고 고유명사는 과적합이라 미포함).
 _NON_REQUIREMENT_MARKERS = ("가점", "우대", "감면", "면제")
+_HARD_OPS = ("미만", "이하", "이내", "이상", "초과")
 
 
 def _is_preferential(field: EligibilityField) -> bool:
-    parts = []
-    if field.evidence and field.evidence.text:
-        parts.append(field.evidence.text)
-    if field.condition and field.condition.raw_text:
-        parts.append(field.condition.raw_text)
-    text = " ".join(parts)
-    return any(m in text for m in _NON_REQUIREMENT_MARKERS)
+    """요건 '자체'가 우대/가점일 때만 True.
+
+    근거 문장(evidence)에 우대/가점이 병기됐다고 하드 요건까지 삭제하면 recall이 떨어진다
+    (예: '만 39세 이하 (여성 가점)'의 나이 요건). 따라서 condition.raw_text만 보고,
+    비교 연산자(이상/이하/미만 등)가 함께 있으면 하드 요건으로 간주해 보존한다.
+    """
+    cond = field.condition
+    raw = (cond.raw_text if cond else "") or ""
+    if not any(m in raw for m in _NON_REQUIREMENT_MARKERS):
+        return False
+    if (cond and cond.operator in _HARD_OPS) or any(op in raw for op in _HARD_OPS):
+        return False
+    return True
+
+
+# 비요건 문맥 마커 — 신청기업 자격이 아니라 다른 주체·혜택을 설명하는 문장에서 오추출된 경우.
+# 주관기관=사업 운영주체, 수요기업=수요처(공급 대상), 계상=비용 계상 혜택 부여 규칙.
+_NON_REQUIREMENT_CONTEXT = ("주관기관", "수요기업", "계상")
+# 원화 금액 단위 (달러 등 외화는 제외 — '만 원'은 매칭, '만달러'는 비매칭)
+_AMOUNT_UNIT_RE = re.compile(r"억|만\s*원")
+
+
+def _is_non_requirement_context(field: EligibilityField) -> bool:
+    """근거가 신청 자격이 아니라 다른 주체·혜택을 설명할 때 True.
+
+    예: '(주관기관) 대기업'(운영주체), '방산 분야 수요기업'(수요처),
+        '7년 이내…인건비 현금 계상 가능'(혜택 부여 규칙) — 모두 신청 자격요건이 아니다.
+    """
+    cond = field.condition
+    raw = (cond.raw_text if cond else "") or ""
+    ev = field.evidence
+    ev_text = ev if isinstance(ev, str) else (getattr(ev, "text", "") or "")
+    text = f"{raw} {ev_text}"
+    return any(m in text for m in _NON_REQUIREMENT_CONTEXT)
+
+
+def _recompute_amount(field: EligibilityField) -> None:
+    """금액 필드(매출)는 raw_text에서 결정적으로 재계산해 LLM 산술 오류를 교정 (in-place).
+
+    LLM이 '20억원'을 2억으로 잘못 계산해 value를 직접 출력하면 value가 None이 아니라
+    폴백 파싱도 안 타고 오류값이 그대로 쓰인다. 금액 산술은 파서가 결정적·정확하므로
+    원화 단위가 있을 때 raw에서 재계산해 덮어쓴다 (파서 산출 실패 시 LLM 값 유지).
+    """
+    if field.field_name != "매출":
+        return
+    cond = field.condition
+    raw = cond.raw_text or ""
+    if not _AMOUNT_UNIT_RE.search(raw):
+        return
+    parsed = parse_condition_string(raw)
+    if isinstance(parsed.value, (int, float)) and not isinstance(parsed.value, bool):
+        cond.value = parsed.value
+        if parsed.operator and not cond.operator:
+            cond.operator = parsed.operator
 
 
 def normalize_cert_value(field: EligibilityField) -> None:
@@ -83,6 +132,13 @@ def verify(result: ExtractionResult) -> ExtractionResult:
         # 우대·가점·감면은 가산 요소이지 자격요건이 아니므로 자격 판정에서 제외
         if _is_preferential(field):
             continue
+
+        # 운영주체·수요처·혜택 부여 문맥에서 오추출된 필드 제외 (신청 자격 아님)
+        if _is_non_requirement_context(field):
+            continue
+
+        # LLM 산술 오류 방어: 금액 필드는 raw_text에서 결정적으로 재계산해 교정
+        _recompute_amount(field)
 
         cond = field.condition
         if (cond.operator is None or cond.value is None) and cond.raw_text:

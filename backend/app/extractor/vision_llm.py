@@ -18,6 +18,7 @@ from tenacity import (
 )
 
 from app.config import settings
+from app.extractor import llm_cache
 from app.extractor.llm_response_parser import ExtractionResult, build_extraction_result
 from app.extractor.text_llm import build_cert_mapping_block
 
@@ -152,6 +153,12 @@ def _encode_image(img_bytes: bytes) -> str:
     reraise=True,
 )
 async def _call_vision(images_b64: list[str], model: str) -> str:
+    # 측정 무결성: replay 모드면 캐시된 원시 응답 반환 (Vision 호출 0, 결정적)
+    cache_input = "".join(images_b64)
+    cached = llm_cache.get("vision", model, VISION_PROMPT, cache_input)
+    if cached is not None:
+        return cached
+
     client = _get_client()
 
     content_blocks: list[dict] = [{"type": "text", "text": VISION_PROMPT}]
@@ -177,7 +184,9 @@ async def _call_vision(images_b64: list[str], model: str) -> str:
             f"prompt_tokens={usage.prompt_tokens}, "
             f"completion_tokens={usage.completion_tokens}"
         )
-    return response.choices[0].message.content or ""
+    content = response.choices[0].message.content or ""
+    llm_cache.put("vision", model, VISION_PROMPT, cache_input, content)
+    return content
 
 
 async def extract_from_pdf(

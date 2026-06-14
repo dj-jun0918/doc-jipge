@@ -119,52 +119,76 @@ def build_extraction_result(
     )
 
 
+def _num(s: str) -> int | float:
+    """'7'→7, '1.5'→1.5 (정수면 int)."""
+    v = float(s)
+    return int(v) if v.is_integer() else v
+
+
+def _amount_to_won(text: str) -> int | None:
+    """'10억원', '5천만원', '7억 5천만', '3000만원' → 원 단위 int. 억/천만/만 합산."""
+    # 천단위 콤마 제거 ('1,200만원'의 '1,'이 잘려 '200만'으로 오인식되는 것 방지)
+    text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    total, found = 0, False
+    m = re.search(r"(\d+(?:\.\d+)?)\s*억", text)
+    if m:
+        total += int(float(m.group(1)) * 100_000_000)
+        found = True
+    m = re.search(r"(\d+(?:\.\d+)?)\s*천\s*만", text)
+    if m:
+        total += int(float(m.group(1)) * 10_000_000)
+        found = True
+    else:
+        m = re.search(r"(?<![천억\d.])(\d+(?:\.\d+)?)\s*만\s*원?", text)
+        if m:
+            total += int(float(m.group(1)) * 10_000)
+            found = True
+    return total if found else None
+
+
 def parse_condition_string(text: str) -> ParsedCondition:
     """'3년 미만' 같은 조건 문자열을 ParsedCondition으로 폴백 파싱.
 
     LLM이 condition만 문자열로 반환하고 value/operator를 비웠을 때 사용.
+    매출(억/만원), 종업원(인/명), 나이·업력 범위(이상~미만)까지 처리.
     """
     if not text:
         return ParsedCondition(value=None, operator=None, raw_text="")
 
     operators = r"(미만|이하|이내|이상|초과)"
+    lower_op = r"(?:이상|초과)"
+    upper_op = r"(?:미만|이하|이내)"
 
-    # N년 + operator
-    match = re.search(rf"(\d+)\s*년\s*{operators}", text)
-    if match:
+    # 범위: 하한(이상/초과)+상한(미만/이하/이내) 둘 다 (세/년/명/인 단위) → {min,max}
+    lo = re.search(rf"(?<![\d.])(\d+(?:\.\d+)?)\s*(?:세|년|명|인)\s*{lower_op}", text)
+    up = re.search(rf"(?<![\d.])(\d+(?:\.\d+)?)\s*(?:세|년|명|인)\s*{upper_op}", text)
+    if lo and up and lo.start() < up.start():
         return ParsedCondition(
-            value=int(match.group(1)),
-            operator=match.group(2),
-            raw_text=text,
+            value={"min": _num(lo.group(1)), "max": _num(up.group(1))},
+            operator="범위", raw_text=text,
         )
 
-    # 만 N세 + operator
+    # 매출 (억/만원) — '10억원 이하', '5천만원 이하' 등
+    if "억" in text or re.search(r"만\s*원", text):
+        won = _amount_to_won(text)
+        op_m = re.search(operators, text)
+        if won is not None and op_m:
+            return ParsedCondition(value=won, operator=op_m.group(1), raw_text=text)
+
+    # N년 + operator (업력, 소수 지원)
+    match = re.search(rf"(?<![\d.])(\d+(?:\.\d+)?)\s*년\s*{operators}", text)
+    if match:
+        return ParsedCondition(value=_num(match.group(1)), operator=match.group(2), raw_text=text)
+
+    # 만 N세 + operator (나이)
     match = re.search(rf"만\s*(\d+)\s*세\s*{operators}", text)
     if match:
-        return ParsedCondition(
-            value=int(match.group(1)),
-            operator=match.group(2),
-            raw_text=text,
-        )
+        return ParsedCondition(value=int(match.group(1)), operator=match.group(2), raw_text=text)
 
-    # N억 + operator (매출)
-    match = re.search(rf"(\d+(?:\.\d+)?)\s*억\s*{operators}", text)
+    # N인/명 + operator (종업원 수)
+    match = re.search(rf"(?<![\d.])(\d+)\s*(?:인|명)\s*{operators}", text)
     if match:
-        amount_eok = float(match.group(1))
-        return ParsedCondition(
-            value=int(amount_eok * 100_000_000),
-            operator=match.group(2),
-            raw_text=text,
-        )
-
-    # N인 + operator (종업원 수)
-    match = re.search(rf"(\d+)\s*인\s*{operators}", text)
-    if match:
-        return ParsedCondition(
-            value=int(match.group(1)),
-            operator=match.group(2),
-            raw_text=text,
-        )
+        return ParsedCondition(value=int(match.group(1)), operator=match.group(2), raw_text=text)
 
     return ParsedCondition(value=None, operator=None, raw_text=text)
 

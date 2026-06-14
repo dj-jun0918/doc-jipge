@@ -22,14 +22,44 @@ class ConversionResult:
     structured_tables: list[dict] = field(default_factory=list)
 
 
+def _rejoin_table_rows(markdown: str) -> str:
+    """셀 안 줄바꿈으로 끊긴 표 행을 논리 행으로 재결합.
+
+    python-hwpx는 다문단 셀을 '\\n'.join(...)으로 렌더해 한 표 행이 여러 물리 줄로
+    쪼개진다. '|'로 시작하지만 '|'로 끝나지 않는 줄은 셀 내 줄바꿈으로 미완인 행이므로,
+    '|'로 끝나는 줄이 나올 때까지 다음 줄들을 공백으로 이어붙여 한 줄짜리 표 행으로 만든다.
+    이렇게 하면 표 추출 정규식이 행 중간 줄바꿈에서 표를 끊지 않는다.
+    """
+    out: list[str] = []
+    buf: str | None = None
+    for raw in markdown.split("\n"):
+        s = raw.rstrip("\r")
+        if buf is not None:
+            buf += " " + s.strip()
+            if s.rstrip().endswith("|"):
+                out.append(buf)
+                buf = None
+            continue
+        if s.lstrip().startswith("|"):
+            if s.rstrip().endswith("|"):
+                out.append(s)
+            else:
+                buf = s  # 셀 줄바꿈으로 미완 — 다음 줄과 결합
+        else:
+            out.append(s)
+    if buf is not None:
+        out.append(buf)
+    return "\n".join(out)
+
+
 def python_hwpx_extract(file_path: str | Path) -> dict:
     """HWPX 파일에서 본문 텍스트 + markdown 표 추출."""
     from hwpx import HwpxDocument
-    
+
     doc = HwpxDocument.open(str(file_path))
     text = doc.export_text()
-    markdown = doc.export_markdown()
-    
+    markdown = _rejoin_table_rows(doc.export_markdown())
+
     # Markdown 텍스트에서 표(|로 시작하는 연속된 라인) 추출
     table_pattern = re.compile(r'(?:^\|.*\|[\r\n]+)+', re.MULTILINE)
     tables = []

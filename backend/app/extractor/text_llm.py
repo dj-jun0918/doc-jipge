@@ -12,6 +12,7 @@ from tenacity import (
 )
 
 from app.config import settings
+from app.extractor import llm_cache
 from app.extractor.llm_response_parser import ExtractionResult, build_extraction_result
 from app.matcher.cert_mapping import CERT_MAPPING
 
@@ -144,6 +145,10 @@ SYSTEM_PROMPT = SYSTEM_PROMPT.replace("__CERT_MAPPING_BLOCK__", build_cert_mappi
     reraise=True,
 )
 async def _call_llm(user_input: str, model: str) -> str:
+    # 측정 무결성: replay 모드면 캐시된 원시 응답 반환 (LLM 호출 0, 결정적)
+    cached = llm_cache.get("text", model, SYSTEM_PROMPT, user_input)
+    if cached is not None:
+        return cached
     client = _get_client()
     response = await client.chat.completions.create(
         model=model,
@@ -162,7 +167,9 @@ async def _call_llm(user_input: str, model: str) -> str:
             f"prompt_tokens={usage.prompt_tokens}, "
             f"completion_tokens={usage.completion_tokens}"
         )
-    return response.choices[0].message.content or ""
+    content = response.choices[0].message.content or ""
+    llm_cache.put("text", model, SYSTEM_PROMPT, user_input, content)
+    return content
 
 
 async def extract(
