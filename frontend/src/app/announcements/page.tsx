@@ -39,6 +39,7 @@ export default function AnnouncementsPage() {
   const [keyword, setKeyword] = useState("");
   const [source, setSource] = useState("");
   const [region, setRegion] = useState("");
+  const [sort, setSort] = useState("recent");
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [page, setPage] = useState(1);
   // 북마크는 localStorage에 있어 토글 시 재렌더 트리거가 필요
@@ -48,10 +49,10 @@ export default function AnnouncementsPage() {
 
   // 인자로 받은 필터·페이지가 우선 — 초기화처럼 state 반영 전에 호출해도 정확한 조건으로 조회
   const fetchAnnouncements = async (
-    filters?: { keyword: string; source: string; region: string },
+    filters?: { keyword: string; source: string; region: string; sort: string },
     pageArg?: number
   ) => {
-    const f = filters ?? { keyword, source, region };
+    const f = filters ?? { keyword, source, region, sort };
     const p = pageArg ?? page;
     const seq = ++requestSeq.current;
     try {
@@ -63,6 +64,7 @@ export default function AnnouncementsPage() {
       if (f.source) params.append("source", f.source);
       if (f.region) params.append("region", f.region);
       if (f.keyword.trim()) params.append("q", f.keyword.trim());
+      if (f.sort && f.sort !== "recent") params.append("sort", f.sort);
       params.append("limit", String(PAGE_SIZE));
       params.append("offset", String((p - 1) * PAGE_SIZE));
 
@@ -94,13 +96,20 @@ export default function AnnouncementsPage() {
     fetchAnnouncements(undefined, 1);
   };
 
+  const handleSortChange = (value: string) => {
+    setSort(value);
+    setPage(1);
+    fetchAnnouncements({ keyword, source, region, sort: value }, 1);
+  };
+
   const handleReset = () => {
     setKeyword("");
     setSource("");
     setRegion("");
+    setSort("recent");
     setShowBookmarks(false);
     setPage(1);
-    fetchAnnouncements({ keyword: "", source: "", region: "" }, 1);
+    fetchAnnouncements({ keyword: "", source: "", region: "", sort: "recent" }, 1);
   };
 
   const goToPage = (p: number) => {
@@ -152,10 +161,12 @@ export default function AnnouncementsPage() {
           keyword={keyword}
           source={source}
           region={region}
+          sort={sort}
           showBookmarks={showBookmarks}
           onKeywordChange={setKeyword}
           onSourceChange={setSource}
           onRegionChange={setRegion}
+          onSortChange={handleSortChange}
           onShowBookmarksChange={setShowBookmarks}
           onSearch={handleSearch}
           onReset={handleReset}

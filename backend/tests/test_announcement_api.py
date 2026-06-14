@@ -1,4 +1,6 @@
 """announcement detail API 통합 테스트."""
+from datetime import date, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -101,3 +103,30 @@ def test_list_response_excludes_attachments_and_structured_tables(
 def test_detail_404_for_missing_id(client: TestClient):
     res = client.get("/api/announcements/00000000-0000-0000-0000-000000000000")
     assert res.status_code == 404
+
+
+def test_sort_deadline_orders_by_period_end_excludes_closed(
+    client: TestClient, db_session: Session
+):
+    """sort=deadline — 마감 임박순(가까운 순), 이미 마감된 공고 제외, 미정(NULL)은 맨 뒤."""
+    today = date.today()
+    db_session.add_all([
+        Announcement(source="kstartup", source_id="sd-past", title="마감지남",
+                     period_end=today - timedelta(days=5)),
+        Announcement(source="kstartup", source_id="sd-soon", title="임박",
+                     period_end=today + timedelta(days=3)),
+        Announcement(source="kstartup", source_id="sd-later", title="여유",
+                     period_end=today + timedelta(days=30)),
+        Announcement(source="kstartup", source_id="sd-none", title="미정",
+                     period_end=None),
+    ])
+    db_session.flush()
+
+    res = client.get("/api/announcements/?sort=deadline&limit=100")
+    assert res.status_code == 200
+    ours = [a["source_id"] for a in res.json()["items"] if a["source_id"].startswith("sd-")]
+
+    assert "sd-past" not in ours  # 이미 마감 → 제외
+    assert ours.index("sd-soon") < ours.index("sd-later")  # 임박이 먼저
+    assert ours.index("sd-later") < ours.index("sd-none")  # 미정(NULL)은 맨 뒤
+

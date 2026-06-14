@@ -2,9 +2,11 @@ interface SearchFilterProps {
   keyword: string;
   source: string;
   region: string;
+  sort: string;
   onKeywordChange: (value: string) => void;
   onSourceChange: (value: string) => void;
   onRegionChange: (value: string) => void;
+  onSortChange: (value: string) => void;
   showBookmarks: boolean;
   onShowBookmarksChange: (value: boolean) => void;
   onSearch: () => void;
@@ -15,9 +17,11 @@ export default function SearchFilter({
   keyword,
   source,
   region,
+  sort,
   onKeywordChange,
   onSourceChange,
   onRegionChange,
+  onSortChange,
   showBookmarks,
   onShowBookmarksChange,
   onSearch,
@@ -104,7 +108,18 @@ export default function SearchFilter({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 border-t pt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-5 border-t pt-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">정렬</span>
+          <select
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="rounded-lg border px-3 py-2 text-sm"
+          >
+            <option value="recent">최신순</option>
+            <option value="deadline">마감 임박순</option>
+          </select>
+        </div>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
