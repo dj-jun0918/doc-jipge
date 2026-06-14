@@ -60,6 +60,58 @@ def _is_non_requirement_context(field: EligibilityField) -> bool:
     return any(m in text for m in _NON_REQUIREMENT_CONTEXT)
 
 
+# 업종 필드 한정 — '비업종 개념'을 자격요건으로 오추출한 경우 차단 (precision).
+# 신청기업이 영위하는 산업이 아니라 다른 범주(조직형태·수요처·법령 정의·과제범위·결격)를
+# 업종 요건으로 잘못 분류한 과추출이 업종 FP의 다수를 차지한다.
+_INDUSTRY_NON_REQUIREMENT_TOKENS = (
+    # 조직형태(법인격) — 산업 분류가 아님
+    "비영리법인", "재단법인", "사단법인", "법인격", "협동조합",
+    # 수요처(공급 대상) — 신청기업 업종이 아님
+    "수요기업", "수요가 있는", "수요처",
+    # 법령 정의문(중소기업 정의) — 업종 분류가 아님
+    "중소기업기본법", "시행령 제3조",
+    # 과제·사업 범위/변경 메타 — 신청기업 영위 업종이 아니라 과제 주제·범위 변경
+    "해당하는 과제", "전 업종으로", "범위확대",
+    # 결격(참여제한) 상태 — 업종이 아니라 참여 자격 박탈
+    "참여제한", "참여 불가",
+)
+# 진짜 업종요건 신호 — 있으면 절대 억제하지 않는 화이트리스트 가드.
+# (예: '한국표준산업분류 상 ...업종에 해당하는 기업', 번호 열거형 업종 리스트)
+_INDUSTRY_POSITIVE_GUARD = ("업종에 해당", "업종에 한", "한국표준산업분류", "표준산업분류")
+_INDUSTRY_ENUM_RE = re.compile(r"[②③④⑤⑥]")  # 둘 이상 업종 번호 열거 = 긍정 리스트
+
+
+def _is_spurious_industry(field: EligibilityField) -> bool:
+    """업종 필드가 '비업종 개념'을 자격요건으로 오추출했을 때만 True.
+
+    두 겹 가드로 진짜 업종요건은 절대 건드리지 않는다:
+      1) operator='제외'(지원제외 업종 리스트형) → 보존. 토큰만 보면 '지원제외 업종'을
+         품은 진짜 제외 요건까지 지워 recall이 깨지므로, 연산자 방향으로 구분한다.
+      2) '~업종에 해당'·번호 열거·표준산업분류(긍정 열거) → 보존.
+    위 가드를 통과한 필드 중 비업종 신호(법인격·수요처·법령 정의·과제범위·결격)가 있으면 차단.
+    """
+    if field.field_name != "업종":
+        return False
+    cond = field.condition
+    raw = (cond.raw_text if cond else "") or ""
+    val = cond.value if cond else None
+    if isinstance(val, list):
+        val_text = " ".join(str(v) for v in val)
+    elif isinstance(val, str):
+        val_text = val
+    else:
+        val_text = ""
+    ev = field.evidence
+    ev_text = ev if isinstance(ev, str) else (getattr(ev, "text", "") or "")
+    text = f"{val_text} {raw} {ev_text}"
+
+    if cond and cond.operator == "제외":
+        return False  # 가드 1: 제외 리스트형은 진짜 제외 업종요건
+    if any(g in text for g in _INDUSTRY_POSITIVE_GUARD) or _INDUSTRY_ENUM_RE.search(text):
+        return False  # 가드 2: 긍정 업종 열거/표준산업분류
+    return any(t in text for t in _INDUSTRY_NON_REQUIREMENT_TOKENS)
+
+
 def _recompute_amount(field: EligibilityField) -> None:
     """금액 필드(매출)는 raw_text에서 결정적으로 재계산해 LLM 산술 오류를 교정 (in-place).
 
@@ -135,6 +187,10 @@ def verify(result: ExtractionResult) -> ExtractionResult:
 
         # 운영주체·수요처·혜택 부여 문맥에서 오추출된 필드 제외 (신청 자격 아님)
         if _is_non_requirement_context(field):
+            continue
+
+        # 업종 필드에서 비업종(법인격·수요처·법령정의·과제범위·결격)을 오추출한 경우 제외
+        if _is_spurious_industry(field):
             continue
 
         # LLM 산술 오류 방어: 금액 필드는 raw_text에서 결정적으로 재계산해 교정
