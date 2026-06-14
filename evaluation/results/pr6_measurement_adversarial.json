@@ -1,11 +1,11 @@
 {
   "overall": {
-    "tp": 3,
-    "fp": 9,
-    "fn": 4,
-    "precision": 0.25,
-    "recall": 0.42857142857142855,
-    "f1": 0.3157894736842105
+    "tp": 5,
+    "fp": 12,
+    "fn": 2,
+    "precision": 0.29411764705882354,
+    "recall": 0.7142857142857143,
+    "f1": 0.4166666666666667
   },
   "announcements": {
     "adv_001": {
@@ -43,47 +43,63 @@
     "adv_002": {
       "title": "2026년 성장 창업사업화 지원 사업 공고",
       "metrics": {
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1": 0.5
       },
       "counts": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 2
+        "tp": 1,
+        "fp": 1,
+        "fn": 1
       },
       "details": {
-        "tps": [],
-        "fps": [],
+        "tps": [
+          {
+            "field_name": "업력",
+            "condition": "창업 3년 이내",
+            "evidence": {
+              "text": "공고일 기준 대구 서구 소재 영업장(사업자등록증 기준)의 3년 이내 창업기업 또는 예비 창업자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "지역",
+            "condition": "대구 서구",
+            "evidence": {
+              "text": "공고일 기준 대구 서구 소재 영업장(사업자등록증 기준)의 3년 이내 창업기업 또는 예비 창업자",
+              "location": null
+            },
+            "processing_path": "vision_llm",
+            "mismatch_target": "대구 서구 소재"
+          }
+        ],
         "fns": [
           {
             "field_name": "지역",
             "condition": "대구 서구 소재",
             "evidence_source": "첨부파일 1p 지원대상"
-          },
-          {
-            "field_name": "업력",
-            "condition": "창업 3년 이내",
-            "evidence_source": "첨부파일 1p 지원대상"
           }
         ]
       },
       "routing": {
-        "chosen_path": "rule_based",
-        "cost_usd": 0
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.01
       }
     },
     "adv_003": {
       "title": "2026년 팁스(TIPS) 창업기업 지원계획 수정 공고",
       "metrics": {
-        "precision": 0.3333333333333333,
-        "recall": 0.5,
-        "f1": 0.4
+        "precision": 0.6666666666666666,
+        "recall": 1.0,
+        "f1": 0.8
       },
       "counts": {
-        "tp": 1,
-        "fp": 2,
-        "fn": 1
+        "tp": 2,
+        "fp": 1,
+        "fn": 0
       },
       "details": {
         "tps": [
@@ -95,19 +111,18 @@
               "location": null
             },
             "processing_path": "text_llm"
-          }
-        ],
-        "fps": [
+          },
           {
             "field_name": "매출",
-            "condition": "20억원 미만",
+            "condition": "직전 연도 매출액 20억원 미만",
             "evidence": {
               "text": "직전 연도 매출액 20억원 미만",
               "location": null
             },
-            "processing_path": "text_llm",
-            "mismatch_target": "직전 연도 매출액 20억원 미만"
-          },
+            "processing_path": "text_llm"
+          }
+        ],
+        "fps": [
           {
             "field_name": "인증",
             "condition": "벤처기업·이노비즈 인증을 받은 경우",
@@ -118,13 +133,7 @@
             "processing_path": "text_llm"
           }
         ],
-        "fns": [
-          {
-            "field_name": "매출",
-            "condition": "직전 연도 매출액 20억원 미만",
-            "evidence_source": "첨부파일 5p 팁스R&D 일반트랙 필수요건"
-          }
-        ]
+        "fns": []
       },
       "routing": {
         "chosen_path": "text_llm",
@@ -140,7 +149,7 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 1,
+        "fp": 2,
         "fn": 0
       },
       "details": {
@@ -148,9 +157,69 @@
         "fps": [
           {
             "field_name": "업종",
-            "condition": "유흥·향락업, 숙박·음식점 제외",
+            "condition": "휴·폐업중인 기업",
             "evidence": {
-              "text": "유흥·향락업, 숙박·음식점",
+              "text": "휴·폐업중인 기업",
+              "location": null
+            },
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "창업 7년 미만 기업 제외",
+            "evidence": {
+              "text": "최근 결산 연도 기준 완전자본잠식* 기업(접수 마감일 기준 창업 7년 미만 기업 제외)",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          }
+        ],
+        "fns": []
+      },
+      "routing": {
+        "chosen_path": "vision_llm",
+        "cost_usd": 0.011
+      }
+    },
+    "adv_005": {
+      "title": "모두의 창업 프로젝트 통합 모집 수정공고",
+      "metrics": {
+        "precision": 0.3333333333333333,
+        "recall": 1.0,
+        "f1": 0.5
+      },
+      "counts": {
+        "tp": 1,
+        "fp": 2,
+        "fn": 0
+      },
+      "details": {
+        "tps": [
+          {
+            "field_name": "업력",
+            "condition": "창업 3년 이내",
+            "evidence": {
+              "text": "예비창업자 또는 창업3년이내창업기업",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          }
+        ],
+        "fps": [
+          {
+            "field_name": "지역",
+            "condition": "전국",
+            "evidence": {
+              "text": "혁신적인아이디어를보유한전국민누구나",
+              "location": null
+            },
+            "processing_path": "text_llm"
+          },
+          {
+            "field_name": "인증",
+            "condition": "부동산임대업만을 영위하는 개인사업자",
+            "evidence": {
+              "text": "부동산임대업만을 영위하는 개인사업자 대표는 아래 세부 조건 충족 시 예비창업자로 간주하여 신청 가능",
               "location": null
             },
             "processing_path": "text_llm"
@@ -161,38 +230,6 @@
       "routing": {
         "chosen_path": "text_llm",
         "cost_usd": 0.001
-      }
-    },
-    "adv_005": {
-      "title": "모두의 창업 프로젝트 통합 모집 수정공고",
-      "metrics": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0
-      },
-      "counts": {
-        "tp": 1,
-        "fp": 0,
-        "fn": 0
-      },
-      "details": {
-        "tps": [
-          {
-            "field_name": "업력",
-            "condition": "창업 3년 이내",
-            "evidence": {
-              "text": "예비창업자 또는 창업 3년 이내 창업기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          }
-        ],
-        "fps": [],
-        "fns": []
-      },
-      "routing": {
-        "chosen_path": "vision_llm",
-        "cost_usd": 0.01
       }
     },
     "adv_006": {
@@ -243,15 +280,6 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "매출",
-            "condition": "전년도 수출액 '1,000불 미만'",
-            "evidence": {
-              "text": "전년도 수출액 '1,000불 미만'",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "업력",
             "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
             "evidence": {
@@ -259,6 +287,15 @@
               "location": null
             },
             "processing_path": "text_llm"
+          },
+          {
+            "field_name": "매출",
+            "condition": "전년도 수출액 '1,000불 미만'",
+            "evidence": {
+              "text": "전년도 수출액 '1,000불 미만'",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
         ],
         "fns": []
@@ -323,68 +360,44 @@
         "tps": [],
         "fps": [
           {
-            "field_name": "업력",
-            "condition": "3년 이내",
-            "evidence": {
-              "text": "자가 사업장 확보를 위한 사업장 매입 자금(경·공매 포함) * 자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
-          {
             "field_name": "나이",
             "condition": "만 39세 이하",
             "evidence": {
               "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
               "location": null
             },
-            "processing_path": "text_llm"
+            "processing_path": "vision_llm"
+          },
+          {
+            "field_name": "업력",
+            "condition": "3년 미만",
+            "evidence": {
+              "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
+              "location": null
+            },
+            "processing_path": "vision_llm"
           }
         ],
         "fns": []
       },
       "routing": {
         "chosen_path": "vision_llm",
-        "cost_usd": 0.011
+        "cost_usd": 0.01
       }
     }
   },
   "fields": {
-    "매출": {
-      "tp": 1,
-      "fp": 2,
-      "fn": 1,
-      "precision": 0.3333333333333333,
-      "recall": 0.5,
-      "f1": 0.4
-    },
     "지역": {
       "tp": 0,
-      "fp": 0,
+      "fp": 2,
       "fn": 1,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
     },
-    "인증": {
+    "나이": {
       "tp": 0,
       "fp": 1,
-      "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "업력": {
-      "tp": 2,
-      "fp": 4,
-      "fn": 2,
-      "precision": 0.3333333333333333,
-      "recall": 0.5,
-      "f1": 0.4
-    },
-    "종업원 수": {
-      "tp": 0,
-      "fp": 0,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
@@ -398,48 +411,83 @@
       "recall": 0.0,
       "f1": 0.0
     },
-    "나이": {
+    "인증": {
       "tp": 0,
-      "fp": 1,
+      "fp": 2,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
+    },
+    "종업원 수": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "업력": {
+      "tp": 3,
+      "fp": 5,
+      "fn": 1,
+      "precision": 0.375,
+      "recall": 0.75,
+      "f1": 0.5
+    },
+    "매출": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.6666666666666666,
+      "recall": 1.0,
+      "f1": 0.8
     }
   },
   "processing_paths": {
     "rule_based": {
       "tp": 0,
       "fp": 0,
-      "fn": 2,
+      "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0,
-      "count": 1,
+      "count": 0,
       "cost_usd": 0.0
     },
     "text_llm": {
-      "tp": 1,
+      "tp": 3,
       "fp": 3,
-      "fn": 1,
-      "precision": 0.25,
-      "recall": 0.5,
-      "f1": 0.3333333333333333,
+      "fn": 0,
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1": 0.6666666666666666,
       "count": 2,
       "cost_usd": 0.002
     },
     "vision_llm": {
       "tp": 2,
-      "fp": 6,
-      "fn": 1,
-      "precision": 0.25,
-      "recall": 0.6666666666666666,
-      "f1": 0.36363636363636365,
-      "count": 6,
-      "cost_usd": 0.062
+      "fp": 9,
+      "fn": 2,
+      "precision": 0.18181818181818182,
+      "recall": 0.5,
+      "f1": 0.26666666666666666,
+      "count": 7,
+      "cost_usd": 0.07200000000000001
     }
   },
   "mismatches": [
+    {
+      "announcement_id": "adv_002",
+      "field_name": "지역",
+      "type": "FP (과추출/오인식)",
+      "condition": "대구 서구",
+      "evidence": {
+        "text": "공고일 기준 대구 서구 소재 영업장(사업자등록증 기준)의 3년 이내 창업기업 또는 예비 창업자",
+        "location": null
+      },
+      "target": "대구 서구 소재"
+    },
     {
       "announcement_id": "adv_002",
       "field_name": "지역",
@@ -447,25 +495,6 @@
       "condition": "N/A",
       "evidence": "N/A (미추출)",
       "target": "대구 서구 소재"
-    },
-    {
-      "announcement_id": "adv_002",
-      "field_name": "업력",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "창업 3년 이내"
-    },
-    {
-      "announcement_id": "adv_003",
-      "field_name": "매출",
-      "type": "FP (과추출/오인식)",
-      "condition": "20억원 미만",
-      "evidence": {
-        "text": "직전 연도 매출액 20억원 미만",
-        "location": null
-      },
-      "target": "직전 연도 매출액 20억원 미만"
     },
     {
       "announcement_id": "adv_003",
@@ -479,20 +508,45 @@
       "target": "N/A"
     },
     {
-      "announcement_id": "adv_003",
-      "field_name": "매출",
-      "type": "FN (미추출/누락)",
-      "condition": "N/A",
-      "evidence": "N/A (미추출)",
-      "target": "직전 연도 매출액 20억원 미만"
-    },
-    {
       "announcement_id": "adv_004",
       "field_name": "업종",
       "type": "FP (과추출/오인식)",
-      "condition": "유흥·향락업, 숙박·음식점 제외",
+      "condition": "휴·폐업중인 기업",
       "evidence": {
-        "text": "유흥·향락업, 숙박·음식점",
+        "text": "휴·폐업중인 기업",
+        "location": null
+      },
+      "target": "N/A"
+    },
+    {
+      "announcement_id": "adv_004",
+      "field_name": "업력",
+      "type": "FP (과추출/오인식)",
+      "condition": "창업 7년 미만 기업 제외",
+      "evidence": {
+        "text": "최근 결산 연도 기준 완전자본잠식* 기업(접수 마감일 기준 창업 7년 미만 기업 제외)",
+        "location": null
+      },
+      "target": "N/A"
+    },
+    {
+      "announcement_id": "adv_005",
+      "field_name": "지역",
+      "type": "FP (과추출/오인식)",
+      "condition": "전국",
+      "evidence": {
+        "text": "혁신적인아이디어를보유한전국민누구나",
+        "location": null
+      },
+      "target": "N/A"
+    },
+    {
+      "announcement_id": "adv_005",
+      "field_name": "인증",
+      "type": "FP (과추출/오인식)",
+      "condition": "부동산임대업만을 영위하는 개인사업자",
+      "evidence": {
+        "text": "부동산임대업만을 영위하는 개인사업자 대표는 아래 세부 조건 충족 시 예비창업자로 간주하여 신청 가능",
         "location": null
       },
       "target": "N/A"
@@ -510,22 +564,22 @@
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "매출",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "전년도 수출액 '1,000불 미만'",
+      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
       "evidence": {
-        "text": "전년도 수출액 '1,000불 미만'",
+        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_007",
-      "field_name": "업력",
+      "field_name": "매출",
       "type": "FP (과추출/오인식)",
-      "condition": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+      "condition": "전년도 수출액 '1,000불 미만'",
       "evidence": {
-        "text": "최근 2년 중기부 수출바우처사업 참여 이력이 있는 기업 중 바우처 협약 액 대비 사용률 미흡기업",
+        "text": "전년도 수출액 '1,000불 미만'",
         "location": null
       },
       "target": "N/A"
@@ -551,20 +605,20 @@
     },
     {
       "announcement_id": "adv_010",
-      "field_name": "업력",
+      "field_name": "나이",
       "type": "FP (과추출/오인식)",
-      "condition": "3년 이내",
+      "condition": "만 39세 이하",
       "evidence": {
-        "text": "자가 사업장 확보를 위한 사업장 매입 자금(경·공매 포함) * 자가 사업장 확보 자금은 기업당 3년 이내 1회로 지원 한정",
+        "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
         "location": null
       },
       "target": "N/A"
     },
     {
       "announcement_id": "adv_010",
-      "field_name": "나이",
+      "field_name": "업력",
       "type": "FP (과추출/오인식)",
-      "condition": "만 39세 이하",
+      "condition": "3년 미만",
       "evidence": {
         "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
         "location": null
@@ -593,9 +647,9 @@
       "announcement_id": "adv_005",
       "title": "모두의 창업 프로젝트 통합 모집 수정공고",
       "gt_fields_count": 1,
-      "precision": 1.0,
+      "precision": 0.3333333333333333,
       "recall": 1.0,
-      "f1": 1.0
+      "f1": 0.5
     },
     {
       "announcement_id": "adv_006",
@@ -630,19 +684,19 @@
       "f1": null
     }
   ],
-  "total_cost_usd": 0.064,
+  "total_cost_usd": 0.074,
   "coverage": {
     "non_standard_announcement_count": 0,
     "total_announcement_count": 9,
     "non_standard_ratio": 0.0
   },
   "grounding": {
-    "total_fields": 12,
+    "total_fields": 17,
     "evidence_present_rate": 1.0,
-    "evidence_verbatim_rate": 0.9167,
-    "verbatim_checkable": 12,
-    "value_grounded_rate": 0.8333,
-    "value_checkable": 12,
+    "evidence_verbatim_rate": 0.9333,
+    "verbatim_checkable": 15,
+    "value_grounded_rate": 0.9412,
+    "value_checkable": 17,
     "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음"
   }
 }
