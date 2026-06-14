@@ -20,6 +20,10 @@ celery_app.conf.update(
     task_time_limit=600,  # 10분 (LLM 호출 + 첨부파일 변환 고려)
     task_soft_time_limit=540,
     task_default_rate_limit="30/m",  # concurrency=4 환경에서 OpenAI rate limit 폭증 방지
+    # 워커가 작업 중 죽어도(OOM/재시작/soft-time-limit) 작업이 조용히 유실되지 않도록:
+    # 완료 후 ack(acks_late) + 워커 손실 시 재큐(reject_on_worker_lost).
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
 )
 
 celery_app.conf.beat_schedule = {
