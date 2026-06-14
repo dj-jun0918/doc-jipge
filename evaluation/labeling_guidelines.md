@@ -19,9 +19,9 @@
 
 | 변경 | 내용 |
 |---|---|
-| **+** 모든 필드에 `value` + `operator` 명시 필수 | 시스템 `ParsedCondition` (`backend/app/schemas/eligibility.py:7-11`)과 1:1 정렬 |
+| **+** 모든 필드에 `value` + `operator` 명시 필수 | 시스템 `ParsedCondition` (`backend/app/schemas/eligibility.py`)과 1:1 정렬 |
 | **+** 단위 표준화 | 매출 = 원 단위 정수 (시스템 `Company.revenue: BigInteger` 정렬) |
-| **+** 인증 시스템 키 매핑표 (부록 2) | 공고 표기 → 시스템 키 표준 (15개) |
+| **+** 인증 시스템 키 매핑표 (부록 2) | 공고 표기 → 시스템 키 표준 (18개) |
 | **+** 매출 단위 변환 보조 표 (부록 3) | 라벨러 오타 방지 |
 | **+** `fields: []` 허용 명시 (§6) | 표준 7종 매핑 불가 시 빈 배열 + notes (ann_011 모범 사례) |
 | **+** 체크리스트 갱신 (§11) | `value`/`operator` 체크 항목 8개 추가 |
@@ -48,7 +48,7 @@ evaluation/ground_truth/ann_NNN/
 | `fields[].field_name` | string | ✅ | 표준 7종 중 1개 |
 | `fields[].condition` | string | ✅ | 사용자 표시용 텍스트 |
 | `fields[].value` | any | ✅ **v0.3 신규** | number / `{min,max}` / string / array / null |
-| `fields[].operator` | string | ✅ **v0.3 신규** | 11종 중 1택 (§8 참고) |
+| `fields[].operator` | string | ✅ **v0.3 신규** | 12종 중 1택 (§8 참고) |
 | `fields[].evidence` | string | ✅ | 원문 인용 |
 | `fields[].evidence_source` | string | ✅ | 페이지 + 항목 위치 |
 | `fields[].notes` | string | ❌ | 모호성/매핑 근거 |
@@ -90,10 +90,10 @@ evaluation/ground_truth/ann_NNN/
 GT의 `condition`은 사용자 표시용 텍스트지만, **시스템과 비교하려면 `value` + `operator`를 함께 명시해야 한다.** 시스템 `ParsedCondition`과 동일 구조.
 
 ```python
-# backend/app/schemas/eligibility.py:7-11
+# backend/app/schemas/eligibility.py
 class ParsedCondition(BaseModel):
-    value: float | str | dict | None
-    operator: str | None
+    value: float | str | list | dict | None = None
+    operator: str | None = None
     raw_text: str
 ```
 
@@ -321,9 +321,9 @@ class ParsedCondition(BaseModel):
 - 여러 인증 중 택일 (OR)이면 `condition`에 그대로 반영
   - 예: `"벤처기업 / 이노비즈 중 1개 이상 보유"`
 
-> ⚠️ **OR 매칭 주의**: 현재 matcher (`backend/app/matcher/matcher.py:204-239`)는 복수 키를 **AND**로 처리. OR 매칭이 필요한 경우 v0.3에서는 `value: null` + `notes`에 원문 표기 + 운영자 토론 후 PR#6에서 matcher OR 지원 추가 검토.
+> 💡 **복수 인증 = OR(택1)**: 현재 matcher (`backend/app/matcher/match_certification`)는 복수 키를 **OR**로 처리(요구 인증 중 하나라도 보유하면 충족). "벤처기업 또는 이노비즈 중 1개 이상 보유"는 `value`에 배열을 그대로 넣는다. `notes`에 "OR(택1)" 명시.
 
-**예시 (AND)**:
+**예시 (단일)**:
 ```json
 {
   "field_name": "인증",
@@ -334,14 +334,14 @@ class ParsedCondition(BaseModel):
 }
 ```
 
-**예시 (OR — v0.3에서는 임시 처리)**:
+**예시 (OR — 택1)**:
 ```json
 {
   "field_name": "인증",
   "condition": "벤처기업 / 이노비즈 중 1개 이상 보유",
-  "value": null,
+  "value": ["venture_company", "inno_biz"],
   "operator": "보유",
-  "notes": "OR 매칭 필요 — matcher는 AND만 지원. 원문: '벤처기업 인증 또는 이노비즈 인증 중 하나 보유'. matcher OR 지원 후 value=['venture_company', 'inno_biz']로 변경 예정"
+  "notes": "OR(택1) — '벤처기업 인증 또는 이노비즈 인증 중 하나 보유'. matcher가 복수 키를 OR로 처리."
 }
 ```
 
@@ -463,7 +463,7 @@ class ParsedCondition(BaseModel):
 - **표준 7종 외 자격요건을 표준 필드로 매핑한 경우** (매핑 근거 기록)
 - **표준 7종으로 매핑 불가한 자격요건이 있는 경우** (원문 조건 + 매핑 불가 사유 기록)
 - **범위(operator: "범위")의 inclusive 변환을 한 경우** (v0.3 신규 — 원문 `"미만"`을 `max: N-1`로 변환했음을 명시)
-- **OR 인증 매칭 케이스** (v0.3 신규 — value: null + 원문 표기 + PR#6 matcher 보강 대기)
+- **OR 인증 매칭 케이스** (v0.3 신규 — value를 배열로 + 원문 표기. matcher가 복수 키를 OR(택1)로 처리)
 
 ---
 
@@ -510,7 +510,7 @@ class ParsedCondition(BaseModel):
 - [ ] 업종의 `value`는 **배열** + `operator`가 `"포함"` 또는 `"제외"`인가
 - [ ] 인증의 `value`는 매핑표(부록 2)의 시스템 키 형식인가
 - [ ] 매핑표에 없는 인증은 `notes`에 원문 표기 + `value: null` 처리했는가
-- [ ] OR 인증은 `notes`에 원문 + `value: null` 처리했는가 (현 matcher는 AND만 지원)
+- [ ] OR 인증은 `value`를 배열로 + `notes`에 원문 표기했는가 (matcher가 복수 키를 OR(택1)로 처리)
 
 ---
 
@@ -545,7 +545,7 @@ class ParsedCondition(BaseModel):
 - range: `{"min": 1, "max": 7}`
 - string: `"venture_company"` (단일 인증)
 - string array: `["원주", "춘천"]` (지역), `["제조업"]` (업종), `["venture_company", "iso_9001"]` (복수 인증)
-- null: 전국 지역, OR 인증, 매핑표 외 인증 등
+- null: 전국 지역, 매핑표 외 인증 등 (OR 인증은 배열 — matcher가 OR로 처리)
 
 ---
 
@@ -580,7 +580,7 @@ class ParsedCondition(BaseModel):
 
 > ✅ **시스템 정합 완료**: 회사 데이터(`seed_companies.py`)·추출(`text_llm`)·매칭(`matcher.py`)·평가(`measure.py`) 모두 cert_mapping 표준 키(`venture_company` 등)를 사용한다. GT도 위 표준 키로 작성한다.
 
-> 💡 **OR 매칭**: 복수 인증 택1(OR)은 matcher가 AND로 처리하므로 `value: null` + `notes`에 원문 표기.
+> 💡 **OR 매칭**: 복수 인증 택1(OR)은 matcher가 OR로 처리(요구 키 중 하나라도 보유하면 충족)하므로 `value`에 배열을 그대로 넣고 `notes`에 "OR(택1)" 표기.
 
 ---
 
