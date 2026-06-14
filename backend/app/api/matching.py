@@ -18,6 +18,7 @@ from app.matcher.matcher import (
     compute_aggregate_score,
     compute_field_sensitivities,
     counterfactual_for_field,
+    derive_eligibility_bucket,
     match_announcement,
 )
 from app.models.announcement import Announcement
@@ -26,6 +27,7 @@ from app.models.eligibility import EligibilityResult
 from app.models.match_result import MatchResult
 from app.schemas.eligibility import EligibilityField, ParsedCondition
 from app.schemas.matching import (
+    BucketCounts,
     CompanyMatchListResponse,
     CompanyMatchSummary,
     CounterfactualItem,
@@ -43,6 +45,9 @@ from app.schemas.matching import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# 버킷 정렬 우선순위 — 신청가능 → 조건확인 → 자격미달
+_BUCKET_RANK = {"신청가능": 0, "조건확인": 1, "자격미달": 2}
 
 
 def _parse_uuid(value: str, what: str) -> uuid.UUID:
@@ -78,16 +83,19 @@ def get_matching_results(
     for ann_id, field_name, status, score in rows:
         by_ann.setdefault(ann_id, []).append((field_name, status, score))
 
-    summaries: list[tuple[uuid.UUID, float, int, int, int]] = []
+    summaries: list[tuple[uuid.UUID, float, int, int, str]] = []
+    counts = {"신청가능": 0, "조건확인": 0, "자격미달": 0}
     for ann_id, fields in by_ann.items():
         agg_score = compute_aggregate_score(fields)
         fulfilled = sum(1 for _, status, _ in fields if status == "충족")
-        unmet = sum(1 for _, status, _ in fields if status == "미충족")
         total = len(fields)
-        summaries.append((ann_id, agg_score, fulfilled, total, unmet))
+        bucket = derive_eligibility_bucket(fields)
+        counts[bucket] += 1
+        summaries.append((ann_id, agg_score, fulfilled, total, bucket))
 
-    # 확정 미충족이 적은 공고 우선 — "확실한 탈락"이 "확인하면 될 수도 있는 공고"보다 위에 오지 않도록
-    summaries.sort(key=lambda x: (x[4], -x[1], -x[3]))
+    # 버킷 우선(신청가능→조건확인→자격미달), 버킷 내 점수 내림차순 — "확실한 탈락"이
+    # "확인하면 될 수도 있는 공고"보다 위에 오지 않도록. 자격미달은 점수순이라 "거의 됨"이 위로.
+    summaries.sort(key=lambda x: (_BUCKET_RANK[x[4]], -x[1]))
     top = summaries[:limit]
 
     ann_ids = [s[0] for s in top]
@@ -103,14 +111,16 @@ def get_matching_results(
             match_score=round(score, 3),
             fulfilled_count=fulfilled,
             total_fields=total,
+            bucket=bucket,
         )
-        for ann_id, score, fulfilled, total, _unmet in top
+        for ann_id, score, fulfilled, total, bucket in top
     ]
 
     return CompanyMatchListResponse(
         company_id=company_uuid,
         items=items,
         total=len(summaries),
+        bucket_counts=BucketCounts(**counts),
     )
 
 
@@ -192,14 +202,14 @@ def get_matching_detail(
         해당없음=counter.get("해당없음", 0),
     )
 
+    field_tuples = [(r.field_name, r.status, r.score) for r in rows]
     return MatchResultDetailResponse(
         company_id=company_uuid,
         announcement_id=ann_uuid,
         items=items,
         stats=stats,
-        match_score=round(
-            compute_aggregate_score([(r.field_name, r.status, r.score) for r in rows]), 3
-        ),
+        match_score=round(compute_aggregate_score(field_tuples), 3),
+        bucket=derive_eligibility_bucket(field_tuples),
         matched_at=rows[-1].created_at,
     )
 
@@ -299,14 +309,14 @@ def simulate_matching(
         해당없음=counter.get("해당없음", 0),
     )
 
+    field_tuples = [(r.field_name, r.status, r.score) for r in results]
     return SimulateResponse(
         company_id=company_uuid,
         announcement_id=req.announcement_id,
         items=items,
         stats=stats,
-        match_score=round(
-            compute_aggregate_score([(r.field_name, r.status, r.score) for r in results]), 3
-        ),
+        match_score=round(compute_aggregate_score(field_tuples), 3),
+        bucket=derive_eligibility_bucket(field_tuples),
         matched_at=None,  # 시뮬레이션은 저장 X
     )
 

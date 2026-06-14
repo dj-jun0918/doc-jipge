@@ -434,6 +434,35 @@ def compute_aggregate_score(
     return num / denom if denom > 0 else 0.0
 
 
+EligibilityBucket = Literal["신청가능", "조건확인", "자격미달"]
+
+
+def derive_eligibility_bucket(
+    fields: list[tuple[str, MatchStatus, float | None]],
+) -> EligibilityBucket:
+    """필드별 status를 공고 단위 3분류로 묶는다 (연속 점수와 별개의 범주 레이어).
+
+    - 미충족(하드 탈락)이 1건이라도 → '자격미달'
+    - 미충족 0건 + '확인필요' 1건 이상 → '조건확인'
+    - 미충족·확인필요 0건 + 충족 1건 이상 → '신청가능'
+    - 판단 대상('해당없음' 제외)이 0건이면 근거 없음 → '조건확인'
+
+    라벨을 '자격미달'로 쓰는 이유: 필드 status '해당없음'(=공고에 그 요건이 없음)과
+    혼동되지 않도록 버킷은 다른 단어를 쓴다. 점수(compute_aggregate_score)는 랭킹용
+    연속값이고, 버킷은 그 위에서 '결정적 미충족 유무'를 명시하는 분류다.
+    """
+    unmet = sum(1 for _, status, _ in fields if status == "미충족")
+    review = sum(1 for _, status, _ in fields if status == "확인필요")
+    met = sum(1 for _, status, _ in fields if status == "충족")
+    if unmet > 0:
+        return "자격미달"
+    if review > 0:
+        return "조건확인"
+    if met > 0:
+        return "신청가능"
+    return "조건확인"  # 판단 근거 없음(전부 해당없음)
+
+
 def compute_field_sensitivities(
     fields: list[tuple[str, MatchStatus, float | None]],
 ) -> dict[str, float]:
