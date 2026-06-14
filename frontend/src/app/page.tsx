@@ -51,12 +51,25 @@ export default function Home() {
           </div>
         </div>
 
-        <Link
-          href="/announcements"
-          className="inline-block rounded-lg bg-blue-600 px-6 py-3 text-white font-medium hover:bg-blue-700"
-        >
-          공고 목록 보기
-        </Link>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/companies"
+              className="inline-block rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+            >
+              기업 프로필 입력으로 시작
+            </Link>
+            <Link
+              href="/announcements"
+              className="inline-block rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50"
+            >
+              공고 목록 보기
+            </Link>
+          </div>
+          <p className="text-sm text-gray-400">
+            ① 기업 프로필 입력 → ② 공고 자동 매칭 → ③ 원문 근거 확인
+          </p>
+        </div>
       </section>
     </main>
   );
