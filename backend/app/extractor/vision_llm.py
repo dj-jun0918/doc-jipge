@@ -146,6 +146,34 @@ def _encode_image(img_bytes: bytes) -> str:
     return base64.b64encode(img_bytes).decode()
 
 
+# 자격요건이 실릴 가능성이 높은 페이지를 가리키는 키워드
+_QUALIFICATION_KEYWORDS = (
+    "자격", "요건", "대상", "신청", "지원", "제외", "업종", "인증", "별첨", "참고", "붙임", "근로자", "상시",
+)
+
+
+def _rank_table_pages(pdf_path: str | Path, table_pages: list[int], max_pages: int) -> list[int]:
+    """표 페이지가 max_pages를 넘으면 자격요건 키워드가 많은 페이지를 우선 선택.
+
+    기존 table_pages[:max_pages]는 페이지 인덱스 순(앞 N개)이라, 인증·종업원수처럼
+    후반 별첨 표에 있는 요건이 잘렸다. 페이지별 키워드 밀도로 순위를 매겨 컷한다.
+    """
+    if len(table_pages) <= max_pages:
+        return table_pages
+    try:
+        with pymupdf.open(str(pdf_path)) as doc:
+            scored: list[tuple[int, int]] = []
+            for p in table_pages:
+                if p < len(doc):
+                    txt = doc[p].get_text()
+                    score = sum(txt.count(k) for k in _QUALIFICATION_KEYWORDS)
+                    scored.append((score, p))
+        scored.sort(key=lambda sp: (-sp[0], sp[1]))  # 키워드 많은 순, 동점이면 앞 페이지
+        return sorted(p for _, p in scored[:max_pages])
+    except Exception:
+        return table_pages[:max_pages]
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=2, min=2, max=60),
@@ -222,7 +250,7 @@ async def extract_from_pdf(
             logger.info(f"vision_llm: 표 페이지 없음 ({pdf_path})")
             return ExtractionResult(fields=[], exclusions=[], processing_path="vision_llm")
 
-    table_pages = table_pages[:max_pages]
+    table_pages = _rank_table_pages(pdf_path, table_pages, max_pages)
 
     try:
         images = pdf_to_images(pdf_path)

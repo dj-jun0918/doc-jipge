@@ -6,6 +6,7 @@ LibreOffice + H2Orestart 확장 사용 (Dockerfile에 이미 설치됨).
 import subprocess
 import sys
 import re
+import zipfile
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -165,6 +166,57 @@ def is_hwp_file(file_path: str | Path) -> bool:
         return False
 
 
+# convert_document이 다룰 수 있는 확장자 → file_type 매핑 (ZIP 내부 재귀용)
+_EXTRACTABLE_EXTS = {
+    ".pdf": "pdf", ".hwpx": "hwpx", ".hwp": "hwp",
+    ".docx": "docx", ".doc": "docx", ".xlsx": "xlsx", ".xls": "xlsx",
+    ".pptx": "pptx", ".ppt": "pptx", ".rtf": "docx", ".odt": "docx",
+}
+# soffice가 PDF로 변환 가능한 office 포맷
+_OFFICE_TYPES = {"docx", "doc", "xlsx", "xls", "pptx", "ppt", "rtf", "odt"}
+# 자격요건 가능성 우선순위 (낮을수록 우선 — pdf > hwpx > hwp > office)
+_ZIP_EXT_RANK = {".pdf": 0, ".hwpx": 1, ".hwp": 2, ".docx": 3, ".doc": 3,
+                 ".xlsx": 4, ".xls": 4, ".pptx": 5, ".ppt": 5}
+# ZIP bomb 방어 상한
+_ZIP_MAX_FILES = 100
+_ZIP_MAX_TOTAL_BYTES = 300 * 1024 * 1024  # 300MB
+
+
+def _convert_zip(path: Path, timeout: int) -> ConversionResult:
+    """ZIP 번들 내부에서 추출 가능한 문서를 골라 convert_document으로 재귀.
+
+    자격요건 가능성이 높은 포맷(pdf > hwpx > hwp > office) 순으로 첫 문서를 선택한다.
+    파일 수/총 크기 상한으로 zip bomb를 방어하고, 압축 해제는 파일명만 사용해 경로 탈출을 막는다.
+    """
+    try:
+        with zipfile.ZipFile(path) as zf:
+            infos = [i for i in zf.infolist() if not i.is_dir()]
+            if len(infos) > _ZIP_MAX_FILES or sum(i.file_size for i in infos) > _ZIP_MAX_TOTAL_BYTES:
+                print(f"[WARN] ZIP 상한 초과(스킵): {path}")
+                return ConversionResult(method="failed")
+            cands = sorted(
+                (i for i in infos if Path(i.filename).suffix.lower() in _EXTRACTABLE_EXTS),
+                key=lambda i: _ZIP_EXT_RANK.get(Path(i.filename).suffix.lower(), 99),
+            )
+            if not cands:
+                print(f"[WARN] ZIP 내 추출 가능 문서 없음(스킵): {path}")
+                return ConversionResult(method="unsupported")
+            target = cands[0]
+            extract_dir = path.parent / f"{path.stem}_unzip"
+            extract_dir.mkdir(exist_ok=True)
+            inner = extract_dir / Path(target.filename).name  # 파일명만 — 경로 탈출 방지
+            with zf.open(target) as src, open(inner, "wb") as dst:
+                dst.write(src.read())
+            inner_type = _EXTRACTABLE_EXTS[Path(target.filename).suffix.lower()]
+            return convert_document(inner, inner_type, timeout)
+    except zipfile.BadZipFile:
+        print(f"[ERROR zip] 손상된 ZIP(스킵): {path}")
+        return ConversionResult(method="failed")
+    except Exception as e:
+        print(f"[ERROR zip] {path}: {e}")
+        return ConversionResult(method="failed")
+
+
 def convert_document(file_path: str | Path, file_type: str, timeout: int = 60) -> ConversionResult:
     """파일 타입에 따라 최적의 추출/변환 경로를 라우팅합니다."""
     path = Path(file_path)
@@ -200,9 +252,24 @@ def convert_document(file_path: str | Path, file_type: str, timeout: int = 60) -
 
     elif file_type == "pdf":
         return ConversionResult(pdf_path=str(path), method="passthrough")
-        
+
+    elif file_type in _OFFICE_TYPES:
+        # docx/xlsx/pptx 등 — soffice가 PDF로 변환 (새 의존성 없이 기존 변환 경로 재사용)
+        try:
+            pdf_path = convert_to_pdf(path, timeout)
+            return ConversionResult(pdf_path=str(pdf_path), method="libreoffice-office")
+        except Exception as e:
+            print(f"[ERROR office] 변환 실패 {path}: {e}")
+            return ConversionResult(method="failed")
+
+    elif file_type == "zip":
+        # ZIP 번들(기업마당·중기부에서 흔함) — 내부의 추출 가능한 첫 문서로 재귀
+        return _convert_zip(path, timeout)
+
     else:
-        raise ValueError(f"지원하지 않는 파일 타입: {file_type}")
+        # 미지원 포맷은 ValueError로 배치를 중단시키지 않고 graceful skip
+        print(f"[WARN] 미지원 파일 타입(스킵): {file_type} ({path})")
+        return ConversionResult(method="unsupported")
 
 
 # 테스트용 main block
