@@ -282,17 +282,23 @@ async def extract_from_pdf(
             error=f"JSON 파싱 실패: {e}",
         )
 
-    # PDF 텍스트 레이어가 충분하면 evidence 원문 검증에 사용 (스캔본은 검증 기준이 없어 생략)
+    # PDF 텍스트 레이어가 충분하면 evidence 원문 검증 + 근거 페이지 위치(location)에 사용
+    # (스캔본은 텍스트 레이어가 없어 검증·위치 모두 생략)
     source_text = None
+    page_text_map = None
     try:
         with pymupdf.open(pdf_path) as doc:
-            text_layer = "\n".join(page.get_text() for page in doc)
+            pages_text = [(i + 1, page.get_text()) for i, page in enumerate(doc)]  # 1-based 페이지
+        text_layer = "\n".join(t for _, t in pages_text)
         if len(text_layer.strip()) >= 200:
             source_text = text_layer
+            page_text_map = pages_text
     except Exception as e:
-        logger.warning(f"vision_llm 텍스트 레이어 추출 실패 — evidence 검증 생략: {e}")
+        logger.warning(f"vision_llm 텍스트 레이어 추출 실패 — evidence 검증·위치 생략: {e}")
 
-    return build_extraction_result(llm_json, processing_path="vision_llm", source_text=source_text)
+    return build_extraction_result(
+        llm_json, processing_path="vision_llm", source_text=source_text, page_text_map=page_text_map
+    )
 
 
 if __name__ == "__main__":

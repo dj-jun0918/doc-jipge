@@ -52,6 +52,41 @@ class TestBuildExtractionResult:
         result = build_extraction_result({"fields": [], "exclusions": []}, processing_path="vision_llm")
         assert result.processing_path == "vision_llm"
 
+    def test_page_text_map_있으면_근거_페이지_location에_채움(self):
+        llm_json = {
+            "fields": [
+                {"field_name": "지역", "condition": "서울 소재", "operator": "소재", "value": "서울", "evidence": "본사는 서울에 소재"},
+            ],
+            "exclusions": [],
+        }
+        page_text_map = [(1, "표지 내용"), (2, "신청 자격: 본사는 서울에 소재한 기업")]
+        result = build_extraction_result(llm_json, page_text_map=page_text_map)
+        loc = result.fields[0].evidence.location
+        assert loc is not None
+        assert loc.location_type == "pdf_page"
+        assert loc.page == 2  # 1-based, 근거가 있는 페이지
+
+    def test_page_text_map_미전달시_location_None_하위호환(self):
+        llm_json = {
+            "fields": [
+                {"field_name": "지역", "condition": "서울 소재", "operator": "소재", "value": "서울", "evidence": "본사는 서울에 소재"},
+            ],
+            "exclusions": [],
+        }
+        result = build_extraction_result(llm_json)  # page_text_map 없음
+        assert result.fields[0].evidence.location is None
+
+    def test_근거가_어느_페이지에도_없으면_location_None(self):
+        llm_json = {
+            "fields": [
+                {"field_name": "지역", "condition": "서울 소재", "operator": "소재", "value": "서울", "evidence": "본사는 서울에 소재"},
+            ],
+            "exclusions": [],
+        }
+        page_text_map = [(1, "전혀 다른 내용"), (2, "관련 없는 텍스트")]
+        result = build_extraction_result(llm_json, page_text_map=page_text_map)
+        assert result.fields[0].evidence.location is None
+
     def test_빈_JSON_빈_결과(self):
         result = build_extraction_result({})
         assert result.fields == []

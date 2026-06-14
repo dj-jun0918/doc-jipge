@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.schemas.eligibility import EligibilityField, Evidence, ParsedCondition
+from app.schemas.eligibility import EligibilityField, Evidence, EvidenceLocation, ParsedCondition
 
 logger = logging.getLogger(__name__)
 
@@ -58,15 +58,34 @@ def is_evidence_verbatim(evidence: str, source_text: str) -> bool:
     return _normalize_for_match(evidence) in _normalize_for_match(source_text)
 
 
+def _locate_page(evidence_text: str, page_text_map: list[tuple[int, str]]) -> int | None:
+    """evidence_text가 처음 등장하는 PDF 페이지 번호(1-based)를 반환. 못 찾으면 None.
+
+    추출 시점에 근거의 페이지를 확정해 두면 뷰어가 매번 전체 PDF를 재검색하지 않고 바로 점프한다.
+    is_evidence_verbatim과 동일한 정규화를 쓰므로, 원문 검증을 통과한 근거는 대개 위치도 잡힌다.
+    """
+    if not evidence_text.strip():
+        return None
+    target = _normalize_for_match(evidence_text)
+    if not target:
+        return None
+    for page, text in page_text_map:
+        if target in _normalize_for_match(text):
+            return page
+    return None
+
+
 def build_extraction_result(
     llm_json: dict,
     processing_path: Literal["text_llm", "vision_llm"] = "text_llm",
     source_text: str | None = None,
+    page_text_map: list[tuple[int, str]] | None = None,
 ) -> ExtractionResult:
     """LLM JSON 응답을 ExtractionResult로 변환.
 
     source_text가 주어지면 각 evidence가 원문에 그대로 있는지 검증 (text_llm 경로).
     근거를 원문에서 검증하지 못한 필드(환각)는 제외한다 — 검증 가능한 추출만 신뢰.
+    page_text_map((page, text) 리스트)이 주어지면 evidence가 나온 PDF 페이지를 location에 저장한다.
     """
     fields: list[EligibilityField] = []
 
@@ -97,10 +116,15 @@ def build_extraction_result(
                     f"evidence가 원문에 없음 (환각으로 판단해 필드 제외): field={field_name}, evidence={evidence_text[:80]!r}"
                 )
                 continue
+            location = None
+            if page_text_map:
+                located = _locate_page(evidence_text, page_text_map)
+                if located is not None:
+                    location = EvidenceLocation(location_type="pdf_page", page=located)
             fields.append(EligibilityField(
                 field_name=field_name,
                 condition=condition,
-                evidence=Evidence(text=evidence_text, location=None),
+                evidence=Evidence(text=evidence_text, location=location),
                 evidence_source="LLM 추출",
                 processing_path=processing_path,
             ))
