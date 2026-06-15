@@ -761,27 +761,26 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                 }
 
                 // 기본 fallback은 기존의 첨부파일 기반 PDF Viewer 또는 플레이스홀더
-                if (mainAttachment) {
-                  if (mainAttachment.has_pdf) {
-                    return (
-                      <div className="h-[600px]">
-                        <PdfViewer
-                          pdfUrl={`/backend-api/attachments/${mainAttachment.id}/file`}
-                          highlightPage={highlightPage}
-                          evidenceText={evidenceText}
-                          location={selectedLocation}
-                        />
-                      </div>
-                    );
-                  }
-                  if (mainAttachment.file_type === "hwpx") {
-                    return <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />;
-                  }
+                if (mainAttachment?.has_pdf) {
                   return (
-                    <div className="py-20 border border-dashed rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50 text-gray-400">
-                      <p className="text-sm font-semibold">원문 표시 불가 (지원하지 않는 파일 형식)</p>
+                    <div className="h-[600px]">
+                      <PdfViewer
+                        pdfUrl={`/backend-api/attachments/${mainAttachment.id}/file`}
+                        highlightPage={highlightPage}
+                        evidenceText={evidenceText}
+                        location={selectedLocation}
+                      />
                     </div>
                   );
+                }
+                if (mainAttachment?.file_type === "hwpx") {
+                  return <EvidencePlaceholder text="HWPX 첨부파일의 원문 미리보기는 준비 중입니다" />;
+                }
+
+                // PDF/HWPX 뷰어를 쓸 수 없을 때(ZIP·본문 텍스트 기반 등): 검증된 근거 문장이라도 보여준다.
+                // "자료 없음"보다 판정 근거를 노출하는 게 이 제품의 핵심 가치(근거 투명성)에 맞다.
+                if (evidenceText) {
+                  return <RawTextDisplay text={evidenceText} />;
                 }
 
                 return (
@@ -789,7 +788,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
                     <svg className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-sm font-semibold">원문 표시 불가 (조회할 공고 PDF 경로 정보가 존재하지 않습니다.)</p>
+                    <p className="text-sm font-semibold">원문 표시 불가 (조회할 원문 자료가 없습니다.)</p>
                   </div>
                 );
               })()}
