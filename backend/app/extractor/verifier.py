@@ -159,6 +159,39 @@ def _is_spurious_region(field: EligibilityField) -> bool:
     return any(t in text for t in _REGION_NON_REQUIREMENT_TOKENS)
 
 
+# 나이 필드 한정 — 신청자/대표자 연령이 아닌 다른 수치(등록 마감일·자녀 나이 등)를
+# 나이 요건으로 오추출한 경우 차단 (precision).
+_AGE_NON_REQUIREMENT_TOKENS = (
+    # 자녀 연령 — 신청자 본인 나이가 아님 (예: '만12세 이하 자녀를 둔 육아기 연구자')
+    "자녀", "육아", "초등학교", "미성년",
+    # 등록·설립 시점 — 연령이 아니라 날짜 (예: '26년 12월까지 사업자등록 필수' → 12월을 12세로 오인)
+    "사업자등록", "설립", "창업일",
+)
+
+
+def _is_spurious_age(field: EligibilityField) -> bool:
+    """나이 필드가 신청자 연령이 아닌 값(등록 마감일·자녀 나이 등)을 오추출했을 때만 True.
+
+    두 신호로 차단한다:
+      1) 자녀·육아·등록·설립 토큰 — 신청자 본인 연령을 가리키지 않는다 (저연령 오인식은 여기서 잡힌다).
+      2) 사람 나이일 수 없는 큰 값(120 초과) — 연도(2026)·금액 등이 나이 값으로 오인식된 경우.
+    진짜 연령요건('만 39세 이하', '청년 만18~34세', '만 65세 이상')은 토큰도 없고 값도 정상이라 보존된다.
+    """
+    if field.field_name != "나이":
+        return False
+    cond = field.condition
+    raw = (cond.raw_text if cond else "") or ""
+    ev = field.evidence
+    ev_text = ev if isinstance(ev, str) else (getattr(ev, "text", "") or "")
+    text = f"{raw} {ev_text}"
+    if any(t in text for t in _AGE_NON_REQUIREMENT_TOKENS):
+        return True  # 자녀·육아·등록·설립 → 신청자 연령이 아님
+    val = cond.value if cond else None
+    if isinstance(val, (int, float)) and not isinstance(val, bool) and val > 120:
+        return True  # 사람 나이일 수 없는 값 (연도 2026 등 오인식)
+    return False
+
+
 def _recompute_amount(field: EligibilityField) -> None:
     """금액 필드(매출)는 raw_text에서 결정적으로 재계산해 LLM 산술 오류를 교정 (in-place).
 
@@ -242,6 +275,10 @@ def verify(result: ExtractionResult) -> ExtractionResult:
 
         # 지역 필드에서 비소재지(수출·진출 대상시장, 체류·국적 신분)를 오추출한 경우 제외
         if _is_spurious_region(field):
+            continue
+
+        # 나이 필드에서 신청자 연령이 아닌 값(등록 마감일·자녀 나이)을 오추출한 경우 제외
+        if _is_spurious_age(field):
             continue
 
         # LLM 산술 오류 방어: 금액 필드는 raw_text에서 결정적으로 재계산해 교정
