@@ -29,6 +29,8 @@ interface PdfViewerProps {
 export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, location }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState<number>(1);
+  // 근거가 위치한 페이지 — 네비게이션(이전/다음)과 무관하게 고정. 칩 라벨 표시용.
+  const [evidencePage, setEvidencePage] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   // 반응형 너비 추적을 위한 ResizeObserver 연동
@@ -78,16 +80,21 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
   // highlightPage가 변할 때 또는 텍스트 검색을 통한 페이지 점프
   useEffect(() => {
     if (highlightPage && highlightPage > 0) {
-      setPageNumber(clampPage(highlightPage, numPages));
+      const p = clampPage(highlightPage, numPages);
+      setPageNumber(p);
+      setEvidencePage(p);
       setSearchError(null);
     } else if (location?.page && location.page > 0) {
-      setPageNumber(clampPage(location.page, numPages));
+      const p = clampPage(location.page, numPages);
+      setPageNumber(p);
+      setEvidencePage(p);
       setSearchError(null);
     } else if (pdfDocument && evidenceText) {
       const targetText = evidenceText;
       let active = true;
       async function searchPdf() {
         setSearchError(null);
+        setEvidencePage(null);  // 검색 시작 시 이전 근거 페이지 초기화 (찾으면 아래에서 설정)
         const cleanTarget = targetText.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
         if (!cleanTarget) return;
 
@@ -105,7 +112,9 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
             const cleanPageText = pageText.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
 
             if (cleanPageText.includes(cleanTarget)) {
-              setPageNumber(clampPage(i, pdfDocument.numPages));
+              const p = clampPage(i, pdfDocument.numPages);
+              setPageNumber(p);
+              setEvidencePage(p);
               return;
             }
           } catch (err) {
@@ -130,6 +139,7 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
   // pdfUrl이 바뀌면 페이지 및 상태 초기화
   useEffect(() => {
     setPageNumber(1);
+    setEvidencePage(null);
     setLoading(true);
     setError(null);
     setPdfPage(null);
@@ -292,9 +302,14 @@ export default function PdfViewer({ pdfUrl, highlightPage, evidenceText, locatio
             ⚠️ {searchError}
           </div>
         ) : evidenceText ? (
-          <div className="hidden md:block max-w-[50%] truncate text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium">
-            🔍 근거: &quot;{evidenceText}&quot;
-            {!loading && <span className="ml-1 font-bold">({pageNumber}페이지)</span>}
+          <div
+            className="hidden md:flex items-center gap-1.5 max-w-[55%] text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium"
+            title={evidenceText}
+          >
+            {!loading && evidencePage != null && (
+              <span className="font-bold whitespace-nowrap flex-shrink-0">🔍 {evidencePage}페이지</span>
+            )}
+            <span className="truncate min-w-0">근거: &quot;{evidenceText}&quot;</span>
           </div>
         ) : null}
       </div>

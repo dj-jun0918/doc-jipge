@@ -65,8 +65,10 @@ export default function MatchResultCard({ field, onEvidenceClick }: MatchResultC
 
   const handleEvidenceClick = () => {
     if (evidence_source) {
+      // 근거 페이지를 모르면 0(=미지정)으로 넘긴다. 1을 기본값으로 주면 뷰어가 텍스트 검색 대신
+      // 무조건 1페이지로 고정돼 버린다. 0이면 뷰어가 location.page(신규 추출) 또는 텍스트 검색으로 실제 페이지를 찾는다.
       onEvidenceClick(
-        evidence_source.page || 1,
+        evidence_source.page || 0,
         evidence_source.text || "",
         evidence_source.location || null
       );
