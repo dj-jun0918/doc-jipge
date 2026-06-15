@@ -13,6 +13,8 @@ from app.extractor.llm_response_parser import (
 )
 # 인증 매핑표의 단일 소스 — matcher와 동일 표 사용 (가이드라인 매핑표와 동기화)
 from app.matcher.cert_mapping import CERT_MAPPING, extract_cert_keys
+# 지역 별칭의 단일 소스 — matcher의 시도 매핑표 재사용 (소재 요건 판별 가드)
+from app.matcher.matcher import REGION_GROUPS
 from app.schemas.eligibility import EligibilityField
 
 logger = logging.getLogger(__name__)
@@ -112,6 +114,51 @@ def _is_spurious_industry(field: EligibilityField) -> bool:
     return any(t in text for t in _INDUSTRY_NON_REQUIREMENT_TOKENS)
 
 
+# 지역 필드 한정 — '비소재지 개념'을 지역요건으로 오추출한 경우 차단 (precision).
+# 신청기업의 국내 소재지(시도/시군구)가 아니라 다른 범주(수출·진출 대상시장, 체류·국적 신분)를
+# 지역 요건으로 잘못 분류한 과추출이 지역 FP의 일부를 차지한다.
+_REGION_ALIASES = tuple(sorted(
+    {alias for aliases in REGION_GROUPS.values() for alias in aliases},
+    key=len, reverse=True,
+))
+# 소재지 신호 — 회사가 '어디에 있는가'를 말하는 진짜 지역요건의 표지.
+# '산업단지'는 지명형 위치(예: 수출산업단지) — '수출' 토큰에 걸려 오제거되지 않도록 보존 가드에 포함.
+_REGION_LOCATION_GUARD = ("소재", "관내", "산업단지")
+# 비소재 신호 — 위치가 아니라 판로(수출·진출 대상시장)나 신분(체류·국적)을 가리킴.
+_REGION_NON_REQUIREMENT_TOKENS = ("수출", "진출", "체류", "외국인", "국적")
+
+
+def _is_spurious_region(field: EligibilityField) -> bool:
+    """지역 필드가 '비소재지 개념'을 자격요건으로 오추출했을 때만 True.
+
+    두 겹 가드로 진짜 소재 요건은 절대 건드리지 않는다:
+      1) 본문에 실제 국내 시도/광역 표기(REGION_GROUPS 별칭)가 있으면 → 보존.
+      2) '소재·관내' 등 소재지 framing이 있으면 → 보존.
+    가드를 통과한 필드 중 비소재 신호(수출·진출 대상시장, 체류·국적 신분)가 있으면 차단.
+    예: '중동지역 수출 실적 필요'(판로), '합법 체류 외국인'(신분) — 모두 소재 요건이 아니다.
+    """
+    if field.field_name != "지역":
+        return False
+    cond = field.condition
+    raw = (cond.raw_text if cond else "") or ""
+    val = cond.value if cond else None
+    if isinstance(val, list):
+        val_text = " ".join(str(v) for v in val)
+    elif isinstance(val, str):
+        val_text = val
+    else:
+        val_text = ""
+    ev = field.evidence
+    ev_text = ev if isinstance(ev, str) else (getattr(ev, "text", "") or "")
+    text = f"{val_text} {raw} {ev_text}"
+
+    if any(a in text for a in _REGION_ALIASES):
+        return False  # 가드 1: 실제 국내 시도/광역 표기 → 진짜 소재 요건
+    if any(g in text for g in _REGION_LOCATION_GUARD):
+        return False  # 가드 2: 소재지 framing
+    return any(t in text for t in _REGION_NON_REQUIREMENT_TOKENS)
+
+
 def _recompute_amount(field: EligibilityField) -> None:
     """금액 필드(매출)는 raw_text에서 결정적으로 재계산해 LLM 산술 오류를 교정 (in-place).
 
@@ -191,6 +238,10 @@ def verify(result: ExtractionResult) -> ExtractionResult:
 
         # 업종 필드에서 비업종(법인격·수요처·법령정의·과제범위·결격)을 오추출한 경우 제외
         if _is_spurious_industry(field):
+            continue
+
+        # 지역 필드에서 비소재지(수출·진출 대상시장, 체류·국적 신분)를 오추출한 경우 제외
+        if _is_spurious_region(field):
             continue
 
         # LLM 산술 오류 방어: 금액 필드는 raw_text에서 결정적으로 재계산해 교정

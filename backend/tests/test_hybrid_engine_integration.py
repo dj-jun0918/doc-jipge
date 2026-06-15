@@ -207,6 +207,25 @@ class TestBranchScenarios:
         assert len(result.fields) == 1
         assert result.fields[0].processing_path == "rule_based"
 
+    async def test_llm_ran_but_verified_empty_skips_rule_overextraction(
+        self, patch_rule_parser, patch_text_llm, patch_vision_llm,
+    ):
+        """LLM이 실행됐으나 검증 후 빈 결과면, 검증 안 거친 규칙 과추출로 덮지 않고 빈 결과 반환.
+
+        예외(=미실행)와 구분: text/vision이 정상 실행돼 '유효 요건 없음'으로 판정했으면
+        규칙이 끼워 넣은 무관 필드(지역 등)를 채택하지 않는다. (거짓 양성 방어)
+        """
+        rule_fields = [_field("지역", operator="소재", value="서울", raw_text="서울", processing_path="rule_based")]
+        patch_rule_parser(rule_fields=rule_fields, api_sufficient=False, exclusion_sufficient=False)
+        patch_text_llm(return_value=_result([]))    # text 실행 → 빈 결과
+        patch_vision_llm(return_value=_result([]))  # vision 실행 → 빈 결과
+
+        result = await hybrid_engine.extract_eligibility(
+            _ann(pdf_path="/tmp/test.pdf"),
+        )
+
+        assert result.fields == []  # 규칙 과추출(지역 서울)로 덮지 않음
+
     async def test_no_pdf_skips_vision_uses_text_result(
         self, patch_rule_parser, patch_text_llm, patch_vision_llm, call_counter,
     ):

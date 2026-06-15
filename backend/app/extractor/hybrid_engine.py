@@ -177,7 +177,20 @@ async def _heuristic_routing(announcement: dict[str, Any]) -> AnnouncementEligib
         # 에러로 빈 결과면 규칙 fallback이 살아야 하므로 내용 있는 경우에만 채택
         return _build_announcement_eligibility(ann_id, title, text_result)
 
-    logger.warning("[hybrid] 모든 LLM 단계 실패 → 규칙 fallback")
+    # LLM이 실행됐으나 검증 후 빈 결과 = "유효 요건 없음"의 정당한 판정.
+    # 검증을 거치지 않은 규칙 과추출로 덮으면 거짓 양성이 생기므로(예: 비요건을 걸러내자
+    # 규칙이 무관한 지역·업력을 끼워 넣는 경우), LLM이 한 번이라도 실행됐다면 빈 결과를 신뢰한다.
+    if vision_result is not None or text_result is not None:
+        logger.info("[hybrid] LLM 실행 후 검증 결과 빈 요건 → 규칙 과추출 대신 빈 결과 채택")
+        return AnnouncementEligibility(
+            announcement_id=ann_id,
+            title=title,
+            fields=[],
+            exclusions=[],
+        )
+
+    # LLM이 아예 실행되지 못한 경우(입력 부재·에러)에만 규칙 결과로 fallback
+    logger.warning("[hybrid] 모든 LLM 단계 미실행/실패 → 규칙 fallback")
     return AnnouncementEligibility(
         announcement_id=ann_id,
         title=title,
