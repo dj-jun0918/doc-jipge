@@ -7,12 +7,12 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import httpx
 from celery import chain, group
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from tenacity import retry, retry_if_exception, retry_if_exception_type, stop_after_attempt, wait_exponential, before_sleep_log
 import logging
 
@@ -78,11 +78,12 @@ def _finish_job(db, job: PipelineJob, status: str = "done", error: str | None = 
 # ---------------------------------------------------------------------------
 
 @celery_app.task(bind=True, name="app.worker.tasks.collect_source")
-def collect_source(self, source: str) -> list[str]:
+def collect_source(self, source: str, limit: int | None = None) -> list[str]:
     """소스별 수집기 실행 + DB INSERT.
 
     Args:
         source: "bizinfo" / "kstartup" / "mss"
+        limit: 수집 상한 (None이면 전체). 데모·소량 테스트용.
 
     Returns:
         새로 생성된 announcement ID 리스트
@@ -96,7 +97,9 @@ def collect_source(self, source: str) -> list[str]:
     try:
         collector = COLLECTORS[source]()
         items = collector.collect_all()
-        logger.info(f"[{source}] 수집 완료: {len(items)}건")
+        if limit:
+            items = items[:limit]
+        logger.info(f"[{source}] 수집 완료: {len(items)}건" + (f" (limit {limit})" if limit else ""))
 
         new_ann_ids: list[str] = []
         skip_count = 0
@@ -548,10 +551,16 @@ def match_company_announcements(self, company_id: str) -> dict:
             _finish_job(db, job, status="failed", error=f"회사 없음: {company_id}")
             return {"status": "error", "reason": "company_not_found"}
 
+        # 마감 지난 공고는 매칭 대상에서 제외 (죽은 기회 추천 방지).
+        # period_end가 없으면(일정 미정) 마감 여부를 알 수 없으니 보존한다.
+        today = date.today()
         rows = db.scalars(
             select(EligibilityResult)
             .join(Announcement, EligibilityResult.announcement_id == Announcement.id)
-            .where(Announcement.duplicate_of.is_(None))
+            .where(
+                Announcement.duplicate_of.is_(None),
+                or_(Announcement.period_end.is_(None), Announcement.period_end >= today),
+            )
             .order_by(EligibilityResult.announcement_id)
         ).all()
         by_ann: dict[uuid.UUID, list[EligibilityResult]] = {}
