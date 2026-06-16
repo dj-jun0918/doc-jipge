@@ -49,6 +49,7 @@ interface Company {
   revenue: number;
   employee_count: number;
   founded_date?: string;
+  certifications?: Record<string, boolean> | null;
 }
 
 interface CompanyMatchSummary {
@@ -133,14 +134,6 @@ function getBizAge(foundedDateStr?: string) {
   const diffTime = Math.abs(today.getTime() - founded.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return parseFloat((diffDays / 365.25).toFixed(2));
-}
-
-function getSimulatedFoundedDate(targetAgeYears: number) {
-  const today = new Date();
-  const targetDays = targetAgeYears * 365.25;
-  const simulatedMs = today.getTime() - targetDays * 24 * 60 * 60 * 1000;
-  const simulatedDate = new Date(simulatedMs);
-  return simulatedDate.toISOString().split("T")[0];
 }
 
 export default function CompanyMatchingDetailPage(props: PageProps) {
@@ -823,16 +816,15 @@ function WhatIfPanel({
   setIsWhatIfExpanded,
   setSimResult,
 }: WhatIfPanelProps) {
-  const originalBizAge = company.founded_date ? getBizAge(company.founded_date) : 0;
   const originalRevenue = company.revenue ?? 0;
   const originalEmployeeCount = company.employee_count ?? 0;
   const originalRegion = company.region ?? "";
 
-  // Local state for smooth dragging
+  // Local state for smooth dragging. 업력/나이는 시간 기반(변경 불가)이라 시뮬레이터에서 제외.
   const [localRevenue, setLocalRevenue] = useState<number>(originalRevenue);
-  const [localBizAge, setLocalBizAge] = useState<number>(originalBizAge);
   const [localEmployeeCount, setLocalEmployeeCount] = useState<number>(originalEmployeeCount);
   const [localRegion, setLocalRegion] = useState<string>(originalRegion);
+  const [localCerts, setLocalCerts] = useState<Record<string, boolean>>((company.certifications as Record<string, boolean>) ?? {});
 
   // Sync with overrides (e.g. on Reset)
   useEffect(() => {
@@ -840,8 +832,8 @@ function WhatIfPanel({
   }, [overrides.revenue, originalRevenue]);
 
   useEffect(() => {
-    setLocalBizAge(overrides.founded_date ? getBizAge(overrides.founded_date) : originalBizAge);
-  }, [overrides.founded_date, originalBizAge]);
+    setLocalCerts((overrides.certifications as Record<string, boolean>) ?? (company.certifications as Record<string, boolean>) ?? {});
+  }, [overrides.certifications, company.certifications]);
 
   useEffect(() => {
     setLocalEmployeeCount(overrides.employee_count !== undefined ? overrides.employee_count : originalEmployeeCount);
@@ -858,9 +850,22 @@ function WhatIfPanel({
   }, 300);
 
   const currentRevenue = localRevenue;
-  const currentBizAge = localBizAge;
   const currentEmployeeCount = localEmployeeCount;
   const currentRegion = localRegion;
+  const currentCerts = localCerts;
+
+  const CERT_OPTIONS: [string, string][] = [
+    ["venture_company", "벤처기업"],
+    ["inno_biz", "이노비즈"],
+    ["main_biz", "메인비즈"],
+    ["iso_9001", "ISO 9001"],
+    ["women_owned", "여성기업"],
+  ];
+  const toggleCert = (key: string) => {
+    const next = { ...currentCerts, [key]: !currentCerts[key] };
+    setLocalCerts(next);
+    debouncedUpdate({ ...overrides, certifications: next });
+  };
 
   return (
     <div className="rounded-2xl border border-blue-200 bg-white shadow-md mb-8 overflow-hidden transition-all duration-300">
@@ -886,7 +891,7 @@ function WhatIfPanel({
               )}
             </h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              기업의 매출액, 업력, 지역, 임직원 수를 가상으로 조정하여 매칭 점수와 충족 여부의 변화를 시뮬레이션합니다.
+              기업의 매출액, 지역, 임직원 수, 인증을 가상으로 조정하여 매칭 점수와 충족 여부의 변화를 시뮬레이션합니다. (업력·나이는 시간 기반이라 변경 불가)
             </p>
           </div>
         </div>
@@ -931,7 +936,7 @@ function WhatIfPanel({
               type="range"
               min="0"
               max="10000000000" // 100억원
-              step="100000000" // 1억원
+              step="10000000" // 천만원 단위
               value={currentRevenue}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
@@ -947,32 +952,26 @@ function WhatIfPanel({
             </div>
           </div>
 
-          {/* 2. 업력 슬라이더 */}
+          {/* 2. 인증 (보유 토글) — 업력/나이는 시간 기반(변경 불가)이라 시뮬레이터에서 제외 */}
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center text-xs">
-              <span className="font-bold text-gray-600">⏳ 가상 업력</span>
+              <span className="font-bold text-gray-600">🏅 가상 인증</span>
               <span className="font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                {currentBizAge.toFixed(1)}년
+                {Object.values(currentCerts).filter(Boolean).length}개 보유
               </span>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="15"
-              step="0.5"
-              value={currentBizAge}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setLocalBizAge(val);
-                const simulatedDate = getSimulatedFoundedDate(val);
-                debouncedUpdate({ ...overrides, founded_date: simulatedDate });
-              }}
-              className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-            <div className="flex justify-between text-[10px] text-gray-400">
-              <span>0년</span>
-              <span>원본: {originalBizAge.toFixed(1)}년</span>
-              <span>15년</span>
+            <div className="flex flex-col gap-1 text-xs pt-0.5">
+              {CERT_OPTIONS.map(([key, label]) => (
+                <label key={key} className="flex items-center gap-1.5 cursor-pointer text-gray-700 hover:text-blue-600">
+                  <input
+                    type="checkbox"
+                    checked={!!currentCerts[key]}
+                    onChange={() => toggleCert(key)}
+                    className="accent-blue-600 cursor-pointer"
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
           </div>
 
