@@ -46,6 +46,14 @@ class MatchResultStats(BaseModel):
     해당없음: int = 0
 
 
+class ExclusionItem(BaseModel):
+    """공고의 신청 제외 조건 (확인사항). 매칭 점수·버킷엔 미반영 — 사용자가 직접 확인."""
+
+    text: str
+    evidence_source: str | None = None
+    processing_path: str | None = None  # rule_based/text_llm/vision_llm — 내부 메타, UI 기본 숨김
+
+
 class MatchResultDetailResponse(BaseModel):
     """GET /api/matching/{company_id}/{announcement_id} 응답."""
 
@@ -55,6 +63,7 @@ class MatchResultDetailResponse(BaseModel):
     stats: MatchResultStats
     match_score: float | None = None  # 공고 단위 총점 (0~1) — 매칭 목록과 동일 공식
     bucket: EligibilityBucket | None = None  # 신청가능/조건확인/자격미달 (status에서 파생)
+    exclusions: list[ExclusionItem] = []  # 신청 제외 조건 — 매칭 점수 미반영, 신청 전 확인용
     matched_at: datetime | None = None
 
 

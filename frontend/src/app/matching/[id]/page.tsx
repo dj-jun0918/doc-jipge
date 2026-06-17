@@ -88,6 +88,7 @@ interface MatchResultDetailResponse {
   matched_at: string | null;
   match_score?: number | null;
   bucket?: EligibilityBucket | null;
+  exclusions?: { text: string; evidence_source?: string | null; processing_path?: string | null }[];
 }
 
 interface AttachmentInfo {
@@ -157,6 +158,9 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
   const [selectedAnnDetail, setSelectedAnnDetail] = useState<AnnouncementDetail | null>(null);
   const [matchDetails, setMatchDetails] = useState<MatchField[]>([]);
   const [stats, setStats] = useState<MatchResultDetailResponse["stats"] | null>(null);
+  const [exclusions, setExclusions] = useState<{ text: string; evidence_source?: string | null; processing_path?: string | null }[]>([]);
+  const [showExclPath, setShowExclPath] = useState(false);
+  const [exclOpen, setExclOpen] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"all" | "confirm" | "counterfactual">("all");
   const [loadingCompany, setLoadingCompany] = useState<boolean>(true);
@@ -296,6 +300,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
       setEvidenceText(null);
       setSelectedLocation(null);
       setDetailError(null);
+      setExclusions([]);
       setOverrides({});
       setSimResult(null);
 
@@ -317,6 +322,7 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
         if (!active) return;
 
         setStats(matchData.stats);
+        setExclusions(matchData.exclusions ?? []);
         setMatchDetails(detailsList);
         setSelectedAnnDetail(annData);
       } catch (err) {
@@ -339,10 +345,14 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
     };
   }, [companyId, selectedAnnId, detailRetryNonce, parseMatchResultItems]);
 
+  const viewerRef = useRef<HTMLDivElement>(null);
+
   const handleEvidenceClick = (page: number, text: string, location?: any) => {
     setHighlightPage(page);
     setEvidenceText(text);
     setSelectedLocation(location || null);
+    // 근거 클릭 시 하단 원문 뷰어로 부드럽게 이동 (필드·제외조건 공용)
+    viewerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const simulateSeqRef = useRef<number>(0);
@@ -721,8 +731,82 @@ export default function CompanyMatchingDetailPage(props: PageProps) {
               )}
             </div>
 
+            {/* 신청 전 확인사항 — 제외 조건 (매칭 점수 미반영, 사용자가 직접 확인) */}
+            {exclusions.length > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-6 shadow-sm">
+                {/* 헤더 — 클릭하면 접기/펼치기 */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setExclOpen((v) => !v)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExclOpen((v) => !v);
+                    }
+                  }}
+                  className="flex items-center justify-between gap-2 cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900">📋 신청 전 확인사항</h3>
+                    <span className="text-[11px] font-black rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">
+                      제외 조건 {exclusions.length}건
+                    </span>
+                  </div>
+                  <span className="text-gray-500 text-xl leading-none flex-shrink-0">{exclOpen ? "▴" : "▾"}</span>
+                </div>
+
+                {exclOpen && (
+                  <>
+                    <div className="flex items-start justify-between gap-3 mt-2 mb-4">
+                      <p className="text-xs text-gray-500">
+                        아래 조건에 해당하면 신청이 제한될 수 있습니다. 매칭 점수에는 반영되지 않으니 직접 확인하세요.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowExclPath((v) => !v)}
+                        className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 font-semibold cursor-pointer flex-shrink-0"
+                      >
+                        <span className="text-xs leading-none">{showExclPath ? "▴" : "▾"}</span>
+                        ⚙️ 처리 경로 {showExclPath ? "숨기기" : "보기"}
+                      </button>
+                    </div>
+                    <ul className="space-y-2.5">
+                      {exclusions.map((ex, i) => (
+                        <li key={i} className="flex items-start justify-between gap-3 text-sm text-gray-700">
+                          <div className="flex items-start gap-2 min-w-0">
+                            <span className="text-amber-500 mt-0.5 flex-shrink-0">⚠️</span>
+                            <div className="min-w-0">
+                              <p>{ex.text}</p>
+                              {showExclPath && ex.processing_path && (
+                                <p className="mt-0.5 text-[11px] text-gray-400">
+                                  ⚙️ {ex.processing_path === "rule_based"
+                                    ? "규칙 기반"
+                                    : ex.processing_path === "text_llm"
+                                      ? "텍스트 LLM"
+                                      : ex.processing_path === "vision_llm"
+                                        ? "비전 LLM"
+                                        : ex.processing_path}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleEvidenceClick(0, ex.text, null)}
+                            className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 px-2 py-1 rounded-md transition font-semibold cursor-pointer"
+                          >
+                            원문 근거
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* 하단 PDF / HWPX / 텍스트 원문 연동 뷰어 섹션 */}
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <div ref={viewerRef} className="rounded-2xl border bg-white p-6 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 pb-3 border-b">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
