@@ -23,7 +23,7 @@ from app.matcher.matcher import (
 )
 from app.models.announcement import Announcement
 from app.models.company import Company
-from app.models.eligibility import EligibilityResult
+from app.models.eligibility import EligibilityResult, ExclusionResult
 from app.models.match_result import MatchResult
 from app.schemas.eligibility import EligibilityField, ParsedCondition
 from app.schemas.matching import (
@@ -33,6 +33,7 @@ from app.schemas.matching import (
     CounterfactualItem,
     CounterfactualRequest,
     CounterfactualResponse,
+    ExclusionItem,
     MatchResultDetailResponse,
     MatchResultItem,
     MatchResultStats,
@@ -171,12 +172,25 @@ def get_matching_detail(
         .order_by(MatchResult.created_at)
     ).all()
 
+    excl_rows = db.scalars(
+        select(ExclusionResult).where(ExclusionResult.announcement_id == ann_uuid)
+    ).all()
+    exclusions = [
+        ExclusionItem(
+            text=e.exclusion_text,
+            evidence_source=e.evidence_source,
+            processing_path=e.processing_path,
+        )
+        for e in excl_rows
+    ]
+
     if not rows:
         return MatchResultDetailResponse(
             company_id=company_uuid,
             announcement_id=ann_uuid,
             items=[],
             stats=MatchResultStats(),
+            exclusions=exclusions,
             matched_at=None,
         )
 
@@ -210,6 +224,7 @@ def get_matching_detail(
         stats=stats,
         match_score=round(compute_aggregate_score(field_tuples), 3),
         bucket=derive_eligibility_bucket(field_tuples),
+        exclusions=exclusions,
         matched_at=rows[-1].created_at,
     )
 
