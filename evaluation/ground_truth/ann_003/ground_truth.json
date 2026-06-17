@@ -26,6 +26,15 @@
       "operator": "소재",
       "evidence": "본사가 전북특별자치도 내에 소재하는 중소기업",
       "evidence_source": "첨부파일 5p 사업참여 제한사유 ①"
+    },
+    {
+      "field_name": "업종",
+      "condition": "콘텐츠산업 업종",
+      "value": "콘텐츠산업",
+      "operator": "포함",
+      "evidence": "한국표준산업분류 상 콘텐츠산업 업종에 해당하는 기업",
+      "evidence_source": "첨부파일 4p 지원자격 및 조건",
+      "notes": "지역특화콘텐츠개발지원 — 콘텐츠산업 업종 요건. 초기 라벨링 누락 보정(원문 verbatim 확인, 측정 검증 중 발견). 표준 7종 중 업종 필드 해당."
     }
   ],
   "exclusions": [

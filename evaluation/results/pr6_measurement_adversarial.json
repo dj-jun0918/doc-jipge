@@ -1,11 +1,11 @@
 {
   "overall": {
     "tp": 5,
-    "fp": 12,
+    "fp": 11,
     "fn": 2,
-    "precision": 0.29411764705882354,
+    "precision": 0.3125,
     "recall": 0.7142857142857143,
-    "f1": 0.4166666666666667
+    "f1": 0.43478260869565216
   },
   "announcements": {
     "adv_001": {
@@ -27,7 +27,14 @@
             "condition": "평균 매출액 400억원 이하",
             "evidence": {
               "text": "평균 매출액(3년) 400억원 이하인 매도희망 중소기업 중 M&A 정보망에 등록된 지원센터 및 자문기관 또는 기술보증기금 M&A 파트너스와 M&A 자문계약을 체결한 기업",
-              "location": null
+              "location": {
+                "location_type": "pdf_page",
+                "page": 2,
+                "bbox": null,
+                "table_index": null,
+                "row": null,
+                "paragraph_index": null
+              }
             },
             "processing_path": "vision_llm"
           }
@@ -149,21 +156,12 @@
       },
       "counts": {
         "tp": 0,
-        "fp": 2,
+        "fp": 1,
         "fn": 0
       },
       "details": {
         "tps": [],
         "fps": [
-          {
-            "field_name": "업종",
-            "condition": "휴·폐업중인 기업",
-            "evidence": {
-              "text": "휴·폐업중인 기업",
-              "location": null
-            },
-            "processing_path": "vision_llm"
-          },
           {
             "field_name": "업력",
             "condition": "창업 7년 미만 기업 제외",
@@ -177,8 +175,8 @@
         "fns": []
       },
       "routing": {
-        "chosen_path": "vision_llm",
-        "cost_usd": 0.011
+        "chosen_path": "text_llm",
+        "cost_usd": 0.001
       }
     },
     "adv_005": {
@@ -293,7 +291,14 @@
             "condition": "전년도 수출액 '1,000불 미만'",
             "evidence": {
               "text": "전년도 수출액 '1,000불 미만'",
-              "location": null
+              "location": {
+                "location_type": "pdf_page",
+                "page": 3,
+                "bbox": null,
+                "table_index": null,
+                "row": null,
+                "paragraph_index": null
+              }
             },
             "processing_path": "vision_llm"
           }
@@ -325,7 +330,14 @@
             "condition": "2026년 창업기업",
             "evidence": {
               "text": "공공기술 활용 사업화 예비창업자 또는 2026년 창업기업",
-              "location": null
+              "location": {
+                "location_type": "pdf_page",
+                "page": 2,
+                "bbox": null,
+                "table_index": null,
+                "row": null,
+                "paragraph_index": null
+              }
             },
             "processing_path": "vision_llm",
             "mismatch_target": "2026년 창업기업"
@@ -364,7 +376,14 @@
             "condition": "만 39세 이하",
             "evidence": {
               "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
-              "location": null
+              "location": {
+                "location_type": "pdf_page",
+                "page": 18,
+                "bbox": null,
+                "table_index": null,
+                "row": null,
+                "paragraph_index": null
+              }
             },
             "processing_path": "vision_llm"
           },
@@ -373,7 +392,14 @@
             "condition": "3년 미만",
             "evidence": {
               "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
-              "location": null
+              "location": {
+                "location_type": "pdf_page",
+                "page": 18,
+                "bbox": null,
+                "table_index": null,
+                "row": null,
+                "paragraph_index": null
+              }
             },
             "processing_path": "vision_llm"
           }
@@ -387,14 +413,6 @@
     }
   },
   "fields": {
-    "지역": {
-      "tp": 0,
-      "fp": 2,
-      "fn": 1,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
     "나이": {
       "tp": 0,
       "fp": 1,
@@ -403,23 +421,23 @@
       "recall": 0.0,
       "f1": 0.0
     },
-    "업종": {
+    "종업원 수": {
       "tp": 0,
-      "fp": 1,
+      "fp": 0,
       "fn": 0,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
     },
-    "인증": {
+    "지역": {
       "tp": 0,
       "fp": 2,
-      "fn": 0,
+      "fn": 1,
       "precision": 0.0,
       "recall": 0.0,
       "f1": 0.0
     },
-    "종업원 수": {
+    "업종": {
       "tp": 0,
       "fp": 0,
       "fn": 0,
@@ -434,6 +452,14 @@
       "precision": 0.375,
       "recall": 0.75,
       "f1": 0.5
+    },
+    "인증": {
+      "tp": 0,
+      "fp": 2,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
     },
     "매출": {
       "tp": 2,
@@ -457,23 +483,23 @@
     },
     "text_llm": {
       "tp": 3,
-      "fp": 3,
+      "fp": 4,
       "fn": 0,
-      "precision": 0.5,
+      "precision": 0.42857142857142855,
       "recall": 1.0,
-      "f1": 0.6666666666666666,
-      "count": 2,
-      "cost_usd": 0.002
+      "f1": 0.6,
+      "count": 3,
+      "cost_usd": 0.003
     },
     "vision_llm": {
       "tp": 2,
-      "fp": 9,
+      "fp": 7,
       "fn": 2,
-      "precision": 0.18181818181818182,
+      "precision": 0.2222222222222222,
       "recall": 0.5,
-      "f1": 0.26666666666666666,
-      "count": 7,
-      "cost_usd": 0.07200000000000001
+      "f1": 0.30769230769230765,
+      "count": 6,
+      "cost_usd": 0.061
     }
   },
   "mismatches": [
@@ -503,17 +529,6 @@
       "condition": "벤처기업·이노비즈 인증을 받은 경우",
       "evidence": {
         "text": "벤처기업·이노비즈 인증을 받은 경우",
-        "location": null
-      },
-      "target": "N/A"
-    },
-    {
-      "announcement_id": "adv_004",
-      "field_name": "업종",
-      "type": "FP (과추출/오인식)",
-      "condition": "휴·폐업중인 기업",
-      "evidence": {
-        "text": "휴·폐업중인 기업",
         "location": null
       },
       "target": "N/A"
@@ -580,7 +595,14 @@
       "condition": "전년도 수출액 '1,000불 미만'",
       "evidence": {
         "text": "전년도 수출액 '1,000불 미만'",
-        "location": null
+        "location": {
+          "location_type": "pdf_page",
+          "page": 3,
+          "bbox": null,
+          "table_index": null,
+          "row": null,
+          "paragraph_index": null
+        }
       },
       "target": "N/A"
     },
@@ -591,7 +613,14 @@
       "condition": "2026년 창업기업",
       "evidence": {
         "text": "공공기술 활용 사업화 예비창업자 또는 2026년 창업기업",
-        "location": null
+        "location": {
+          "location_type": "pdf_page",
+          "page": 2,
+          "bbox": null,
+          "table_index": null,
+          "row": null,
+          "paragraph_index": null
+        }
       },
       "target": "2026년 창업기업"
     },
@@ -610,7 +639,14 @@
       "condition": "만 39세 이하",
       "evidence": {
         "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
-        "location": null
+        "location": {
+          "location_type": "pdf_page",
+          "page": 18,
+          "bbox": null,
+          "table_index": null,
+          "row": null,
+          "paragraph_index": null
+        }
       },
       "target": "N/A"
     },
@@ -621,7 +657,14 @@
       "condition": "3년 미만",
       "evidence": {
         "text": "대표자가 만 39세 이하로서, 업력 3년 미만인 중소기업 또는 중소기업을 창업하는 자",
-        "location": null
+        "location": {
+          "location_type": "pdf_page",
+          "page": 18,
+          "bbox": null,
+          "table_index": null,
+          "row": null,
+          "paragraph_index": null
+        }
       },
       "target": "N/A"
     }
@@ -684,19 +727,19 @@
       "f1": null
     }
   ],
-  "total_cost_usd": 0.074,
+  "total_cost_usd": 0.064,
   "coverage": {
     "non_standard_announcement_count": 0,
     "total_announcement_count": 9,
     "non_standard_ratio": 0.0
   },
   "grounding": {
-    "total_fields": 17,
+    "total_fields": 16,
     "evidence_present_rate": 1.0,
-    "evidence_verbatim_rate": 0.9333,
-    "verbatim_checkable": 15,
-    "value_grounded_rate": 0.9412,
-    "value_checkable": 17,
+    "evidence_verbatim_rate": 0.9286,
+    "verbatim_checkable": 14,
+    "value_grounded_rate": 0.9375,
+    "value_checkable": 16,
     "note": "value_grounded는 표기 후보 휴리스틱 기반 하한 추정 — 단위 변형이 후보에 없으면 미발견 처리될 수 있음"
   }
 }
